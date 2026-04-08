@@ -42,7 +42,7 @@ export default function LoginPage() {
       });
       const user = useAuthStore.getState().user;
       toast.success("Logged in successfully");
-      if (user?.role === "admin") {
+      if (user?.role === "admin" || user?.role === "manager") {
         router.push("/admin/reports");
       } else {
         router.push("/leads");

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 // On the client side, use relative "/api/v1" so requests go through
 // the Next.js rewrite proxy (next.config.ts) and avoid CORS issues.
@@ -34,6 +35,12 @@ api.interceptors.response.use(
     return res;
   },
   async (error) => {
+    // Handle rate limiting
+    if (error.response?.status === 429) {
+      toast.error("Too many requests, please try again later");
+      return Promise.reject(error);
+    }
+
     const original = error.config;
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;

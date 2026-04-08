@@ -10,7 +10,7 @@ export default function DashboardHome() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      if (user.role === "admin") {
+      if (user.role === "admin" || user.role === "manager") {
         router.replace("/admin/reports");
       } else {
         router.replace("/leads");

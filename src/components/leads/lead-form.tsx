@@ -32,9 +32,19 @@ interface LeadFormProps {
   onSuccess: (leadId?: string) => void;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^\+?[\d\s\-()]{8,15}$/;
+
+interface FieldErrors {
+  full_name?: string;
+  email?: string;
+  phone?: string;
+}
+
 export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps) {
   const isEdit = !!lead;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -61,6 +71,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
   });
 
   useEffect(() => {
+    setErrors({});
     if (lead) {
       setForm({
         full_name: lead.full_name || "",
@@ -98,14 +109,57 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     }
   }, [lead, open]);
 
+  const validateField = (key: string, value: string): string | undefined => {
+    switch (key) {
+      case "full_name":
+        if (!value.trim()) return "Full name is required";
+        if (value.trim().length < 2) return "Name must be at least 2 characters";
+        return undefined;
+      case "email":
+        if (value && !EMAIL_REGEX.test(value)) return "Please enter a valid email address";
+        return undefined;
+      case "phone":
+        if (value && !PHONE_REGEX.test(value)) return "Please enter a valid phone number";
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
   const updateField = (key: string, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (key in errors || key === "full_name" || key === "email" || key === "phone") {
+      const fieldError = validateField(key, value);
+      setErrors((prev) => {
+        const next = { ...prev };
+        if (fieldError) {
+          next[key as keyof FieldErrors] = fieldError;
+        } else {
+          delete next[key as keyof FieldErrors];
+        }
+        return next;
+      });
+    }
   };
+
+  const validateForm = (): boolean => {
+    const newErrors: FieldErrors = {};
+    const nameErr = validateField("full_name", form.full_name);
+    if (nameErr) newErrors.full_name = nameErr;
+    const emailErr = validateField("email", form.email);
+    if (emailErr) newErrors.email = emailErr;
+    const phoneErr = validateField("phone", form.phone);
+    if (phoneErr) newErrors.phone = phoneErr;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const hasErrors = Object.keys(errors).length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.full_name.trim()) {
-      toast.error("Full name is required");
+    if (!validateForm()) {
+      toast.error("Please fix the validation errors");
       return;
     }
     setIsSubmitting(true);
@@ -174,15 +228,18 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Full Name *</Label>
-                    <Input value={form.full_name} onChange={(e) => updateField("full_name", e.target.value)} required />
+                    <Input value={form.full_name} onChange={(e) => updateField("full_name", e.target.value)} required className={errors.full_name ? "border-red-500" : ""} />
+                    {errors.full_name && <p className="text-xs text-red-500">{errors.full_name}</p>}
                   </div>
                   <div className="space-y-1">
                     <Label>Email</Label>
-                    <Input type="email" value={form.email} onChange={(e) => updateField("email", e.target.value)} />
+                    <Input type="email" value={form.email} onChange={(e) => updateField("email", e.target.value)} className={errors.email ? "border-red-500" : ""} />
+                    {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
                   </div>
                   <div className="space-y-1">
                     <Label>Phone</Label>
-                    <Input value={form.phone} onChange={(e) => updateField("phone", e.target.value)} />
+                    <Input value={form.phone} onChange={(e) => updateField("phone", e.target.value)} className={errors.phone ? "border-red-500" : ""} />
+                    {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
                   </div>
                   <div className="space-y-1">
                     <Label>Alternate Phone</Label>
@@ -303,7 +360,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || hasErrors}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEdit ? "Update" : "Create"}
             </Button>

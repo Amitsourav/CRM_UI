@@ -6,13 +6,14 @@ import { useAuthStore } from "@/stores/auth-store";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { PageSkeleton } from "@/components/shared/loading-skeleton";
+import ActiveCallsBar from "@/components/calls/active-calls-bar";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading, fetchMe } = useAuthStore();
+  const { user, isLoading, fetchMe, isManager } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function DashboardLayout({
         <Topbar />
         <main className="p-4 md:p-6">{children}</main>
       </div>
+      {isManager && <ActiveCallsBar />}
     </div>
   );
 }

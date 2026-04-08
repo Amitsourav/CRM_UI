@@ -16,14 +16,17 @@ import {
   Bell,
   Settings,
   UserCog,
+  Bot,
   Globe,
   BarChart3,
   FileSpreadsheet,
+  PhoneCall,
   LogOut,
 } from "lucide-react";
 
 const mainNav = [
   { href: "/leads", label: "Leads", icon: LayoutDashboard },
+  { href: "/calls", label: "Calls", icon: PhoneCall },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/notifications", label: "Notifications", icon: Bell },
@@ -31,6 +34,7 @@ const mainNav = [
 
 const adminNav = [
   { href: "/admin/users", label: "Users", icon: UserCog },
+  { href: "/admin/agents", label: "AI Agents", icon: Bot },
   { href: "/admin/sources", label: "Sources", icon: Globe },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/csv-history", label: "CSV History", icon: FileSpreadsheet },
@@ -38,7 +42,7 @@ const adminNav = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, isAdmin, logout } = useAuthStore();
+  const { user, isAdmin, isManager, logout } = useAuthStore();
 
   const initials = user?.full_name
     ?.split(" ")
@@ -82,11 +86,11 @@ export function Sidebar() {
               </Link>
             ))}
 
-            {isAdmin && (
+            {isManager && (
               <>
                 <Separator className="my-4" />
                 <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Admin
+                  {isAdmin ? "Admin" : "Management"}
                 </p>
                 {adminNav.map((item) => (
                   <Link

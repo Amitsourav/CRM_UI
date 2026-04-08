@@ -10,8 +10,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { CallStatusBadge } from "./call-status-badge";
+import { SentimentBadge } from "./sentiment-badge";
+import { CallDetail } from "./call-detail";
+import { Eye } from "lucide-react";
 import { format } from "date-fns";
 import { DISPOSITION_LABELS } from "@/lib/constants";
 import api from "@/lib/api";
@@ -25,6 +35,7 @@ interface CallHistoryProps {
 export function CallHistory({ leadId, refreshKey }: CallHistoryProps) {
   const [calls, setCalls] = useState<CallAttempt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedCall, setSelectedCall] = useState<CallAttempt | null>(null);
 
   useEffect(() => {
     const fetchCalls = async () => {
@@ -63,54 +74,83 @@ export function CallHistory({ leadId, refreshKey }: CallHistoryProps) {
   };
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>#</TableHead>
-            <TableHead>Disposition</TableHead>
-            <TableHead>Notes</TableHead>
-            <TableHead>Agenda</TableHead>
-            <TableHead>Duration</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {calls.map((call) => (
-            <TableRow key={call.id}>
-              <TableCell>{call.attempt_number}</TableCell>
-              <TableCell>
-                <Badge variant="outline">
-                  {DISPOSITION_LABELS[call.disposition]}
-                </Badge>
-              </TableCell>
-              <TableCell className="max-w-[200px] truncate">
-                {call.conversation_notes}
-              </TableCell>
-              <TableCell className="max-w-[200px] truncate">
-                {call.agent_agenda}
-              </TableCell>
-              <TableCell>{formatDuration(call.call_duration_seconds)}</TableCell>
-              <TableCell>
-                {format(new Date(call.created_at), "MMM d, h:mm a")}
-              </TableCell>
-              <TableCell>
-                {call.call_recording_url && (
-                  <a
-                    href={call.call_recording_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                )}
-              </TableCell>
+    <>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>#</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Sentiment</TableHead>
+              <TableHead>Disposition</TableHead>
+              <TableHead>Notes</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead></TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {calls.map((call) => (
+              <TableRow key={call.id}>
+                <TableCell>{call.attempt_number || "—"}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={call.call_type === "ai" ? "default" : "secondary"}
+                    className="text-xs"
+                  >
+                    {call.call_type === "ai" ? "AI" : "Live"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <CallStatusBadge status={call.call_status} />
+                </TableCell>
+                <TableCell>
+                  <SentimentBadge sentiment={call.sentiment} />
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="text-xs">
+                    {call.disposition
+                      ? DISPOSITION_LABELS[call.disposition as keyof typeof DISPOSITION_LABELS] || call.disposition
+                      : "—"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="max-w-[150px] truncate text-sm">
+                  {call.conversation_notes || "—"}
+                </TableCell>
+                <TableCell className="text-sm font-mono">
+                  {formatDuration(call.call_duration_seconds)}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {format(new Date(call.created_at), "MMM d, h:mm a")}
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setSelectedCall(call)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Call Detail Sheet */}
+      <Sheet open={!!selectedCall} onOpenChange={(open) => !open && setSelectedCall(null)}>
+        <SheetContent className="sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Call Details</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">
+            {selectedCall && <CallDetail call={selectedCall} />}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

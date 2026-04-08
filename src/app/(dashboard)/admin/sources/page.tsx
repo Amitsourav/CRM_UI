@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AdminGuard } from "@/components/shared/admin-guard";
+import { ManagerGuard } from "@/components/shared/admin-guard";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
@@ -101,7 +101,7 @@ export default function AdminSourcesPage() {
   ];
 
   return (
-    <AdminGuard>
+    <ManagerGuard>
       <div className="space-y-6">
         <PageHeader title="Lead Sources" description="Manage where your leads come from">
           <Button onClick={() => setDialogOpen(true)}>
@@ -157,6 +157,6 @@ export default function AdminSourcesPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminGuard>
+    </ManagerGuard>
   );
 }

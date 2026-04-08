@@ -51,15 +51,12 @@ export function CsvImportProgress({
           ...(assignedAgentId ? { assigned_agent_id: assignedAgentId } : {}),
           ...(leadSourceId ? { lead_source_id: leadSourceId } : {}),
         };
-        console.log("CSV Process request:", { importId, requestBody });
-
         const { data } = await api.post<CSVImport>(`/csv/${importId}/process`, requestBody);
 
         // The backend processes synchronously and returns the result
         setStatus(data);
         setIsProcessing(false);
       } catch (err: unknown) {
-        console.error("CSV process error:", err);
         const e = err as { response?: { status?: number; data?: { detail?: string } }; message?: string };
         const detail = e.response?.data?.detail;
         const status_code = e.response?.status;

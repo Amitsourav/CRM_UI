@@ -18,11 +18,13 @@ import type { Lead, Task } from "@/types";
 
 interface LeadDetailTabsProps {
   lead: Lead;
+  callRefreshKey?: number;
 }
 
-export function LeadDetailTabs({ lead }: LeadDetailTabsProps) {
+export function LeadDetailTabs({ lead, callRefreshKey: externalRefreshKey }: LeadDetailTabsProps) {
   const [callLogOpen, setCallLogOpen] = useState(false);
-  const [callRefreshKey, setCallRefreshKey] = useState(0);
+  const [internalRefreshKey, setInternalRefreshKey] = useState(0);
+  const callRefreshKey = (externalRefreshKey || 0) + internalRefreshKey;
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
@@ -201,7 +203,7 @@ export function LeadDetailTabs({ lead }: LeadDetailTabsProps) {
         open={callLogOpen}
         onOpenChange={setCallLogOpen}
         leadId={lead.id}
-        onSuccess={() => setCallRefreshKey((k) => k + 1)}
+        onSuccess={() => setInternalRefreshKey((k) => k + 1)}
       />
 
       <TaskForm

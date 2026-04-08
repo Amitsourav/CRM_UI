@@ -30,7 +30,8 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { TASK_TYPE_LABELS } from "@/lib/constants";
-import type { Task, TaskType } from "@/types";
+import type { Task, TaskType, User } from "@/types";
+import { useAuthStore } from "@/stores/auth-store";
 
 interface TaskFormProps {
   open: boolean;
@@ -47,13 +48,25 @@ export function TaskForm({
   leadId,
   onSuccess,
 }: TaskFormProps) {
+  const { isManager, user } = useAuthStore();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [taskType, setTaskType] = useState<TaskType>("follow_up");
   const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [assignedTo, setAssignedTo] = useState("");
+  const [agents, setAgents] = useState<User[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEdit = !!task;
+
+  useEffect(() => {
+    if (open && isManager) {
+      api
+        .get("/users?role=telecaller&is_active=true")
+        .then(({ data }) => setAgents(data.items || data || []))
+        .catch(() => {});
+    }
+  }, [open, isManager]);
 
   useEffect(() => {
     if (task) {
@@ -61,13 +74,15 @@ export function TaskForm({
       setDescription(task.description || "");
       setTaskType(task.task_type);
       setDueDate(task.due_date ? new Date(task.due_date) : undefined);
+      setAssignedTo(task.assigned_to || "");
     } else {
       setTitle("");
       setDescription("");
       setTaskType("follow_up");
       setDueDate(undefined);
+      setAssignedTo(user?.id || "");
     }
-  }, [task, open]);
+  }, [task, open, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +103,7 @@ export function TaskForm({
         task_type: taskType,
         due_date: format(dueDate, "yyyy-MM-dd"),
         lead_id: leadId || task?.lead_id || undefined,
+        assigned_to: assignedTo || undefined,
       };
 
       if (isEdit) {
@@ -171,6 +187,23 @@ export function TaskForm({
               </PopoverContent>
             </Popover>
           </div>
+          {isManager && (
+            <div className="space-y-2">
+              <Label>Assign to Agent</Label>
+              <Select value={assignedTo} onValueChange={setAssignedTo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <DialogFooter>
             <Button
               type="button"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AdminGuard } from "@/components/shared/admin-guard";
+import { ManagerGuard } from "@/components/shared/admin-guard";
 import { PageHeader } from "@/components/shared/page-header";
 import { Pagination } from "@/components/shared/pagination";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
 import api from "@/lib/api";
-import type { CSVImport, PaginatedResponse } from "@/types";
+import type { CSVImport } from "@/types";
 
 const STATUS_COLORS: Record<string, string> = {
   uploaded: "bg-slate-100 text-slate-700",
@@ -39,11 +39,11 @@ export default function AdminCsvHistoryPage() {
   const fetchHistory = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data } = await api.get<PaginatedResponse<CSVImport>>(
-        `/csv/history?page=${page}&page_size=20`
-      );
-      setImports(data.items || []);
-      setTotalPages(data.total_pages || 1);
+      const { data } = await api.get(`/csv/history?page=${page}&page_size=20`);
+      const items: CSVImport[] = Array.isArray(data) ? data : (data.items || []);
+      const pages: number = Array.isArray(data) ? 1 : (data.total_pages || 1);
+      setImports(items);
+      setTotalPages(pages);
     } catch {
       toast.error("Failed to load CSV history");
     } finally {
@@ -56,7 +56,7 @@ export default function AdminCsvHistoryPage() {
   }, [fetchHistory]);
 
   return (
-    <AdminGuard>
+    <ManagerGuard>
       <div className="space-y-6">
         <PageHeader
           title="CSV Import History"
@@ -170,6 +170,6 @@ export default function AdminCsvHistoryPage() {
 
         <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
-    </AdminGuard>
+    </ManagerGuard>
   );
 }

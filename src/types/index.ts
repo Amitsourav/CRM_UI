@@ -1,5 +1,5 @@
 /* ── Enums ── */
-export type Role = "admin" | "agent";
+export type Role = "admin" | "manager" | "telecaller";
 
 export type LeadStage =
   | "lead"
@@ -49,6 +49,7 @@ export type CSVImportStatus =
 /* ── Models ── */
 export interface User {
   id: string;
+  company_id?: string;
   email: string;
   full_name: string;
   phone?: string;
@@ -62,6 +63,7 @@ export interface User {
 
 export interface Lead {
   id: string;
+  company_id?: string;
   full_name: string;
   email?: string;
   phone?: string;
@@ -105,6 +107,7 @@ export interface Lead {
 
 export interface Task {
   id: string;
+  company_id?: string;
   lead_id?: string;
   lead?: Lead;
   assigned_to: string;
@@ -123,25 +126,85 @@ export interface Task {
   updated_at: string;
 }
 
+export type CallStatus = "pending" | "initiated" | "ringing" | "connected" | "ended" | "failed" | "no_answer";
+export type CallSentiment = "positive" | "neutral" | "negative";
+export type CallType = "ai" | "live";
+
 export interface CallAttempt {
   id: string;
   lead_id: string;
+  company_id: string;
+  call_type: CallType;
+  call_status: CallStatus;
+  ai_agent_id?: string;
+  telecaller_id?: string;
   agent_id: string;
-  agent?: User;
+  bolna_call_id?: string;
   attempt_number: number;
-  disposition: CallDisposition;
-  conversation_notes: string;
-  agent_agenda: string;
-  due_date_for_next?: string;
-  call_provider?: string;
-  call_recording_url?: string;
-  external_call_id?: string;
+  disposition?: string;
+  conversation_notes?: string;
+  agent_agenda?: string;
+  transcript?: string;
+  summary?: string;
+  sentiment?: CallSentiment;
+  sentiment_score?: number;
+  cost?: number;
   call_duration_seconds?: number;
+  call_recording_url?: string;
+  call_provider?: string;
+  external_call_id?: string;
+  due_date_for_next?: string;
+  started_at?: string;
+  ended_at?: string;
+  connected_at?: string;
+  duration?: number;
+  provider_call_id?: string;
   created_at: string;
+  updated_at?: string;
+}
+
+export interface CallAttemptWithLead extends CallAttempt {
+  lead_name?: string;
+  lead_phone?: string;
+  agent_name?: string;
+}
+
+export interface CallStats {
+  total_calls: number;
+  connected_calls: number;
+  failed_calls: number;
+  no_answer_calls: number;
+  avg_duration_seconds: number;
+  total_cost: number;
+  sentiment_breakdown: {
+    positive: number;
+    neutral: number;
+    negative: number;
+  };
+  calls_by_type: {
+    ai: number;
+    live: number;
+  };
+  calls_by_day: Array<{
+    date: string;
+    count: number;
+  }>;
+}
+
+export interface CallFilters {
+  telecaller_id?: string;
+  call_status?: string;
+  call_type?: string;
+  sentiment?: string;
+  date_from?: string;
+  date_to?: string;
+  skip?: number;
+  limit?: number;
 }
 
 export interface LeadStageLog {
   id: string;
+  company_id?: string;
   lead_id: string;
   from_stage?: LeadStage;
   to_stage: LeadStage;
@@ -155,6 +218,7 @@ export interface LeadStageLog {
 
 export interface LeadSource {
   id: string;
+  company_id?: string;
   name: string;
   source_type: SourceType;
   meta_form_id?: string;
@@ -165,6 +229,7 @@ export interface LeadSource {
 
 export interface Notification {
   id: string;
+  company_id?: string;
   user_id: string;
   type: NotificationType;
   title: string;
@@ -177,6 +242,7 @@ export interface Notification {
 
 export interface CSVImport {
   id: string;
+  company_id?: string;
   uploaded_by: string;
   file_name: string;
   status: CSVImportStatus;
@@ -191,6 +257,128 @@ export interface CSVImport {
   assigned_agent_id?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface AgentPricing {
+  total_usd: number;
+  total_inr: number;
+  monthly_1000_mins_inr: number;
+  savings_vs_bolna_pct: number;
+  breakdown: {
+    stt_usd: number;
+    tts_usd: number;
+    llm_usd: number;
+    telephony_usd: number;
+    platform_usd: number;
+  };
+  breakdown_pct: {
+    stt: number;
+    tts: number;
+    llm: number;
+    telephony: number;
+    platform: number;
+  };
+  dual_tts_enabled?: boolean;
+}
+
+export interface ProviderOption {
+  value: string;
+  label: string;
+}
+
+export interface ProviderOptions {
+  stt_providers: ProviderOption[];
+  tts_providers: ProviderOption[];
+  llm_providers: ProviderOption[];
+  llm_models: ProviderOption[];
+  voices: Record<string, Record<string, ProviderOption[]>>;
+  languages: ProviderOption[];
+  secondary_languages: ProviderOption[];
+  language_styles: ProviderOption[];
+  roles: ProviderOption[];
+  tones: ProviderOption[];
+  ambient_noise_options: ProviderOption[];
+  telephony_providers: ProviderOption[];
+  tts_providers_english?: ProviderOption[];
+  tts_voices_english?: Record<string, ProviderOption[]>;
+  tts_providers_hindi?: ProviderOption[];
+  tts_voices_hindi?: Record<string, ProviderOption[]>;
+}
+
+export interface AIAgent {
+  id: string;
+  company_id: string;
+  created_by?: string;
+
+  name: string;
+  role: string;
+  tone: string;
+  is_default: boolean;
+  is_active: boolean;
+
+  system_prompt: string;
+  welcome_message: string;
+  final_message_en: string;
+  final_message_hi: string;
+  silence_message_en: string;
+  silence_message_hi: string;
+
+  llm_provider: string;
+  llm_model: string;
+  llm_temperature: number;
+  llm_max_tokens: number;
+
+  stt_provider: string;
+  stt_model: string;
+  stt_keywords?: string;
+
+  tts_provider: string;
+  tts_model: string;
+  tts_voice: string;
+  tts_gender: string;
+  tts_speed: number;
+  tts_buffer_size: number;
+  tts_stability: number;
+  tts_similarity_boost: number;
+
+  tts_provider_english?: string | null;
+  tts_model_english?: string | null;
+  tts_voice_english?: string | null;
+  tts_provider_hindi?: string | null;
+  tts_model_hindi?: string | null;
+  tts_voice_hindi?: string | null;
+
+  primary_language: string;
+  secondary_language: string;
+  auto_language_switch: boolean;
+  language_style: string;
+
+  endpointing_ms: number;
+  linear_delay_ms: number;
+  words_before_interrupt: number;
+  max_response_words: number;
+  precise_transcript: boolean;
+
+  telephony_provider: string;
+  phone_number?: string;
+  call_timeout_seconds: number;
+  hangup_on_silence_seconds: number;
+  call_start_time: string;
+  call_end_time: string;
+  restrict_call_hours: boolean;
+  voicemail_detection: boolean;
+
+  noise_cancellation: boolean;
+  noise_cancellation_level: number;
+  ambient_noise: string;
+  silence_detection_seconds: number;
+
+  webhook_url?: string;
+
+  created_at: string;
+  updated_at: string;
+
+  pricing?: AgentPricing;
 }
 
 /* ── API Shapes ── */

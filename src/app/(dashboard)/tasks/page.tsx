@@ -25,7 +25,7 @@ const TAB_ENDPOINTS: Record<TabValue, string> = {
 };
 
 export default function TasksPage() {
-  const { isAdmin } = useAuthStore();
+  const { isManager } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabValue>("all");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,14 +65,14 @@ export default function TasksPage() {
   }, [activeTab, page, statusFilter, assignedToFilter]);
 
   const fetchAgents = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!isManager) return;
     try {
-      const { data } = await api.get("/users?role=agent&is_active=true");
+      const { data } = await api.get("/users?role=telecaller&is_active=true");
       setAgents(data.items || data || []);
     } catch {
       // silent
     }
-  }, [isAdmin]);
+  }, [isManager]);
 
   useEffect(() => {
     fetchTasks();
@@ -132,7 +132,7 @@ export default function TasksPage() {
           setPage(1);
         }}
         agents={agents}
-        isAdmin={isAdmin}
+        isAdmin={isManager}
       />
 
       <TaskTable

@@ -41,7 +41,7 @@ export function BulkAssignDialog({
   useEffect(() => {
     if (open) {
       api
-        .get("/users?role=agent&is_active=true")
+        .get("/users?role=telecaller&is_active=true")
         .then(({ data }) => setAgents(data.items || data || []))
         .catch(() => {});
       setSelectedAgent("");

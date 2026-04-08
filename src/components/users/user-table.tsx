@@ -37,7 +37,7 @@ export function UserTable({ users, isLoading, onEdit, onDeactivate }: UserTableP
       key: "role",
       header: "Role",
       cell: (user) => (
-        <Badge variant={user.role === "admin" ? "default" : "secondary"} className="capitalize">
+        <Badge variant={user.role === "admin" ? "default" : user.role === "manager" ? "outline" : "secondary"} className="capitalize">
           {user.role}
         </Badge>
       ),

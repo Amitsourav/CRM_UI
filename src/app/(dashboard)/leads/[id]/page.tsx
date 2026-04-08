@@ -9,6 +9,7 @@ import { LeadDetailTabs } from "@/components/leads/lead-detail-tabs";
 import { LeadForm } from "@/components/leads/lead-form";
 import { LeadAssignDialog } from "@/components/leads/lead-assign-dialog";
 import { CallLogForm } from "@/components/calls/call-log-form";
+import { StartCallButton } from "@/components/calls/start-call-button";
 import { TaskForm } from "@/components/tasks/task-form";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PageSkeleton } from "@/components/shared/loading-skeleton";
@@ -61,7 +62,7 @@ import type { Lead, LeadStage } from "@/types";
 export default function LeadDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAdmin } = useAuthStore();
+  const { isAdmin, isManager } = useAuthStore();
   const leadId = params.id as string;
 
   const [lead, setLead] = useState<Lead | null>(null);
@@ -74,6 +75,8 @@ export default function LeadDetailPage() {
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
+
+  const [callRefreshKey, setCallRefreshKey] = useState(0);
 
   // Stage change
   const [targetStage, setTargetStage] = useState<LeadStage | "">("");
@@ -196,9 +199,21 @@ export default function LeadDetailPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          {lead.phone && (
+            <StartCallButton
+              lead_id={lead.id}
+              lead_name={lead.full_name || "there"}
+              phone_number={lead.phone}
+              onCallEnd={() => {
+                toast.success("Call ended! Transcript saving...");
+                setCallRefreshKey((k) => k + 1);
+                fetchLead();
+              }}
+            />
+          )}
           <Button variant="outline" size="sm" onClick={() => setCallLogOpen(true)}>
             <Phone className="mr-2 h-4 w-4" />
-            Log Call
+            Log Manual
           </Button>
           <Button variant="outline" size="sm" onClick={() => setTaskFormOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -208,7 +223,7 @@ export default function LeadDetailPage() {
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
-          {isAdmin && (
+          {isManager && (
             <>
               <Button variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -228,7 +243,7 @@ export default function LeadDetailPage() {
         </div>
       </div>
 
-      <LeadDetailTabs lead={lead} />
+      <LeadDetailTabs lead={lead} callRefreshKey={callRefreshKey} />
 
       {/* Stage Change Dialog */}
       <Dialog open={stageDialogOpen} onOpenChange={setStageDialogOpen}>

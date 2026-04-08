@@ -2,17 +2,30 @@
 
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PipelineCard } from "./pipeline-card";
 import { STAGE_CONFIG } from "@/lib/constants";
+import { Loader2 } from "lucide-react";
 import type { Lead, LeadStage } from "@/types";
 
 interface PipelineColumnProps {
   stage: LeadStage;
   leads: Lead[];
+  totalCount: number;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
 }
 
-export function PipelineColumn({ stage, leads }: PipelineColumnProps) {
+export function PipelineColumn({
+  stage,
+  leads,
+  totalCount,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
+}: PipelineColumnProps) {
   const config = STAGE_CONFIG[stage];
 
   return (
@@ -22,13 +35,20 @@ export function PipelineColumn({ stage, leads }: PipelineColumnProps) {
           <div className={`h-3 w-3 rounded-full ${config.color}`} />
           <h3 className="font-medium text-sm">{config.label}</h3>
         </div>
-        <Badge variant="secondary" className="text-xs">
-          {leads.length}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          {leads.length < totalCount && (
+            <span className="text-xs text-muted-foreground">
+              {leads.length}/
+            </span>
+          )}
+          <Badge variant="secondary" className="text-xs">
+            {totalCount}
+          </Badge>
+        </div>
       </div>
       <Droppable droppableId={stage}>
         {(provided, snapshot) => (
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1" style={{ maxHeight: "calc(100vh - 300px)" }}>
             <div
               ref={provided.innerRef}
               {...provided.droppableProps}
@@ -49,6 +69,22 @@ export function PipelineColumn({ stage, leads }: PipelineColumnProps) {
                 </Draggable>
               ))}
               {provided.placeholder}
+              {hasMore && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs text-muted-foreground"
+                  onClick={onLoadMore}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore ? (
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  ) : null}
+                  {isLoadingMore
+                    ? "Loading..."
+                    : `Load more (${totalCount - leads.length} remaining)`}
+                </Button>
+              )}
             </div>
           </ScrollArea>
         )}

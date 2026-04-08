@@ -24,7 +24,7 @@ import type { Lead } from "@/types";
 function LeadsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAdmin } = useAuthStore();
+  const { isAdmin, isManager } = useAuthStore();
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -113,13 +113,13 @@ function LeadsPageContent() {
       <LeadFilters
         filters={filters}
         onFiltersChange={handleFiltersChange}
-        isAdmin={isAdmin}
+        isAdmin={isManager}
       />
 
       <LeadTable
         leads={leads}
         isLoading={isLoading}
-        isAdmin={isAdmin}
+        isAdmin={isManager}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         onEdit={(lead) => {
@@ -135,6 +135,7 @@ function LeadsPageContent() {
           setDeleteDialogOpen(true);
         }}
         onBulkAssign={() => setBulkAssignOpen(true)}
+        onCall={(lead) => router.push(`/leads/${lead.id}?action=call`)}
       />
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />

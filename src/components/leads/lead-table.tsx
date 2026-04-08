@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, Edit, UserPlus, Trash2, Users } from "lucide-react";
+import { MoreHorizontal, Eye, Edit, UserPlus, Trash2, Users, Phone } from "lucide-react";
 import { format, isBefore, startOfDay } from "date-fns";
 import type { Lead } from "@/types";
 
@@ -25,6 +25,7 @@ interface LeadTableProps {
   onAssign: (leadId: string) => void;
   onDelete: (leadId: string) => void;
   onBulkAssign: () => void;
+  onCall?: (lead: Lead) => void;
 }
 
 export function LeadTable({
@@ -37,6 +38,7 @@ export function LeadTable({
   onAssign,
   onDelete,
   onBulkAssign,
+  onCall,
 }: LeadTableProps) {
   const router = useRouter();
 
@@ -113,6 +115,12 @@ export function LeadTable({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {onCall && lead.phone && (
+              <DropdownMenuItem onClick={() => onCall(lead)}>
+                <Phone className="mr-2 h-4 w-4" />
+                Start AI Call
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => router.push(`/leads/${lead.id}`)}>
               <Eye className="mr-2 h-4 w-4" />
               View

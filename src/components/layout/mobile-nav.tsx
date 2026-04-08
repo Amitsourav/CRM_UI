@@ -16,13 +16,16 @@ import {
   CheckSquare,
   Bell,
   UserCog,
+  Bot,
   Globe,
   BarChart3,
   FileSpreadsheet,
+  PhoneCall,
 } from "lucide-react";
 
 const mainNav = [
   { href: "/leads", label: "Leads", icon: LayoutDashboard },
+  { href: "/calls", label: "Calls", icon: PhoneCall },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/notifications", label: "Notifications", icon: Bell },
@@ -30,6 +33,7 @@ const mainNav = [
 
 const adminNav = [
   { href: "/admin/users", label: "Users", icon: UserCog },
+  { href: "/admin/agents", label: "AI Agents", icon: Bot },
   { href: "/admin/sources", label: "Sources", icon: Globe },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/csv-history", label: "CSV History", icon: FileSpreadsheet },
@@ -39,6 +43,7 @@ export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const isAdmin = useAuthStore((s) => s.isAdmin);
+  const isManager = useAuthStore((s) => s.isManager);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -71,11 +76,11 @@ export function MobileNav() {
                 {item.label}
               </Link>
             ))}
-            {isAdmin && (
+            {isManager && (
               <>
                 <Separator className="my-4" />
                 <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Admin
+                  {isAdmin ? "Admin" : "Management"}
                 </p>
                 {adminNav.map((item) => (
                   <Link

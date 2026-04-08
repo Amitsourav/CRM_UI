@@ -4,10 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { PipelineColumn } from "./pipeline-column";
 import { STAGE_CONFIG, VALID_TRANSITIONS } from "@/lib/constants";
+import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import type { Lead, LeadStage } from "@/types";
+import type { Lead, LeadStage, User, LeadSource, PaginatedResponse } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -24,12 +32,21 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
 const STAGES = Object.entries(STAGE_CONFIG)
   .sort(([, a], [, b]) => a.order - b.order)
   .map(([key]) => key as LeadStage);
+
+const PER_STAGE_LIMIT = 30;
+
+interface StageData {
+  leads: Lead[];
+  total: number;
+  page: number;
+  isLoadingMore: boolean;
+}
 
 interface StageChangeData {
   leadId: string;
@@ -38,15 +55,24 @@ interface StageChangeData {
 }
 
 export function PipelineBoard() {
-  const [leadsByStage, setLeadsByStage] = useState<Record<LeadStage, Lead[]>>({
-    lead: [],
-    called: [],
-    connected: [],
-    qualified_lead: [],
-    won: [],
-    lost: [],
+  const { isManager } = useAuthStore();
+
+  const [stageData, setStageData] = useState<Record<LeadStage, StageData>>(() => {
+    const initial = {} as Record<LeadStage, StageData>;
+    STAGES.forEach((stage) => {
+      initial[stage] = { leads: [], total: 0, page: 1, isLoadingMore: false };
+    });
+    return initial;
   });
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filters
+  const [agentFilter, setAgentFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [agents, setAgents] = useState<User[]>([]);
+  const [sources, setSources] = useState<LeadSource[]>([]);
+
+  // Stage change dialog
   const [stageChangeData, setStageChangeData] = useState<StageChangeData | null>(null);
   const [notes, setNotes] = useState("");
   const [agenda, setAgenda] = useState("");
@@ -54,25 +80,78 @@ export function PipelineBoard() {
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchLeads = useCallback(async () => {
-    try {
-      const { data } = await api.get("/leads?page_size=100");
-      const allLeads: Lead[] = Array.isArray(data) ? data : (data.items || []);
-      const grouped = {} as Record<LeadStage, Lead[]>;
-      STAGES.forEach((stage) => {
-        grouped[stage] = allLeads.filter((l) => l.current_stage === stage);
-      });
-      setLeadsByStage(grouped);
-    } catch {
-      toast.error("Failed to load pipeline data");
-    } finally {
-      setIsLoading(false);
+  // Load filter options
+  useEffect(() => {
+    if (isManager) {
+      api
+        .get("/users?role=telecaller&is_active=true")
+        .then(({ data }) => setAgents(data.items || data || []))
+        .catch(() => {});
     }
-  }, []);
+    api
+      .get("/leads/sources/list")
+      .then(({ data }) => setSources(Array.isArray(data) ? data : data.items || []))
+      .catch(() => {});
+  }, [isManager]);
+
+  const buildParams = useCallback(
+    (stage: LeadStage, page: number) => {
+      const params = new URLSearchParams();
+      params.set("current_stage", stage);
+      params.set("page", page.toString());
+      params.set("page_size", PER_STAGE_LIMIT.toString());
+      if (agentFilter !== "all") params.set("agent_id", agentFilter);
+      if (sourceFilter !== "all") params.set("source_id", sourceFilter);
+      return params.toString();
+    },
+    [agentFilter, sourceFilter]
+  );
+
+  const fetchStage = useCallback(
+    async (stage: LeadStage, page: number = 1, append: boolean = false) => {
+      try {
+        const { data } = await api.get<PaginatedResponse<Lead>>(
+          `/leads?${buildParams(stage, page)}`
+        );
+        const leads = data.items || [];
+        setStageData((prev) => ({
+          ...prev,
+          [stage]: {
+            leads: append ? [...prev[stage].leads, ...leads] : leads,
+            total: data.total || 0,
+            page,
+            isLoadingMore: false,
+          },
+        }));
+      } catch {
+        setStageData((prev) => ({
+          ...prev,
+          [stage]: { ...prev[stage], isLoadingMore: false },
+        }));
+      }
+    },
+    [buildParams]
+  );
+
+  // Initial load — fetch all stages in parallel
+  const fetchAll = useCallback(async () => {
+    setIsLoading(true);
+    await Promise.all(STAGES.map((stage) => fetchStage(stage, 1, false)));
+    setIsLoading(false);
+  }, [fetchStage]);
 
   useEffect(() => {
-    fetchLeads();
-  }, [fetchLeads]);
+    fetchAll();
+  }, [fetchAll]);
+
+  const handleLoadMore = (stage: LeadStage) => {
+    const nextPage = stageData[stage].page + 1;
+    setStageData((prev) => ({
+      ...prev,
+      [stage]: { ...prev[stage], isLoadingMore: true },
+    }));
+    fetchStage(stage, nextPage, true);
+  };
 
   const needsNotes = (stage: LeadStage) =>
     ["called", "connected", "qualified_lead"].includes(stage);
@@ -104,24 +183,41 @@ export function PipelineBoard() {
     toStage: LeadStage,
     extraData?: Record<string, unknown>
   ) => {
-    const lead = leadsByStage[fromStage].find((l) => l.id === leadId);
+    const lead = stageData[fromStage].leads.find((l) => l.id === leadId);
     if (!lead) return;
 
     // Optimistic update
-    setLeadsByStage((prev) => ({
+    setStageData((prev) => ({
       ...prev,
-      [fromStage]: prev[fromStage].filter((l) => l.id !== leadId),
-      [toStage]: [...prev[toStage], { ...lead, current_stage: toStage }],
+      [fromStage]: {
+        ...prev[fromStage],
+        leads: prev[fromStage].leads.filter((l) => l.id !== leadId),
+        total: prev[fromStage].total - 1,
+      },
+      [toStage]: {
+        ...prev[toStage],
+        leads: [{ ...lead, current_stage: toStage }, ...prev[toStage].leads],
+        total: prev[toStage].total + 1,
+      },
     }));
 
     try {
       await api.post(`/leads/${leadId}/stage`, { to_stage: toStage, ...extraData });
       toast.success(`Lead moved to ${STAGE_CONFIG[toStage].label}`);
     } catch (error: unknown) {
-      setLeadsByStage((prev) => ({
+      // Revert optimistic update
+      setStageData((prev) => ({
         ...prev,
-        [fromStage]: [...prev[fromStage], lead],
-        [toStage]: prev[toStage].filter((l) => l.id !== leadId),
+        [fromStage]: {
+          ...prev[fromStage],
+          leads: [...prev[fromStage].leads, lead],
+          total: prev[fromStage].total + 1,
+        },
+        [toStage]: {
+          ...prev[toStage],
+          leads: prev[toStage].leads.filter((l) => l.id !== leadId),
+          total: prev[toStage].total - 1,
+        },
       }));
       const err = error as { response?: { data?: { detail?: string } } };
       toast.error(err.response?.data?.detail || "Failed to change stage");
@@ -182,21 +278,63 @@ export function PipelineBoard() {
 
   return (
     <>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        {isManager && (
+          <Select value={agentFilter} onValueChange={(v) => setAgentFilter(v)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All Telecallers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Telecallers</SelectItem>
+              {agents.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v)}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="All Sources" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sources</SelectItem>
+            {sources.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={fetchAll}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Pipeline board */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div
           className="flex gap-4 overflow-x-auto pb-4"
-          style={{ minHeight: "calc(100vh - 200px)" }}
+          style={{ minHeight: "calc(100vh - 260px)" }}
         >
           {STAGES.map((stage) => (
             <PipelineColumn
               key={stage}
               stage={stage}
-              leads={leadsByStage[stage]}
+              leads={stageData[stage].leads}
+              totalCount={stageData[stage].total}
+              hasMore={stageData[stage].leads.length < stageData[stage].total}
+              isLoadingMore={stageData[stage].isLoadingMore}
+              onLoadMore={() => handleLoadMore(stage)}
             />
           ))}
         </div>
       </DragDropContext>
 
+      {/* Stage change dialog */}
       <Dialog open={!!stageChangeData} onOpenChange={(open) => !open && closeStageDialog()}>
         <DialogContent>
           <DialogHeader>
