@@ -131,16 +131,6 @@ const TTS_MODELS_HINDI: Record<string, string> = {
   sarvam: "bulbul:v3",
 };
 
-const TTS_MODELS: Record<string, { value: string; label: string }[]> = {
-  sarvam: [
-    { value: "bulbul:v3", label: "bulbul:v3" },
-    { value: "bulbul:v2", label: "bulbul:v2" },
-  ],
-  smallest: [{ value: "lightning-v2", label: "lightning-v2" }],
-  elevenlabs: [{ value: "eleven_turbo_v2_5", label: "eleven_turbo_v2_5" }],
-  cartesia: [{ value: "sonic", label: "sonic" }],
-};
-
 const STT_COSTS: Record<string, number> = {
   sarvam: 0.002,
   deepgram: 0.004,
@@ -258,7 +248,11 @@ export function AgentForm({ agent, onSuccess, onCancel }: AgentFormProps) {
     const provider = form.stt_provider || "sarvam";
     return options.stt_models?.[provider] || [];
   }, [options, form.stt_provider]);
-  const ttsModels = TTS_MODELS[form.tts_provider || "sarvam"] || [];
+  const ttsModels = useMemo(() => {
+    if (!options) return [];
+    const provider = form.tts_provider || "sarvam";
+    return options.tts_models?.[provider] || [];
+  }, [options, form.tts_provider]);
 
   const voiceList = useMemo(() => {
     if (!options) return [];

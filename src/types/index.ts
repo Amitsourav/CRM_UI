@@ -290,6 +290,8 @@ export interface ProviderOptions {
   stt_providers: ProviderOption[];
   stt_models?: Record<string, ProviderOption[]>;
   tts_providers: ProviderOption[];
+  tts_models?: Record<string, ProviderOption[]>;
+  tts_genders?: ProviderOption[];
   llm_providers: ProviderOption[];
   llm_models: ProviderOption[];
   voices: Record<string, Record<string, ProviderOption[]>>;
