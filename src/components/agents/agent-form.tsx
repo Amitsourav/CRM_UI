@@ -161,13 +161,24 @@ const TTS_COSTS: Record<string, number> = {
   elevenlabs: 0.03,
   cartesia: 0.005,
 };
+const LLM_COST_PER_MIN: Record<string, number> = {
+  // Groq via OpenRouter — new
+  "meta-llama/llama-3.3-70b-instruct": 0.0008,
+  "meta-llama/llama-3.1-8b-instruct": 0.0002,
+  "google/gemini-flash-1.5-8b": 0.0003,
+  // existing
+  "openai/gpt-4o-mini": 0.0030,
+  "openai/gpt-4o": 0.0150,
+  "openai/gpt-4.1-mini": 0.0030,
+  "openai/gpt-4.1": 0.0120,
+  "openai/gpt-4.1-nano": 0.0010,
+  "anthropic/claude-3-haiku-20240307": 0.0020,
+  "anthropic/claude-sonnet-4": 0.0200,
+};
+
 function llmCost(model: string): number {
   if (!model) return 0.003;
-  if (model.includes("nano")) return 0.001;
-  if (model.includes("haiku")) return 0.002;
-  if (model.includes("mini")) return 0.003;
-  if (model.includes("gpt-4o") || model.includes("gpt-4.1")) return 0.015;
-  return 0.003;
+  return LLM_COST_PER_MIN[model] ?? 0.003;
 }
 
 export function AgentForm({ agent, onSuccess, onCancel }: AgentFormProps) {
