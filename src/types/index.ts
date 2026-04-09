@@ -288,6 +288,7 @@ export interface ProviderOption {
 
 export interface ProviderOptions {
   stt_providers: ProviderOption[];
+  stt_models?: Record<string, ProviderOption[]>;
   tts_providers: ProviderOption[];
   llm_providers: ProviderOption[];
   llm_models: ProviderOption[];

@@ -131,15 +131,6 @@ const TTS_MODELS_HINDI: Record<string, string> = {
   sarvam: "bulbul:v3",
 };
 
-const STT_MODELS: Record<string, { value: string; label: string }[]> = {
-  sarvam: [{ value: "saaras:v3", label: "saaras:v3" }],
-  deepgram: [
-    { value: "nova-2", label: "nova-2" },
-    { value: "nova-3", label: "nova-3" },
-  ],
-  azure: [{ value: "azure-speech", label: "azure-speech" }],
-};
-
 const TTS_MODELS: Record<string, { value: string; label: string }[]> = {
   sarvam: [
     { value: "bulbul:v3", label: "bulbul:v3" },
@@ -262,7 +253,11 @@ export function AgentForm({ agent, onSuccess, onCancel }: AgentFormProps) {
     };
   }, [form.stt_provider, form.tts_provider, form.llm_model]);
 
-  const sttModels = STT_MODELS[form.stt_provider || "sarvam"] || [];
+  const sttModels = useMemo(() => {
+    if (!options) return [];
+    const provider = form.stt_provider || "sarvam";
+    return options.stt_models?.[provider] || [];
+  }, [options, form.stt_provider]);
   const ttsModels = TTS_MODELS[form.tts_provider || "sarvam"] || [];
 
   const voiceList = useMemo(() => {
