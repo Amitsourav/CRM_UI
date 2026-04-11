@@ -147,6 +147,11 @@ const LLM_COST_PER_MIN: Record<string, number> = {
   "meta-llama/llama-3.3-70b-instruct": 0.0008,
   "meta-llama/llama-3.1-8b-instruct": 0.0002,
   "google/gemini-flash-1.5-8b": 0.0003,
+  // Qwen
+  "qwen/qwen-turbo": 0.0001,
+  "qwen/qwen3-14b": 0.0002,
+  "qwen/qwen3-30b-a3b": 0.0003,
+  "qwen/qwen3-8b": 0.0002,
   // existing
   "openai/gpt-4o-mini": 0.0030,
   "openai/gpt-4o": 0.0150,
