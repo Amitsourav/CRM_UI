@@ -955,7 +955,7 @@ export function AgentForm({ agent, onSuccess, onCancel }: AgentFormProps) {
                     <Input
                       type="number"
                       min={100}
-                      max={500}
+                      max={2000}
                       value={form.endpointing_ms ?? 250}
                       onChange={(e) => update("endpointing_ms", parseInt(e.target.value) || 0)}
                     />
