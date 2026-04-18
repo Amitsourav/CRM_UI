@@ -21,6 +21,7 @@ import {
   BarChart3,
   FileSpreadsheet,
   PhoneCall,
+  Megaphone,
 } from "lucide-react";
 
 const mainNav = [
@@ -33,6 +34,7 @@ const mainNav = [
 
 const adminNav = [
   { href: "/admin/users", label: "Users", icon: UserCog },
+  { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/admin/agents", label: "AI Agents", icon: Bot },
   { href: "/admin/sources", label: "Sources", icon: Globe },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
