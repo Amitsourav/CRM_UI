@@ -128,7 +128,7 @@ export default function NewCampaignPage() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const campaign = await campaignService.create({
+      const response = await campaignService.create({
         name: name.trim(),
         description: description.trim() || undefined,
         ai_agent_id: agentId,
@@ -143,9 +143,12 @@ export default function NewCampaignPage() {
         ...(leadMode === "select" && { lead_ids: Array.from(selectedLeadIds) }),
       });
 
-      if (leadMode === "upload" && csvFile) {
+      // Backend returns { id, campaign_id, ... } — use id field
+      const campaignId = response.id || (response as unknown as Record<string, string>).campaign_id;
+
+      if (leadMode === "upload" && csvFile && campaignId) {
         try {
-          const result = await campaignService.uploadCsv(campaign.id, csvFile);
+          const result = await campaignService.uploadCsv(campaignId, csvFile);
           toast.success(
             `Campaign created! ${result.new_leads_created} new leads created, ${result.existing_leads_added} existing leads added.`
           );
@@ -157,7 +160,7 @@ export default function NewCampaignPage() {
         toast.success("Campaign created");
       }
 
-      router.push(`/campaigns/${campaign.id}`);
+      router.push(`/campaigns/${campaignId}`);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       toast.error(e.response?.data?.detail || "Failed to create campaign");
