@@ -53,6 +53,20 @@ export interface CreateCampaignRequest {
   lead_ids?: string[];
 }
 
+export interface CsvUploadResult {
+  success: boolean;
+  total_rows: number;
+  new_leads_created: number;
+  existing_leads_added: number;
+  duplicates_skipped: number;
+  invalid_rows: number;
+  errors: Array<{ row: number; error: string }>;
+}
+
+export function getCsvTemplateUrl(): string {
+  return "/api/v1/campaigns/csv-template";
+}
+
 export const campaignService = {
   list: async (params?: { status?: string; page?: number; page_size?: number }) => {
     const res = await api.get("/campaigns", { params });
@@ -101,6 +115,15 @@ export const campaignService = {
 
   getLeads: async (id: string, params?: { status?: string; page?: number; page_size?: number }) => {
     const res = await api.get(`/campaigns/${id}/leads`, { params });
+    return res.data;
+  },
+
+  uploadCsv: async (id: string, file: File): Promise<CsvUploadResult> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post(`/campaigns/${id}/upload-csv`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return res.data;
   },
 };

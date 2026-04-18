@@ -38,10 +38,13 @@ import {
   XCircle,
   Loader2,
   Plus,
+  Upload,
+  Download,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { campaignService } from "@/services/campaign-service";
-import type { Campaign, CampaignLead } from "@/services/campaign-service";
+import { campaignService, getCsvTemplateUrl } from "@/services/campaign-service";
+import type { Campaign, CampaignLead, CsvUploadResult } from "@/services/campaign-service";
 import { formatDistanceToNow } from "date-fns";
 import api from "@/lib/api";
 import type { Lead } from "@/types";
@@ -91,6 +94,12 @@ export default function CampaignDetailPage() {
   // Delete
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // CSV upload
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<CsvUploadResult | null>(null);
 
   // Settings edit
   const [editing, setEditing] = useState(false);
@@ -207,6 +216,23 @@ export default function CampaignDetailPage() {
   };
 
   // Save settings
+  const handleUploadCsv = async () => {
+    if (!csvFile) return;
+    setUploading(true);
+    try {
+      const result = await campaignService.uploadCsv(id, csvFile);
+      setUploadResult(result);
+      if (result.new_leads_created > 0 || result.existing_leads_added > 0) {
+        toast.success(`${result.new_leads_created + result.existing_leads_added} leads added`);
+      }
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      toast.error(e.response?.data?.detail || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSaveSettings = async () => {
     try {
       await campaignService.update(id, {
@@ -318,9 +344,14 @@ export default function CampaignDetailPage() {
               </>
             )}
             {isEditable && (
-              <Button variant="outline" size="sm" onClick={openAssign}>
-                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Leads
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={openAssign}>
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Leads
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setCsvModalOpen(true)}>
+                  <Upload className="mr-1.5 h-3.5 w-3.5" /> Upload CSV
+                </Button>
+              </>
             )}
             {(campaign.status === "draft" || campaign.status === "completed" || campaign.status === "stopped") && (
               <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
@@ -691,6 +722,138 @@ export default function CampaignDetailPage() {
                   {isAssigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Assign {selectedNewLeads.size} Leads
                 </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CSV Upload Modal */}
+        {csvModalOpen && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-background rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              <div className="p-5 border-b flex items-center justify-between">
+                <h3 className="font-semibold">Upload Leads CSV</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => { setCsvModalOpen(false); setUploadResult(null); setCsvFile(null); }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="p-5 space-y-4">
+                {!uploadResult && !uploading && (
+                  <>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <a
+                        href={getCsvTemplateUrl()}
+                        download
+                        className="text-sm text-blue-700 underline inline-flex items-center gap-1"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download CSV template
+                      </a>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Select CSV File</Label>
+                      <Input
+                        type="file"
+                        accept=".csv"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) setCsvFile(f);
+                        }}
+                      />
+                      {csvFile && (
+                        <p className="text-xs text-green-600">Selected: {csvFile.name}</p>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Required columns: name, phone. Optional: email, course_interest, country_interest, city
+                    </p>
+                  </>
+                )}
+
+                {uploading && (
+                  <div className="flex items-center gap-2 p-4 bg-yellow-50 rounded-lg">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">Processing CSV and creating leads...</span>
+                  </div>
+                )}
+
+                {uploadResult && (
+                  <div className="space-y-3">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <h4 className="font-medium text-green-900">Upload Complete</h4>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span>Total rows</span>
+                          <span className="font-medium">{uploadResult.total_rows}</span>
+                        </div>
+                        <div className="flex justify-between text-green-700">
+                          <span>New leads created</span>
+                          <span className="font-medium">{uploadResult.new_leads_created}</span>
+                        </div>
+                        <div className="flex justify-between text-blue-700">
+                          <span>Existing leads added</span>
+                          <span className="font-medium">{uploadResult.existing_leads_added}</span>
+                        </div>
+                        {uploadResult.duplicates_skipped > 0 && (
+                          <div className="flex justify-between text-yellow-700">
+                            <span>Duplicates skipped</span>
+                            <span className="font-medium">{uploadResult.duplicates_skipped}</span>
+                          </div>
+                        )}
+                        {uploadResult.invalid_rows > 0 && (
+                          <div className="flex justify-between text-red-700">
+                            <span>Invalid rows</span>
+                            <span className="font-medium">{uploadResult.invalid_rows}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {uploadResult.errors && uploadResult.errors.length > 0 && (
+                      <details className="border rounded-lg p-3">
+                        <summary className="cursor-pointer text-sm font-medium text-red-700">
+                          View {uploadResult.errors.length} errors
+                        </summary>
+                        <div className="mt-2 max-h-40 overflow-y-auto text-xs space-y-1">
+                          {uploadResult.errors.map((err, i) => (
+                            <div key={i} className="text-red-600 bg-red-50 p-2 rounded">
+                              Row {err.row}: {err.error}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="p-5 border-t flex justify-end gap-2">
+                {!uploadResult ? (
+                  <>
+                    <Button variant="outline" onClick={() => { setCsvModalOpen(false); setCsvFile(null); }}>
+                      Cancel
+                    </Button>
+                    <Button disabled={!csvFile || uploading} onClick={handleUploadCsv}>
+                      {uploading ? "Uploading..." : "Upload"}
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={() => {
+                    setCsvModalOpen(false);
+                    setUploadResult(null);
+                    setCsvFile(null);
+                    fetchCampaign();
+                    if (tab === "leads") fetchLeads();
+                  }}>
+                    Done
+                  </Button>
+                )}
               </div>
             </div>
           </div>

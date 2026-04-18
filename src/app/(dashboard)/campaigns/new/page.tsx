@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ManagerGuard } from "@/components/shared/admin-guard";
 import { PageHeader } from "@/components/shared/page-header";
@@ -18,9 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Upload, Download } from "lucide-react";
 import { toast } from "sonner";
-import { campaignService } from "@/services/campaign-service";
+import { campaignService, getCsvTemplateUrl } from "@/services/campaign-service";
 import { useAgents } from "@/hooks/use-agents";
 import api from "@/lib/api";
 import type { Lead } from "@/types";
@@ -54,6 +54,11 @@ export default function NewCampaignPage() {
   const [leadSearch, setLeadSearch] = useState("");
   const [leadStage, setLeadStage] = useState("all");
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+
+  // CSV upload
+  const [leadMode, setLeadMode] = useState<"select" | "upload">("select");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedAgent = useMemo(
     () => agents.find((a) => a.id === agentId),
@@ -116,7 +121,7 @@ export default function NewCampaignPage() {
 
   const canNext = () => {
     if (step === 0) return name.trim() && agentId;
-    if (step === 3) return selectedLeadIds.size > 0;
+    if (step === 3) return leadMode === "upload" ? !!csvFile : selectedLeadIds.size > 0;
     return true;
   };
 
@@ -135,9 +140,23 @@ export default function NewCampaignPage() {
         max_concurrent_calls: maxConcurrent,
         max_retries: maxRetries,
         retry_gap_hours: retryGapHours,
-        lead_ids: Array.from(selectedLeadIds),
+        ...(leadMode === "select" && { lead_ids: Array.from(selectedLeadIds) }),
       });
-      toast.success("Campaign created");
+
+      if (leadMode === "upload" && csvFile) {
+        try {
+          const result = await campaignService.uploadCsv(campaign.id, csvFile);
+          toast.success(
+            `Campaign created! ${result.new_leads_created} new leads created, ${result.existing_leads_added} existing leads added.`
+          );
+        } catch (err: unknown) {
+          const e = err as { response?: { data?: { detail?: string } } };
+          toast.error("Campaign created but CSV upload failed: " + (e.response?.data?.detail || "Unknown error"));
+        }
+      } else {
+        toast.success("Campaign created");
+      }
+
       router.push(`/campaigns/${campaign.id}`);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
@@ -315,78 +334,178 @@ export default function NewCampaignPage() {
           {/* STEP 4 — Assign Leads */}
           {step === 3 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">
-                  {selectedLeadIds.size} lead{selectedLeadIds.size !== 1 ? "s" : ""} selected
-                </p>
-                <div className="flex gap-2">
-                  <Select value={leadStage} onValueChange={(v) => { setLeadStage(v); setLeadsPage(1); }}>
-                    <SelectTrigger className="w-[130px]">
-                      <SelectValue placeholder="Stage" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Stages</SelectItem>
-                      <SelectItem value="new_lead">New Lead</SelectItem>
-                      <SelectItem value="called">Called</SelectItem>
-                      <SelectItem value="connected">Connected</SelectItem>
-                      <SelectItem value="qualified_lead">Qualified</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <SearchInput placeholder="Search leads..." onSearch={handleLeadSearch} className="w-48" />
-                </div>
+              {/* Mode tabs */}
+              <div className="flex gap-1 border-b">
+                <button
+                  type="button"
+                  onClick={() => setLeadMode("select")}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                    leadMode === "select"
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Select Existing Leads
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeadMode("upload")}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                    leadMode === "upload"
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Upload CSV
+                </button>
               </div>
 
-              {leadsLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : (
+              {/* Select existing leads */}
+              {leadMode === "select" && (
                 <>
-                  <div className="border rounded-md">
-                    {/* Select all header */}
-                    <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/50">
-                      <Checkbox
-                        checked={leads.length > 0 && leads.every((l) => selectedLeadIds.has(l.id))}
-                        onCheckedChange={toggleAllOnPage}
-                      />
-                      <span className="text-xs text-muted-foreground font-medium">Select all on this page</span>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">
+                      {selectedLeadIds.size} lead{selectedLeadIds.size !== 1 ? "s" : ""} selected
+                    </p>
+                    <div className="flex gap-2">
+                      <Select value={leadStage} onValueChange={(v) => { setLeadStage(v); setLeadsPage(1); }}>
+                        <SelectTrigger className="w-[130px]">
+                          <SelectValue placeholder="Stage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Stages</SelectItem>
+                          <SelectItem value="new_lead">New Lead</SelectItem>
+                          <SelectItem value="called">Called</SelectItem>
+                          <SelectItem value="connected">Connected</SelectItem>
+                          <SelectItem value="qualified_lead">Qualified</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <SearchInput placeholder="Search leads..." onSearch={handleLeadSearch} className="w-48" />
                     </div>
-                    {leads.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-8">No leads found</p>
-                    )}
-                    {leads.map((lead) => (
-                      <div
-                        key={lead.id}
-                        className="flex items-center gap-3 px-4 py-2.5 border-b last:border-b-0 hover:bg-muted/30 cursor-pointer"
-                        onClick={() => toggleLead(lead.id)}
-                      >
-                        <Checkbox checked={selectedLeadIds.has(lead.id)} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{lead.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{lead.phone || lead.email || "No contact"}</p>
-                        </div>
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {lead.current_stage?.replace(/_/g, " ") || "new"}
-                        </span>
-                      </div>
-                    ))}
                   </div>
 
-                  {/* Pagination */}
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">Page {leadsPage} of {leadsTotalPages}</p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" disabled={leadsPage === 1} onClick={() => setLeadsPage((p) => p - 1)}>
-                        Previous
-                      </Button>
-                      <Button variant="outline" size="sm" disabled={leadsPage >= leadsTotalPages} onClick={() => setLeadsPage((p) => p + 1)}>
-                        Next
-                      </Button>
+                  {leadsLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                      ))}
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="border rounded-md">
+                        <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/50">
+                          <Checkbox
+                            checked={leads.length > 0 && leads.every((l) => selectedLeadIds.has(l.id))}
+                            onCheckedChange={toggleAllOnPage}
+                          />
+                          <span className="text-xs text-muted-foreground font-medium">Select all on this page</span>
+                        </div>
+                        {leads.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-8">No leads found</p>
+                        )}
+                        {leads.map((lead) => (
+                          <div
+                            key={lead.id}
+                            className="flex items-center gap-3 px-4 py-2.5 border-b last:border-b-0 hover:bg-muted/30 cursor-pointer"
+                            onClick={() => toggleLead(lead.id)}
+                          >
+                            <Checkbox checked={selectedLeadIds.has(lead.id)} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{lead.full_name}</p>
+                              <p className="text-xs text-muted-foreground">{lead.phone || lead.email || "No contact"}</p>
+                            </div>
+                            <span className="text-xs text-muted-foreground capitalize">
+                              {lead.current_stage?.replace(/_/g, " ") || "new"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">Page {leadsPage} of {leadsTotalPages}</p>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" disabled={leadsPage === 1} onClick={() => setLeadsPage((p) => p - 1)}>
+                            Previous
+                          </Button>
+                          <Button variant="outline" size="sm" disabled={leadsPage >= leadsTotalPages} onClick={() => setLeadsPage((p) => p + 1)}>
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
+              )}
+
+              {/* Upload CSV */}
+              {leadMode === "upload" && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-medium text-blue-900 mb-1">Quick Upload CSV</h4>
+                    <p className="text-sm text-blue-800 mb-3">
+                      Upload a CSV file to automatically create leads and add them to this campaign.
+                      Duplicates will be skipped by phone number.
+                    </p>
+                    <a
+                      href={getCsvTemplateUrl()}
+                      download
+                      className="text-sm text-blue-700 underline inline-flex items-center gap-1"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download CSV template
+                    </a>
+                  </div>
+
+                  <div
+                    className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-muted-foreground/50 transition-colors"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const file = e.dataTransfer.files[0];
+                      if (file?.name.endsWith(".csv")) setCsvFile(file);
+                      else toast.error("Please drop a CSV file");
+                    }}
+                  >
+                    {csvFile ? (
+                      <div>
+                        <Upload className="w-10 h-10 text-green-500 mx-auto mb-2" />
+                        <p className="font-medium">{csvFile.name}</p>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {(csvFile.size / 1024).toFixed(1)} KB
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setCsvFile(null)}
+                          className="text-sm text-destructive hover:underline"
+                        >
+                          Remove file
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                        <p className="font-medium mb-1">Drop CSV file here or click to select</p>
+                        <p className="text-sm text-muted-foreground mb-4">Required columns: name, phone</p>
+                        <input
+                          type="file"
+                          accept=".csv"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) setCsvFile(file);
+                          }}
+                          className="hidden"
+                          ref={fileInputRef}
+                        />
+                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                          Select CSV File
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    Leads will be created in your Leads page and added to this campaign automatically.
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -421,20 +540,31 @@ export default function NewCampaignPage() {
                   <p className="font-medium">{maxRetries} (gap: {retryGapHours}h)</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Total leads</p>
-                  <p className="font-medium">{selectedLeadIds.size}</p>
+                  <p className="text-muted-foreground">Leads</p>
+                  {leadMode === "upload" ? (
+                    <p className="font-medium">CSV: {csvFile?.name}</p>
+                  ) : (
+                    <p className="font-medium">{selectedLeadIds.size} selected</p>
+                  )}
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Est. cost</p>
-                  <p className="font-medium">{'\u20B9'}{estimatedCost.toLocaleString(undefined, { maximumFractionDigits: 0 })} (~3 min avg)</p>
-                </div>
+                {leadMode === "select" && (
+                  <div>
+                    <p className="text-muted-foreground">Est. cost</p>
+                    <p className="font-medium">{'\u20B9'}{estimatedCost.toLocaleString(undefined, { maximumFractionDigits: 0 })} (~3 min avg)</p>
+                  </div>
+                )}
               </div>
-              {estimatedMinutes > 0 && (
+              {leadMode === "select" && estimatedMinutes > 0 && (
                 <p className="text-xs text-muted-foreground">
                   Est. completion: ~{estimatedMinutes < 60
                     ? `${estimatedMinutes} min`
                     : `${Math.round(estimatedMinutes / 60 * 10) / 10} hours`}
                   {" "}({maxConcurrent} concurrent, ~3 min/call)
+                </p>
+              )}
+              {leadMode === "upload" && (
+                <p className="text-xs text-muted-foreground">
+                  Leads will be created from the CSV file after campaign creation. Cost estimates will be available once leads are processed.
                 </p>
               )}
             </div>
