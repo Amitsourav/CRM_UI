@@ -192,6 +192,7 @@ export interface CallStats {
 }
 
 export interface CallFilters {
+  search?: string;
   telecaller_id?: string;
   call_status?: string;
   call_type?: string;

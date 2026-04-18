@@ -939,9 +939,9 @@ export function AgentForm({ agent, onSuccess, onCancel }: AgentFormProps) {
                 <p className="text-xs text-muted-foreground">
                   ~₹{pricing.monthly.toLocaleString()}/month (1000 mins)
                 </p>
-                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                  78% cheaper than Bolna ✓
-                </Badge>
+                <p className="text-xs text-muted-foreground">
+                  Exact pricing will be calculated after saving.
+                </p>
               </div>
             </TabsContent>
 

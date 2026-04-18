@@ -59,6 +59,13 @@ export async function getCallStatus(call_id: string): Promise<CallStatus> {
   return res.data;
 }
 
+export async function endCall(
+  call_id: string
+): Promise<{ success: boolean }> {
+  const res = await api.post(`/voice/call/${call_id}/end`);
+  return res.data;
+}
+
 export async function getActiveCalls(): Promise<{
   active_calls: ActiveCall[];
 }> {

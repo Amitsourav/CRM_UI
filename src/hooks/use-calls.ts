@@ -29,6 +29,7 @@ export function useCalls(filters?: CallFilters) {
       setIsLoading(false);
     }
   }, [
+    filters?.search,
     filters?.telecaller_id,
     filters?.call_status,
     filters?.call_type,

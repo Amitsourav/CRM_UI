@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Phone } from "lucide-react";
+import { Phone, PhoneOff } from "lucide-react";
+import { toast } from "sonner";
 import { useAgents } from "@/hooks/use-agents";
 import {
   startCall,
   getCallStatus,
+  endCall,
 } from "@/services/voice-service";
 import { useVoiceStore } from "@/stores/voice-store";
 import type { AIAgent } from "@/types";
@@ -49,6 +51,7 @@ export function StartCallButton({
   const [language, setLanguage] = useState("en");
   const [finalDuration, setFinalDuration] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
+  const [endingCall, setEndingCall] = useState(false);
   // 60-second ringing watchdog: if we stay in "ringing" too long without
   // transitioning to "connected" / "ended" / "failed", force-fail the UI.
   useEffect(() => {
@@ -156,6 +159,21 @@ export function StartCallButton({
     }
   };
 
+  const handleEndCall = async () => {
+    if (!callId) return;
+    setEndingCall(true);
+    try {
+      await endCall(callId);
+      toast.success("Call ended");
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { data?: { detail?: string } };
+      };
+      toast.error(err.response?.data?.detail || "Failed to end call");
+      setEndingCall(false);
+    }
+  };
+
   const handleStartClick = () => {
     if (agents.length === 1) {
       handleAgentSelect(agents[0]);
@@ -260,6 +278,24 @@ export function StartCallButton({
         <div className="text-xs text-gray-400 mb-2">
           Agent: {selectedAgent?.name}
         </div>
+        <button
+          type="button"
+          onClick={handleEndCall}
+          disabled={endingCall}
+          className="w-full mt-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
+        >
+          {endingCall ? (
+            <>
+              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Ending...
+            </>
+          ) : (
+            <>
+              <PhoneOff className="w-3.5 h-3.5" />
+              End Call
+            </>
+          )}
+        </button>
       </div>
     );
   }

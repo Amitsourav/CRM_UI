@@ -36,6 +36,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { SearchInput } from "@/components/shared/search-input";
 import { CalendarIcon, X, RefreshCw, Eye } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useCalls } from "@/hooks/use-calls";
@@ -55,7 +56,8 @@ function formatDuration(seconds?: number): string {
 export default function CallsPage() {
   const { isManager } = useAuthStore();
 
-  // Filters
+  // Search & Filters
+  const [searchQuery, setSearchQuery] = useState("");
   const [callType, setCallType] = useState("all");
   const [status, setStatus] = useState("all");
   const [sentiment, setSentiment] = useState("all");
@@ -75,8 +77,14 @@ export default function CallsPage() {
     }
   }, [isManager]);
 
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    setPage(0);
+  }, []);
+
   const filters = useMemo<CallFilters>(() => {
     const f: CallFilters = { skip: page * PAGE_SIZE, limit: PAGE_SIZE };
+    if (searchQuery.trim()) f.search = searchQuery.trim();
     if (callType !== "all") f.call_type = callType;
     if (status !== "all") f.call_status = status;
     if (sentiment !== "all") f.sentiment = sentiment;
@@ -84,7 +92,7 @@ export default function CallsPage() {
     if (dateFrom) f.date_from = format(dateFrom, "yyyy-MM-dd");
     if (dateTo) f.date_to = format(dateTo, "yyyy-MM-dd");
     return f;
-  }, [callType, status, sentiment, telecallerId, dateFrom, dateTo, page]);
+  }, [searchQuery, callType, status, sentiment, telecallerId, dateFrom, dateTo, page]);
 
   const { calls, isLoading, error, refetch } = useCalls(filters);
 
@@ -100,6 +108,7 @@ export default function CallsPage() {
   const [selectedCall, setSelectedCall] = useState<CallAttemptWithLead | null>(null);
 
   const hasFilters =
+    searchQuery !== "" ||
     callType !== "all" ||
     status !== "all" ||
     sentiment !== "all" ||
@@ -108,6 +117,7 @@ export default function CallsPage() {
     dateTo !== undefined;
 
   const clearFilters = () => {
+    setSearchQuery("");
     setCallType("all");
     setStatus("all");
     setSentiment("all");
@@ -126,7 +136,14 @@ export default function CallsPage() {
         </Button>
       </PageHeader>
 
-      {/* Filters */}
+      {/* Search & Filters */}
+      <div className="flex flex-wrap gap-3">
+        <SearchInput
+          placeholder="Search by lead name, phone..."
+          onSearch={handleSearch}
+          className="w-full max-w-xs"
+        />
+      </div>
       <div className="flex flex-wrap gap-3">
         <Select value={callType} onValueChange={(v) => { setCallType(v); setPage(0); }}>
           <SelectTrigger className="w-[130px]">
