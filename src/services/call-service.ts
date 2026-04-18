@@ -1,20 +1,39 @@
 import api from "@/lib/api";
 import type { CallAttempt, CallAttemptWithLead, CallStats, CallFilters } from "@/types";
 
+interface RawCall extends CallAttempt {
+  lead_name?: string;
+  lead_phone?: string;
+  agent_name?: string;
+  lead?: { full_name?: string; phone?: string; email?: string };
+  agent?: { name?: string };
+}
+
+function normalizeCall(raw: RawCall): CallAttemptWithLead {
+  return {
+    ...raw,
+    lead_name: raw.lead_name || raw.lead?.full_name,
+    lead_phone: raw.lead_phone || raw.lead?.phone,
+    agent_name: raw.agent_name || raw.agent?.name,
+  };
+}
+
 export const callService = {
   getAll: async (filters: CallFilters = {}): Promise<CallAttemptWithLead[]> => {
     const res = await api.get("/calls", { params: filters });
-    return Array.isArray(res.data) ? res.data : res.data.items || [];
+    const items: RawCall[] = Array.isArray(res.data) ? res.data : res.data.items || [];
+    return items.map(normalizeCall);
   },
 
   getById: async (id: string): Promise<CallAttemptWithLead> => {
     const res = await api.get(`/calls/${id}`);
-    return res.data;
+    return normalizeCall(res.data);
   },
 
-  getByLead: async (leadId: string): Promise<CallAttempt[]> => {
+  getByLead: async (leadId: string): Promise<CallAttemptWithLead[]> => {
     const res = await api.get(`/leads/${leadId}/calls`);
-    return Array.isArray(res.data) ? res.data : res.data.items || [];
+    const items: RawCall[] = Array.isArray(res.data) ? res.data : res.data.items || [];
+    return items.map(normalizeCall);
   },
 
   getStats: async (params?: {
