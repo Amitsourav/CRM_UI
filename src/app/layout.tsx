@@ -14,9 +14,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Branding driven by NEXT_PUBLIC_APP_NAME so the same FE codebase can be
+// deployed under either brand (FundMyCampus today, fork-based Admitverse
+// later) without code changes — set the env var in the Vercel project.
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "FundMyCampus CRM";
+
 export const metadata: Metadata = {
-  title: "Admitverse CRM",
-  description: "Lead management and CRM for education consultancies",
+  title: APP_NAME,
+  description: `${APP_NAME} — Lead management and CRM for education consultancies`,
 };
 
 export default function RootLayout({

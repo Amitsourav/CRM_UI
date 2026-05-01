@@ -70,7 +70,7 @@ export default function SignupPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
-            {process.env.NEXT_PUBLIC_APP_NAME || "Admitverse CRM"}
+            {process.env.NEXT_PUBLIC_APP_NAME || "FundMyCampus CRM"}
           </CardTitle>
           <CardDescription>Create your account</CardDescription>
         </CardHeader>

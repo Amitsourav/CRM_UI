@@ -57,7 +57,7 @@ export function MobileNav() {
       <SheetContent side="left" className="w-64 p-0">
         <div className="flex items-center h-16 px-6 border-b">
           <span className="text-lg font-bold">
-            {process.env.NEXT_PUBLIC_APP_NAME || "Admitverse CRM"}
+            {process.env.NEXT_PUBLIC_APP_NAME || "FundMyCampus CRM"}
           </span>
         </div>
         <ScrollArea className="flex-1 py-4">

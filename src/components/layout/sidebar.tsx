@@ -65,7 +65,7 @@ export function Sidebar() {
         {/* Logo */}
         <div className="flex items-center h-16 px-6 border-b">
           <Link href="/leads" className="text-lg font-bold">
-            {process.env.NEXT_PUBLIC_APP_NAME || "Admitverse CRM"}
+            {process.env.NEXT_PUBLIC_APP_NAME || "FundMyCampus CRM"}
           </Link>
         </div>
 
