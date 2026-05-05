@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { STAGE_CONFIG } from "@/lib/constants";
+import { useStageConfig } from "@/hooks/use-stage-config";
 import type { UserStats, LeadStage } from "@/types";
 
 interface UserStatsCardProps {
@@ -10,6 +10,7 @@ interface UserStatsCardProps {
 }
 
 export function UserStatsCard({ stats }: UserStatsCardProps) {
+  const { getEntry } = useStageConfig();
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       <Card>
@@ -19,15 +20,18 @@ export function UserStatsCard({ stats }: UserStatsCardProps) {
         <CardContent>
           <p className="text-2xl font-bold">{stats.total_leads}</p>
           <div className="flex flex-wrap gap-1 mt-2">
-            {Object.entries(stats.leads_by_stage || {}).map(([stage, count]) => (
-              <Badge
-                key={stage}
-                variant="secondary"
-                className={`${STAGE_CONFIG[stage as LeadStage]?.bgClass || ""} ${STAGE_CONFIG[stage as LeadStage]?.textClass || ""} border-0 text-xs`}
-              >
-                {STAGE_CONFIG[stage as LeadStage]?.label || stage}: {count as number}
-              </Badge>
-            ))}
+            {Object.entries(stats.leads_by_stage || {}).map(([stage, count]) => {
+              const entry = getEntry(stage as LeadStage);
+              return (
+                <Badge
+                  key={stage}
+                  variant="secondary"
+                  className={`${entry.bgClass} ${entry.textClass} border-0 text-xs`}
+                >
+                  {entry.label}: {count as number}
+                </Badge>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

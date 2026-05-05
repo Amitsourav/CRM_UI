@@ -1,9 +1,49 @@
 import type { LeadStage, CallDisposition, TaskType, TaskStatus } from "@/types";
 
-export const STAGE_CONFIG: Record<
-  LeadStage,
-  { label: string; color: string; bgClass: string; textClass: string; order: number }
-> = {
+export type StageConfigEntry = {
+  label: string;
+  color: string;
+  bgClass: string;
+  textClass: string;
+  order: number;
+};
+
+export type CompanySlug = "fundmycampus" | "admitverse";
+
+export const ADMITVERSE_SLUG = "admitverse";
+
+const FMC_STAGES_LIST: LeadStage[] = [
+  "lead",
+  "called",
+  "connected",
+  "qualified_lead",
+  "won",
+  "lost",
+];
+
+const ADMITVERSE_STAGES_LIST: LeadStage[] = [
+  "created",
+  "contacted",
+  "dnp_pre_qualified",
+  "connected",
+  "qualified",
+  "opportunity",
+  "dnp_post_qualified",
+  "processing",
+  "important",
+  "partial_docs_collected",
+  "docs_collected",
+  "application_done",
+  "conditional_draft",
+  "ucol",
+  "deposit_paid",
+  "cas_received",
+  "visa_applied",
+  "enrolled",
+  "lost",
+];
+
+const FMC_STAGE_CONFIG: Partial<Record<LeadStage, StageConfigEntry>> = {
   lead: { label: "New Lead", color: "bg-slate-500", bgClass: "bg-slate-100", textClass: "text-slate-700", order: 0 },
   called: { label: "Called", color: "bg-blue-500", bgClass: "bg-blue-100", textClass: "text-blue-700", order: 1 },
   connected: { label: "Connected", color: "bg-yellow-500", bgClass: "bg-yellow-100", textClass: "text-yellow-700", order: 2 },
@@ -12,7 +52,31 @@ export const STAGE_CONFIG: Record<
   lost: { label: "Lost", color: "bg-red-500", bgClass: "bg-red-100", textClass: "text-red-700", order: 5 },
 };
 
-export const VALID_TRANSITIONS: Record<LeadStage, LeadStage[]> = {
+const ADMITVERSE_STAGE_CONFIG: Partial<Record<LeadStage, StageConfigEntry>> = {
+  created: { label: "Created", color: "bg-gray-400", bgClass: "bg-gray-100", textClass: "text-gray-700", order: 0 },
+  contacted: { label: "Contacted", color: "bg-blue-400", bgClass: "bg-blue-50", textClass: "text-blue-700", order: 1 },
+  dnp_pre_qualified: { label: "DNP", color: "bg-orange-400", bgClass: "bg-orange-100", textClass: "text-orange-700", order: 2 },
+  connected: { label: "Connected", color: "bg-blue-500", bgClass: "bg-blue-100", textClass: "text-blue-700", order: 3 },
+  qualified: { label: "Qualified", color: "bg-indigo-500", bgClass: "bg-indigo-100", textClass: "text-indigo-700", order: 4 },
+  opportunity: { label: "Opportunity (Future)", color: "bg-purple-400", bgClass: "bg-purple-50", textClass: "text-purple-700", order: 5 },
+  dnp_post_qualified: { label: "DNP (Post-Q)", color: "bg-orange-500", bgClass: "bg-orange-100", textClass: "text-orange-800", order: 6 },
+  processing: { label: "Processing", color: "bg-indigo-600", bgClass: "bg-indigo-100", textClass: "text-indigo-800", order: 7 },
+  important: { label: "Important", color: "bg-yellow-500", bgClass: "bg-yellow-100", textClass: "text-yellow-700", order: 8 },
+  partial_docs_collected: { label: "Partial Docs", color: "bg-cyan-400", bgClass: "bg-cyan-50", textClass: "text-cyan-700", order: 9 },
+  docs_collected: { label: "Docs Collected", color: "bg-cyan-600", bgClass: "bg-cyan-100", textClass: "text-cyan-800", order: 10 },
+  application_done: { label: "Application Done", color: "bg-teal-500", bgClass: "bg-teal-100", textClass: "text-teal-700", order: 11 },
+  conditional_draft: { label: "Conditional Draft", color: "bg-teal-600", bgClass: "bg-teal-100", textClass: "text-teal-800", order: 12 },
+  ucol: { label: "UCOL", color: "bg-emerald-500", bgClass: "bg-emerald-100", textClass: "text-emerald-700", order: 13 },
+  deposit_paid: { label: "Deposit Paid", color: "bg-green-500", bgClass: "bg-green-100", textClass: "text-green-700", order: 14 },
+  cas_received: { label: "CAS Received", color: "bg-green-600", bgClass: "bg-green-100", textClass: "text-green-800", order: 15 },
+  visa_applied: { label: "Visa Applied", color: "bg-green-700", bgClass: "bg-green-200", textClass: "text-green-900", order: 16 },
+  enrolled: { label: "Enrolled", color: "bg-green-800", bgClass: "bg-green-200", textClass: "text-green-900", order: 17 },
+  lost: { label: "Lost", color: "bg-red-500", bgClass: "bg-red-100", textClass: "text-red-700", order: 18 },
+};
+
+const ADMITVERSE_TERMINAL_STAGES: ReadonlySet<LeadStage> = new Set(["lost", "enrolled"]);
+
+const FMC_VALID_TRANSITIONS: Partial<Record<LeadStage, LeadStage[]>> = {
   lead: ["called", "lost"],
   called: ["connected", "lost"],
   connected: ["qualified_lead", "lost"],
@@ -20,6 +84,75 @@ export const VALID_TRANSITIONS: Record<LeadStage, LeadStage[]> = {
   won: [],
   lost: ["lead"],
 };
+
+const FALLBACK_STAGE_ENTRY: StageConfigEntry = {
+  label: "Unknown",
+  color: "bg-slate-400",
+  bgClass: "bg-slate-100",
+  textClass: "text-slate-700",
+  order: 999,
+};
+
+function isAdmitverse(slug: string | null | undefined): boolean {
+  return slug === ADMITVERSE_SLUG;
+}
+
+export function getStageList(slug: string | null | undefined): LeadStage[] {
+  return isAdmitverse(slug) ? ADMITVERSE_STAGES_LIST : FMC_STAGES_LIST;
+}
+
+export function getStageConfigMap(
+  slug: string | null | undefined
+): Partial<Record<LeadStage, StageConfigEntry>> {
+  return isAdmitverse(slug) ? ADMITVERSE_STAGE_CONFIG : FMC_STAGE_CONFIG;
+}
+
+export function getStageEntry(
+  slug: string | null | undefined,
+  stage: LeadStage
+): StageConfigEntry {
+  const map = getStageConfigMap(slug);
+  return (
+    map[stage] ??
+    FMC_STAGE_CONFIG[stage] ??
+    ADMITVERSE_STAGE_CONFIG[stage] ??
+    FALLBACK_STAGE_ENTRY
+  );
+}
+
+export function canTransition(
+  slug: string | null | undefined,
+  from: LeadStage,
+  to: LeadStage
+): boolean {
+  if (from === to) return false;
+  if (isAdmitverse(slug)) {
+    if (ADMITVERSE_TERMINAL_STAGES.has(from)) return false;
+    return ADMITVERSE_STAGE_CONFIG[to] !== undefined;
+  }
+  return FMC_VALID_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+export function getValidTransitions(
+  slug: string | null | undefined,
+  from: LeadStage
+): LeadStage[] {
+  if (isAdmitverse(slug)) {
+    if (ADMITVERSE_TERMINAL_STAGES.has(from)) return [];
+    return ADMITVERSE_STAGES_LIST.filter((s) => s !== from);
+  }
+  return FMC_VALID_TRANSITIONS[from] ?? [];
+}
+
+// FMC requires conversation notes for the call-flow stages. Admitverse moves
+// freely, so only `lost` gates with a reason — handled separately by callers.
+export function stageRequiresNotes(
+  slug: string | null | undefined,
+  stage: LeadStage
+): boolean {
+  if (isAdmitverse(slug)) return false;
+  return ["called", "connected", "qualified_lead"].includes(stage);
+}
 
 export const DISPOSITION_LABELS: Record<CallDisposition, string> = {
   dnp: "Did Not Pick",

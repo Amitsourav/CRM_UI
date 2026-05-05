@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PipelineCard } from "./pipeline-card";
-import { STAGE_CONFIG } from "@/lib/constants";
+import { useStageConfig } from "@/hooks/use-stage-config";
 import { Loader2 } from "lucide-react";
 import type { Lead, LeadStage } from "@/types";
 
@@ -26,7 +26,8 @@ export function PipelineColumn({
   isLoadingMore,
   onLoadMore,
 }: PipelineColumnProps) {
-  const config = STAGE_CONFIG[stage];
+  const { getEntry } = useStageConfig();
+  const config = getEntry(stage);
 
   return (
     <div className="flex flex-col min-w-[280px] max-w-[320px] bg-muted/50 rounded-lg">

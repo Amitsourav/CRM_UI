@@ -5,6 +5,7 @@ import type { User, Role, AuthTokens } from "@/types";
 interface CompanyInfo {
   company_id: string;
   company_name: string;
+  company_slug: string | null;
   company_timezone: string;
 }
 
@@ -27,6 +28,7 @@ function extractCompany(data: Record<string, unknown>): CompanyInfo | null {
     return {
       company_id: data.company_id as string,
       company_name: data.company_name as string,
+      company_slug: (data.company_slug as string | null | undefined) ?? null,
       company_timezone: (data.company_timezone as string) || "UTC",
     };
   }

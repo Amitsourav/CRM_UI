@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import type { LeadStageLog } from "@/types";
-import { STAGE_CONFIG } from "@/lib/constants";
+import { useStageConfig } from "@/hooks/use-stage-config";
 import { LeadStageBadge } from "./lead-stage-badge";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +15,7 @@ interface LeadTimelineProps {
 export function LeadTimeline({ leadId }: LeadTimelineProps) {
   const [logs, setLogs] = useState<LeadStageLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { getEntry } = useStageConfig();
 
   useEffect(() => {
     const fetchTimeline = async () => {
@@ -54,7 +55,7 @@ export function LeadTimeline({ leadId }: LeadTimelineProps) {
     <div className="relative space-y-0">
       <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
       {logs.map((log, index) => {
-        const stageConfig = STAGE_CONFIG[log.to_stage];
+        const stageConfig = getEntry(log.to_stage);
         return (
           <div key={log.id || index} className="relative flex gap-4 pb-6">
             <div className={`relative z-10 h-8 w-8 rounded-full ${stageConfig.color} flex items-center justify-center shrink-0`}>

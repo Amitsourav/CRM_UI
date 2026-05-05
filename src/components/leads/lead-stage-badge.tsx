@@ -1,5 +1,7 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
-import { STAGE_CONFIG } from "@/lib/constants";
+import { useStageConfig } from "@/hooks/use-stage-config";
 import type { LeadStage } from "@/types";
 
 interface LeadStageBadgeProps {
@@ -7,7 +9,8 @@ interface LeadStageBadgeProps {
 }
 
 export function LeadStageBadge({ stage }: LeadStageBadgeProps) {
-  const config = STAGE_CONFIG[stage];
+  const { getEntry } = useStageConfig();
+  const config = getEntry(stage);
   return (
     <Badge variant="secondary" className={`${config.bgClass} ${config.textClass} border-0`}>
       {config.label}

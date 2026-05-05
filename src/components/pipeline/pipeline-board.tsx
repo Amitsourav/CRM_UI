@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { PipelineColumn } from "./pipeline-column";
-import { STAGE_CONFIG, VALID_TRANSITIONS } from "@/lib/constants";
+import { useStageConfig } from "@/hooks/use-stage-config";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -35,10 +35,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Loader2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
-const STAGES = Object.entries(STAGE_CONFIG)
-  .sort(([, a], [, b]) => a.order - b.order)
-  .map(([key]) => key as LeadStage);
-
 const PER_STAGE_LIMIT = 30;
 
 interface StageData {
@@ -56,15 +52,35 @@ interface StageChangeData {
 
 export function PipelineBoard() {
   const { isManager } = useAuthStore();
+  const { stages: STAGES, getEntry, canTransition, stageRequiresNotes } =
+    useStageConfig();
 
-  const [stageData, setStageData] = useState<Record<LeadStage, StageData>>(() => {
-    const initial = {} as Record<LeadStage, StageData>;
+  const [stageData, setStageData] = useState<Record<string, StageData>>(() => {
+    const initial: Record<string, StageData> = {};
     STAGES.forEach((stage) => {
       initial[stage] = { leads: [], total: 0, page: 1, isLoadingMore: false };
     });
     return initial;
   });
   const [isLoading, setIsLoading] = useState(true);
+
+  // Re-seed stageData if the brand's stage list changes (e.g. after login).
+  const stagesKey = useMemo(() => STAGES.join("|"), [STAGES]);
+  useEffect(() => {
+    setStageData((prev) => {
+      const next: Record<string, StageData> = {};
+      STAGES.forEach((stage) => {
+        next[stage] = prev[stage] ?? {
+          leads: [],
+          total: 0,
+          page: 1,
+          isLoadingMore: false,
+        };
+      });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stagesKey]);
 
   // Filters
   const [agentFilter, setAgentFilter] = useState("all");
@@ -138,7 +154,7 @@ export function PipelineBoard() {
     setIsLoading(true);
     await Promise.all(STAGES.map((stage) => fetchStage(stage, 1, false)));
     setIsLoading(false);
-  }, [fetchStage]);
+  }, [fetchStage, STAGES]);
 
   useEffect(() => {
     fetchAll();
@@ -153,24 +169,21 @@ export function PipelineBoard() {
     fetchStage(stage, nextPage, true);
   };
 
-  const needsNotes = (stage: LeadStage) =>
-    ["called", "connected", "qualified_lead"].includes(stage);
-
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const fromStage = result.source.droppableId as LeadStage;
     const toStage = result.destination.droppableId as LeadStage;
     if (fromStage === toStage) return;
 
-    if (!VALID_TRANSITIONS[fromStage].includes(toStage)) {
+    if (!canTransition(fromStage, toStage)) {
       toast.error(
-        `Cannot move from ${STAGE_CONFIG[fromStage].label} to ${STAGE_CONFIG[toStage].label}`
+        `Cannot move from ${getEntry(fromStage).label} to ${getEntry(toStage).label}`
       );
       return;
     }
 
     const leadId = result.draggableId;
-    if (needsNotes(toStage) || toStage === "lost") {
+    if (stageRequiresNotes(toStage) || toStage === "lost") {
       setStageChangeData({ leadId, fromStage, toStage });
       return;
     }
@@ -203,7 +216,7 @@ export function PipelineBoard() {
 
     try {
       await api.post(`/leads/${leadId}/stage`, { to_stage: toStage, ...extraData });
-      toast.success(`Lead moved to ${STAGE_CONFIG[toStage].label}`);
+      toast.success(`Lead moved to ${getEntry(toStage).label}`);
     } catch (error: unknown) {
       // Revert optimistic update
       setStageData((prev) => ({
@@ -228,7 +241,7 @@ export function PipelineBoard() {
     if (!stageChangeData) return;
     const { leadId, fromStage, toStage } = stageChangeData;
 
-    if (needsNotes(toStage) && (!notes.trim() || !agenda.trim())) {
+    if (stageRequiresNotes(toStage) && (!notes.trim() || !agenda.trim())) {
       toast.error("Notes and agenda are required");
       return;
     }
@@ -239,7 +252,7 @@ export function PipelineBoard() {
 
     setIsSubmitting(true);
     const extraData: Record<string, unknown> = {};
-    if (needsNotes(toStage)) {
+    if (stageRequiresNotes(toStage)) {
       extraData.conversation_notes = notes;
       extraData.agent_agenda = agenda;
     }
@@ -340,11 +353,11 @@ export function PipelineBoard() {
           <DialogHeader>
             <DialogTitle>
               Move to{" "}
-              {stageChangeData && STAGE_CONFIG[stageChangeData.toStage].label}
+              {stageChangeData && getEntry(stageChangeData.toStage).label}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {stageChangeData && needsNotes(stageChangeData.toStage) && (
+            {stageChangeData && stageRequiresNotes(stageChangeData.toStage) && (
               <>
                 <div className="space-y-2">
                   <Label>Conversation Notes *</Label>

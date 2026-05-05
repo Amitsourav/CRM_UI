@@ -22,6 +22,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2, Upload, Download } from "lucide-
 import { toast } from "sonner";
 import { campaignService, getCsvTemplateUrl } from "@/services/campaign-service";
 import { useAgents } from "@/hooks/use-agents";
+import { useStageConfig } from "@/hooks/use-stage-config";
 import api from "@/lib/api";
 import type { Lead } from "@/types";
 
@@ -30,6 +31,7 @@ const STEPS = ["Basic Info", "Schedule", "Call Settings", "Assign Leads", "Revie
 export default function NewCampaignPage() {
   const router = useRouter();
   const { agents, isLoading: agentsLoading } = useAgents();
+  const { stages, getEntry } = useStageConfig();
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -377,10 +379,11 @@ export default function NewCampaignPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Stages</SelectItem>
-                          <SelectItem value="new_lead">New Lead</SelectItem>
-                          <SelectItem value="called">Called</SelectItem>
-                          <SelectItem value="connected">Connected</SelectItem>
-                          <SelectItem value="qualified_lead">Qualified</SelectItem>
+                          {stages.map((value) => (
+                            <SelectItem key={value} value={value}>
+                              {getEntry(value).label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <SearchInput placeholder="Search leads..." onSearch={handleLeadSearch} className="w-48" />

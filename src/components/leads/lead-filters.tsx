@@ -17,7 +17,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
-import { STAGE_CONFIG } from "@/lib/constants";
+import { useStageConfig } from "@/hooks/use-stage-config";
 import api from "@/lib/api";
 import type { User, LeadSource } from "@/types";
 
@@ -42,6 +42,7 @@ export function LeadFilters({
 }: LeadFiltersProps) {
   const [agents, setAgents] = useState<User[]>([]);
   const [sources, setSources] = useState<LeadSource[]>([]);
+  const { stages, getEntry } = useStageConfig();
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -87,9 +88,9 @@ export function LeadFilters({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Stages</SelectItem>
-          {Object.entries(STAGE_CONFIG).map(([value, config]) => (
+          {stages.map((value) => (
             <SelectItem key={value} value={value}>
-              {config.label}
+              {getEntry(value).label}
             </SelectItem>
           ))}
         </SelectContent>

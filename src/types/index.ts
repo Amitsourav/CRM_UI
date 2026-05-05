@@ -2,12 +2,32 @@
 export type Role = "admin" | "manager" | "telecaller";
 
 export type LeadStage =
+  // FMC pipeline
   | "lead"
   | "called"
-  | "connected"
   | "qualified_lead"
   | "won"
-  | "lost";
+  // Shared
+  | "connected"
+  | "lost"
+  // Admitverse pipeline
+  | "created"
+  | "contacted"
+  | "dnp_pre_qualified"
+  | "qualified"
+  | "opportunity"
+  | "dnp_post_qualified"
+  | "processing"
+  | "important"
+  | "partial_docs_collected"
+  | "docs_collected"
+  | "application_done"
+  | "conditional_draft"
+  | "ucol"
+  | "deposit_paid"
+  | "cas_received"
+  | "visa_applied"
+  | "enrolled";
 
 export type CallDisposition =
   | "dnp"
@@ -460,7 +480,7 @@ export interface TrendDataPoint {
 
 export interface UserStats {
   total_leads: number;
-  leads_by_stage: Record<LeadStage, number>;
+  leads_by_stage: Partial<Record<LeadStage, number>>;
   total_calls: number;
   tasks_completed: number;
   tasks_pending: number;

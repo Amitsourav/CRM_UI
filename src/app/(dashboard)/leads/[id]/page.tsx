@@ -56,13 +56,14 @@ import {
 import { format } from "date-fns";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { STAGE_CONFIG, VALID_TRANSITIONS } from "@/lib/constants";
+import { useStageConfig } from "@/hooks/use-stage-config";
 import type { Lead, LeadStage } from "@/types";
 
 export default function LeadDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { isAdmin, isManager } = useAuthStore();
+  const { getEntry, getValidTransitions, stageRequiresNotes } = useStageConfig();
   const leadId = params.id as string;
 
   const [lead, setLead] = useState<Lead | null>(null);
@@ -104,9 +105,7 @@ export default function LeadDetailPage() {
 
   if (isLoading || !lead) return <PageSkeleton />;
 
-  const validTransitions = VALID_TRANSITIONS[lead.current_stage];
-  const needsNotes = (stage: LeadStage) =>
-    ["called", "connected", "qualified_lead"].includes(stage);
+  const validTransitions = getValidTransitions(lead.current_stage);
 
   const handleStageSelect = (stage: LeadStage) => {
     setTargetStage(stage);
@@ -119,7 +118,7 @@ export default function LeadDetailPage() {
 
   const handleStageSubmit = async () => {
     if (!targetStage) return;
-    if (needsNotes(targetStage) && (!stageNotes.trim() || !stageAgenda.trim())) {
+    if (stageRequiresNotes(targetStage) && (!stageNotes.trim() || !stageAgenda.trim())) {
       toast.error("Notes and agenda are required");
       return;
     }
@@ -131,7 +130,7 @@ export default function LeadDetailPage() {
     setStageSubmitting(true);
     try {
       const payload: Record<string, unknown> = { to_stage: targetStage };
-      if (needsNotes(targetStage)) {
+      if (stageRequiresNotes(targetStage)) {
         payload.conversation_notes = stageNotes;
         payload.agent_agenda = stageAgenda;
       }
@@ -139,7 +138,7 @@ export default function LeadDetailPage() {
       if (stageDueDate) payload.due_date = format(stageDueDate, "yyyy-MM-dd");
 
       await api.post(`/leads/${leadId}/stage`, payload);
-      toast.success(`Stage changed to ${STAGE_CONFIG[targetStage].label}`);
+      toast.success(`Stage changed to ${getEntry(targetStage).label}`);
       setStageDialogOpen(false);
       fetchLead();
     } catch (error: unknown) {
@@ -193,7 +192,7 @@ export default function LeadDetailPage() {
                     key={stage}
                     onClick={() => handleStageSelect(stage)}
                   >
-                    {STAGE_CONFIG[stage].label}
+                    {getEntry(stage).label}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -250,11 +249,11 @@ export default function LeadDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Change to {targetStage && STAGE_CONFIG[targetStage]?.label}
+              Change to {targetStage && getEntry(targetStage).label}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {targetStage && needsNotes(targetStage) && (
+            {targetStage && stageRequiresNotes(targetStage) && (
               <>
                 <div className="space-y-2">
                   <Label>Conversation Notes *</Label>
