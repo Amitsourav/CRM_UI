@@ -233,6 +233,7 @@ export interface LeadStageLog {
   changed_by_user?: User;
   conversation_notes?: string;
   agent_agenda?: string;
+  lost_reason?: string;
   due_date_set?: string;
   created_at: string;
 }

@@ -182,6 +182,11 @@ export default function LeadDetailPage() {
               <Badge variant="outline">Source: {lead.lead_source.name}</Badge>
             )}
           </div>
+          {lead.current_stage === "lost" && lead.lost_reason && (
+            <p className="mt-2 text-sm text-red-700">
+              <span className="font-medium">Lost reason:</span> {lead.lost_reason}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {validTransitions.length > 0 && (

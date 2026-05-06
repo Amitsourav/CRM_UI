@@ -82,6 +82,11 @@ export function LeadTimeline({ leadId }: LeadTimelineProps) {
               {log.agent_agenda && (
                 <p className="text-sm text-muted-foreground mt-1">Agenda: {log.agent_agenda}</p>
               )}
+              {log.lost_reason && (
+                <p className="text-sm text-red-700 mt-1">
+                  <span className="font-medium">Lost reason:</span> {log.lost_reason}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground mt-1">
                 {format(new Date(log.created_at), "MMM d, yyyy 'at' h:mm a")}
               </p>
