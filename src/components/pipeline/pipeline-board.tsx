@@ -169,27 +169,6 @@ export function PipelineBoard() {
     fetchStage(stage, nextPage, true);
   };
 
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-    const fromStage = result.source.droppableId as LeadStage;
-    const toStage = result.destination.droppableId as LeadStage;
-    if (fromStage === toStage) return;
-
-    if (!canTransition(fromStage, toStage)) {
-      toast.error(
-        `Cannot move from ${getEntry(fromStage).label} to ${getEntry(toStage).label}`
-      );
-      return;
-    }
-
-    const leadId = result.draggableId;
-    if (stageRequiresNotes(toStage) || toStage === "lost") {
-      setStageChangeData({ leadId, fromStage, toStage });
-      return;
-    }
-    performStageChange(leadId, fromStage, toStage);
-  };
-
   const performStageChange = async (
     leadId: string,
     fromStage: LeadStage,
@@ -232,9 +211,44 @@ export function PipelineBoard() {
           total: prev[toStage].total - 1,
         },
       }));
-      const err = error as { response?: { data?: { detail?: string } } };
-      toast.error(err.response?.data?.detail || "Failed to change stage");
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string } };
+      };
+      if (err.response?.status === 403) {
+        toast.error("You don't have permission to modify this lead");
+      } else {
+        toast.error(err.response?.data?.detail || "Failed to change stage");
+      }
     }
+  };
+
+  // Single entry point for both drag-drop and the per-card dropdown.
+  const requestStageChange = (
+    leadId: string,
+    fromStage: LeadStage,
+    toStage: LeadStage
+  ) => {
+    if (fromStage === toStage) return;
+    if (!canTransition(fromStage, toStage)) {
+      toast.error(
+        `Cannot move from ${getEntry(fromStage).label} to ${getEntry(toStage).label}`
+      );
+      return;
+    }
+    if (stageRequiresNotes(toStage) || toStage === "lost") {
+      setStageChangeData({ leadId, fromStage, toStage });
+      return;
+    }
+    performStageChange(leadId, fromStage, toStage);
+  };
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    requestStageChange(
+      result.draggableId,
+      result.source.droppableId as LeadStage,
+      result.destination.droppableId as LeadStage
+    );
   };
 
   const handleStageChangeSubmit = async () => {
@@ -342,6 +356,7 @@ export function PipelineBoard() {
               hasMore={stageData[stage].leads.length < stageData[stage].total}
               isLoadingMore={stageData[stage].isLoadingMore}
               onLoadMore={() => handleLoadMore(stage)}
+              onChangeStage={requestStageChange}
             />
           ))}
         </div>

@@ -16,6 +16,7 @@ interface PipelineColumnProps {
   hasMore: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
+  onChangeStage: (leadId: string, fromStage: LeadStage, toStage: LeadStage) => void;
 }
 
 export function PipelineColumn({
@@ -25,6 +26,7 @@ export function PipelineColumn({
   hasMore,
   isLoadingMore,
   onLoadMore,
+  onChangeStage,
 }: PipelineColumnProps) {
   const { getEntry } = useStageConfig();
   const config = getEntry(stage);
@@ -64,7 +66,7 @@ export function PipelineColumn({
                       {...provided.dragHandleProps}
                       className={snapshot.isDragging ? "opacity-90" : ""}
                     >
-                      <PipelineCard lead={lead} />
+                      <PipelineCard lead={lead} onChangeStage={onChangeStage} />
                     </div>
                   )}
                 </Draggable>
