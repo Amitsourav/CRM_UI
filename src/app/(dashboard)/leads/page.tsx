@@ -11,10 +11,11 @@ import { LeadFilters, type LeadFiltersState } from "@/components/leads/lead-filt
 import { LeadForm } from "@/components/leads/lead-form";
 import { LeadAssignDialog } from "@/components/leads/lead-assign-dialog";
 import { BulkAssignDialog } from "@/components/leads/bulk-assign-dialog";
+import { DistributeByRangeDialog } from "@/components/leads/distribute-by-range-dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Pagination } from "@/components/shared/pagination";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Upload, Shuffle } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { format } from "date-fns";
@@ -56,6 +57,7 @@ function LeadsPageContent() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingLeadId, setDeletingLeadId] = useState("");
+  const [distributeOpen, setDistributeOpen] = useState(false);
 
   const handleSearch = useCallback((query: string) => {
     setSearch(query);
@@ -87,6 +89,12 @@ function LeadsPageContent() {
   return (
     <div className="space-y-6">
       <PageHeader title="Leads" description="Manage your leads and prospects">
+        {isManager && (
+          <Button variant="outline" onClick={() => setDistributeOpen(true)}>
+            <Shuffle className="mr-2 h-4 w-4" />
+            Distribute Leads
+          </Button>
+        )}
         <Button variant="outline" onClick={() => router.push("/leads/import")}>
           <Upload className="mr-2 h-4 w-4" />
           Import CSV
@@ -165,6 +173,12 @@ function LeadsPageContent() {
           refetch();
           setSelectedIds([]);
         }}
+      />
+
+      <DistributeByRangeDialog
+        open={distributeOpen}
+        onOpenChange={setDistributeOpen}
+        onSuccess={refetch}
       />
 
       <ConfirmDialog
