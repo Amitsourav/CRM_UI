@@ -67,7 +67,7 @@ export default function TasksPage() {
   const fetchAgents = useCallback(async () => {
     if (!isManager) return;
     try {
-      const { data } = await api.get("/users?role=telecaller&is_active=true");
+      const { data } = await api.get("/users?is_active=true");
       setAgents(data.items || data || []);
     } catch {
       // silent

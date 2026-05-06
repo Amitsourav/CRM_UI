@@ -71,7 +71,7 @@ export default function CallsPage() {
   useEffect(() => {
     if (isManager) {
       api
-        .get("/users?role=telecaller&is_active=true")
+        .get("/users?is_active=true")
         .then(({ data }) => setTelecallers(data.items || data || []))
         .catch(() => {});
     }

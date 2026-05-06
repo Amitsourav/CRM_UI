@@ -48,7 +48,7 @@ export function LeadFilters({
     const fetchOptions = async () => {
       try {
         if (isAdmin) {
-          const { data } = await api.get("/users?role=telecaller&is_active=true");
+          const { data } = await api.get("/users?is_active=true");
           setAgents(data.items || data || []);
         }
         const { data: srcData } = await api.get("/leads/sources/list");

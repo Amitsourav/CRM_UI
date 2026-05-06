@@ -100,7 +100,7 @@ export function PipelineBoard() {
   useEffect(() => {
     if (isManager) {
       api
-        .get("/users?role=telecaller&is_active=true")
+        .get("/users?is_active=true")
         .then(({ data }) => setAgents(data.items || data || []))
         .catch(() => {});
     }

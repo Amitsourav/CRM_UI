@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Command,
   CommandInput,
@@ -19,7 +20,13 @@ import {
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import type { User } from "@/types";
+import type { Role, User } from "@/types";
+
+const ROLE_LABELS: Record<Role, string> = {
+  admin: "Admin",
+  manager: "Manager",
+  telecaller: "Telecaller",
+};
 
 interface BulkAssignDialogProps {
   open: boolean;
@@ -41,7 +48,7 @@ export function BulkAssignDialog({
   useEffect(() => {
     if (open) {
       api
-        .get("/users?role=telecaller&is_active=true")
+        .get("/users?is_active=true")
         .then(({ data }) => setAgents(data.items || data || []))
         .catch(() => {});
       setSelectedAgent("");
@@ -81,16 +88,21 @@ export function BulkAssignDialog({
         <Command className="border rounded-md">
           <CommandInput placeholder="Search agents..." />
           <CommandList>
-            <CommandEmpty>No agents found.</CommandEmpty>
+            <CommandEmpty>No users found.</CommandEmpty>
             {agents.map((agent) => (
               <CommandItem
                 key={agent.id}
                 onSelect={() => setSelectedAgent(agent.id)}
                 className={`cursor-pointer ${selectedAgent === agent.id ? "bg-primary/10" : ""}`}
               >
-                <div>
-                  <p className="font-medium">{agent.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{agent.email}</p>
+                <div className="flex w-full items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{agent.full_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{agent.email}</p>
+                  </div>
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    {ROLE_LABELS[agent.role] ?? agent.role}
+                  </Badge>
                 </div>
               </CommandItem>
             ))}

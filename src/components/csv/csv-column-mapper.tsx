@@ -51,7 +51,7 @@ export function CsvColumnMapper({ importId, onProcess }: CsvColumnMapperProps) {
       try {
         const [preview, agentRes, sourceRes] = await Promise.all([
           api.post(`/csv/${importId}/preview`),
-          api.get("/users?role=telecaller&is_active=true").catch(() => ({ data: [] })),
+          api.get("/users?is_active=true").catch(() => ({ data: [] })),
           api.get("/leads/sources/list").catch(() => ({ data: [] })),
         ]);
         const data = preview.data;
