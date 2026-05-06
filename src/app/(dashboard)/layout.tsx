@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
+import { useTaskCountStore } from "@/stores/task-count-store";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { PageSkeleton } from "@/components/shared/loading-skeleton";
@@ -14,6 +15,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, isLoading, fetchMe, isManager } = useAuthStore();
+  const refreshTaskCount = useTaskCountStore((s) => s.refresh);
   const router = useRouter();
 
   useEffect(() => {
@@ -35,6 +37,15 @@ export default function DashboardLayout({
       router.replace("/login");
     }
   }, [isLoading, user, router]);
+
+  // Keep the sidebar Tasks badge fresh: prime on login, refresh when the tab regains focus.
+  useEffect(() => {
+    if (!user?.id) return;
+    refreshTaskCount();
+    const onFocus = () => refreshTaskCount();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [user?.id, refreshTaskCount]);
 
   if (isLoading) {
     return (

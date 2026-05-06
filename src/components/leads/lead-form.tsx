@@ -23,6 +23,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { useTaskCountStore } from "@/stores/task-count-store";
 import type { Lead } from "@/types";
 
 interface LeadFormProps {
@@ -43,6 +44,7 @@ interface FieldErrors {
 
 export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps) {
   const isEdit = !!lead;
+  const refreshTaskCount = useTaskCountStore((s) => s.refresh);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [form, setForm] = useState({
@@ -204,6 +206,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         toast.success("Lead created");
         onSuccess(data.id);
       }
+      refreshTaskCount();
       onOpenChange(false);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } };

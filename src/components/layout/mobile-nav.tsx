@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
+import { useTaskCountStore } from "@/stores/task-count-store";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -46,6 +47,7 @@ export function MobileNav() {
   const pathname = usePathname();
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const isManager = useAuthStore((s) => s.isManager);
+  const taskCount = useTaskCountStore((s) => s.count);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -75,7 +77,12 @@ export function MobileNav() {
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                <span>{item.label}</span>
+                {item.href === "/tasks" && taskCount > 0 && (
+                  <span className="ml-auto rounded-full bg-red-500 text-white text-[10px] leading-none font-semibold px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                    {taskCount}
+                  </span>
+                )}
               </Link>
             ))}
             {isManager && (

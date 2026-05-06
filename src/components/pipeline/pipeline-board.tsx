@@ -5,6 +5,7 @@ import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { PipelineColumn } from "./pipeline-column";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { useAuthStore } from "@/stores/auth-store";
+import { useTaskCountStore } from "@/stores/task-count-store";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import type { Lead, LeadStage, User, LeadSource, PaginatedResponse } from "@/types";
@@ -52,6 +53,7 @@ interface StageChangeData {
 
 export function PipelineBoard() {
   const { isManager } = useAuthStore();
+  const refreshTaskCount = useTaskCountStore((s) => s.refresh);
   const { stages: STAGES, getEntry, canTransition, stageRequiresNotes } =
     useStageConfig();
 
@@ -196,6 +198,7 @@ export function PipelineBoard() {
     try {
       await api.post(`/leads/${leadId}/stage`, { to_stage: toStage, ...extraData });
       toast.success(`Lead moved to ${getEntry(toStage).label}`);
+      refreshTaskCount();
     } catch (error: unknown) {
       // Revert optimistic update
       setStageData((prev) => ({

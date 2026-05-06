@@ -57,6 +57,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useStageConfig } from "@/hooks/use-stage-config";
+import { useTaskCountStore } from "@/stores/task-count-store";
 import type { Lead, LeadStage } from "@/types";
 
 export default function LeadDetailPage() {
@@ -64,6 +65,7 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const { isAdmin, isManager } = useAuthStore();
   const { getEntry, getValidTransitions, stageRequiresNotes } = useStageConfig();
+  const refreshTaskCount = useTaskCountStore((s) => s.refresh);
   const leadId = params.id as string;
 
   const [lead, setLead] = useState<Lead | null>(null);
@@ -139,6 +141,7 @@ export default function LeadDetailPage() {
 
       await api.post(`/leads/${leadId}/stage`, payload);
       toast.success(`Stage changed to ${getEntry(targetStage).label}`);
+      refreshTaskCount();
       setStageDialogOpen(false);
       fetchLead();
     } catch (error: unknown) {
