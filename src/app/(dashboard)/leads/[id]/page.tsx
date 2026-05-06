@@ -135,6 +135,9 @@ export default function LeadDetailPage() {
       if (stageRequiresNotes(targetStage)) {
         payload.conversation_notes = stageNotes;
         payload.agent_agenda = stageAgenda;
+      } else if (stageNotes.trim()) {
+        // Optional remark on a non-gated transition.
+        payload.conversation_notes = stageNotes.trim();
       }
       if (targetStage === "lost") payload.lost_reason = lostReason;
       if (stageDueDate) payload.due_date = format(stageDueDate, "yyyy-MM-dd");
@@ -256,25 +259,33 @@ export default function LeadDetailPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {targetStage && (
+              <div className="space-y-2">
+                <Label>
+                  {stageRequiresNotes(targetStage)
+                    ? "Conversation Notes *"
+                    : "Remark (optional)"}
+                </Label>
+                <Textarea
+                  value={stageNotes}
+                  onChange={(e) => setStageNotes(e.target.value)}
+                  placeholder={
+                    stageRequiresNotes(targetStage)
+                      ? "Notes from conversation..."
+                      : "Add a note about this change..."
+                  }
+                />
+              </div>
+            )}
             {targetStage && stageRequiresNotes(targetStage) && (
-              <>
-                <div className="space-y-2">
-                  <Label>Conversation Notes *</Label>
-                  <Textarea
-                    value={stageNotes}
-                    onChange={(e) => setStageNotes(e.target.value)}
-                    placeholder="Notes from conversation..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Agent Agenda *</Label>
-                  <Textarea
-                    value={stageAgenda}
-                    onChange={(e) => setStageAgenda(e.target.value)}
-                    placeholder="Next steps..."
-                  />
-                </div>
-              </>
+              <div className="space-y-2">
+                <Label>Agent Agenda *</Label>
+                <Textarea
+                  value={stageAgenda}
+                  onChange={(e) => setStageAgenda(e.target.value)}
+                  placeholder="Next steps..."
+                />
+              </div>
             )}
             {targetStage === "lost" && (
               <div className="space-y-2">

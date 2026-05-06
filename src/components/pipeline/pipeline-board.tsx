@@ -226,6 +226,8 @@ export function PipelineBoard() {
   };
 
   // Single entry point for both drag-drop and the per-card dropdown.
+  // Always opens the dialog so the user can add a remark; the dialog's
+  // body decides which fields to require based on the target stage.
   const requestStageChange = (
     leadId: string,
     fromStage: LeadStage,
@@ -238,11 +240,7 @@ export function PipelineBoard() {
       );
       return;
     }
-    if (stageRequiresNotes(toStage) || toStage === "lost") {
-      setStageChangeData({ leadId, fromStage, toStage });
-      return;
-    }
-    performStageChange(leadId, fromStage, toStage);
+    setStageChangeData({ leadId, fromStage, toStage });
   };
 
   const handleDragEnd = (result: DropResult) => {
@@ -272,6 +270,9 @@ export function PipelineBoard() {
     if (stageRequiresNotes(toStage)) {
       extraData.conversation_notes = notes;
       extraData.agent_agenda = agenda;
+    } else if (notes.trim()) {
+      // Optional remark on a non-gated transition.
+      extraData.conversation_notes = notes.trim();
     }
     if (toStage === "lost") extraData.lost_reason = lostReason;
     if (dueDate) extraData.due_date = format(dueDate, "yyyy-MM-dd");
@@ -375,17 +376,29 @@ export function PipelineBoard() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {stageChangeData && (
+              <div className="space-y-2">
+                <Label>
+                  {stageRequiresNotes(stageChangeData.toStage)
+                    ? "Conversation Notes *"
+                    : "Remark (optional)"}
+                </Label>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder={
+                    stageRequiresNotes(stageChangeData.toStage)
+                      ? "Notes from conversation..."
+                      : "Add a note about this change..."
+                  }
+                />
+              </div>
+            )}
             {stageChangeData && stageRequiresNotes(stageChangeData.toStage) && (
-              <>
-                <div className="space-y-2">
-                  <Label>Conversation Notes *</Label>
-                  <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Agent Agenda *</Label>
-                  <Textarea value={agenda} onChange={(e) => setAgenda(e.target.value)} />
-                </div>
-              </>
+              <div className="space-y-2">
+                <Label>Agent Agenda *</Label>
+                <Textarea value={agenda} onChange={(e) => setAgenda(e.target.value)} />
+              </div>
             )}
             {stageChangeData?.toStage === "lost" && (
               <div className="space-y-2">
