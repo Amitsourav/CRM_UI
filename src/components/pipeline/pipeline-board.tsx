@@ -48,8 +48,7 @@ interface StageChangeData {
 export function PipelineBoard() {
   const { isManager } = useAuthStore();
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
-  const { slug, stages: STAGES, getEntry, canTransition } = useStageConfig();
-  const isFmc = slug !== "admitverse";
+  const { stages: STAGES, getEntry, canTransition } = useStageConfig();
 
   const [stageData, setStageData] = useState<Record<string, StageData>>(() => {
     const initial: Record<string, StageData> = {};
@@ -218,10 +217,11 @@ export function PipelineBoard() {
     }
   };
 
-  // Single entry point for both drag-drop and the per-card dropdown.
-  // FMC: always open the modal so the agent can capture a remark + next-
-  //   callback datetime on every move. Lost still gates on lost_reason.
-  // Admitverse: free-flow design — only Lost opens the modal.
+  // Single entry point for both drag-drop and the per-card dropdown. Every
+  // transition opens the modal so the agent can attach a remark / callback
+  // date and so Lost can capture a required reason. The card isn't moved
+  // optimistically on drag — drop without submitting just snaps back, which
+  // gives us the "Cancel reverts" behavior for free.
   const requestStageChange = (
     leadId: string,
     fromStage: LeadStage,
@@ -234,11 +234,7 @@ export function PipelineBoard() {
       );
       return;
     }
-    if (toStage === "lost" || isFmc) {
-      setStageChangeData({ leadId, fromStage, toStage });
-      return;
-    }
-    performStageChange(leadId, fromStage, toStage);
+    setStageChangeData({ leadId, fromStage, toStage });
   };
 
   const handleDragEnd = (result: DropResult) => {
