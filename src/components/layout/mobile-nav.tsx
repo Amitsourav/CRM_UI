@@ -33,6 +33,10 @@ const mainNav = [
   { href: "/notifications", label: "Notifications", icon: Bell },
 ];
 
+const telecallerNav = [
+  { href: "/reports", label: "Reports", icon: BarChart3 },
+];
+
 const adminNav = [
   { href: "/admin/users", label: "Users", icon: UserCog },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
@@ -85,6 +89,23 @@ export function MobileNav() {
                 )}
               </Link>
             ))}
+            {!isManager &&
+              telecallerNav.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    pathname.startsWith(item.href)
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
             {isManager && (
               <>
                 <Separator className="my-4" />

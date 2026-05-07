@@ -9,6 +9,8 @@ import { AgentPerformanceTable } from "@/components/reports/agent-performance-ta
 import { SourcePerformanceChart } from "@/components/reports/source-performance-chart";
 import { TrendsChart } from "@/components/reports/trends-chart";
 import { TaskComplianceChart } from "@/components/reports/task-compliance-chart";
+import { DailyReportView } from "@/components/reports/daily-report-view";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -56,6 +58,18 @@ export default function AdminReportsPage() {
           title="Reports Dashboard"
           description="Overview of your CRM performance"
         />
+
+        <Tabs defaultValue="team">
+          <TabsList>
+            <TabsTrigger value="team">Team Overview</TabsTrigger>
+            <TabsTrigger value="daily">My Daily Activity</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="daily" className="mt-6">
+            <DailyReportView />
+          </TabsContent>
+
+          <TabsContent value="team" className="mt-6 space-y-6">
 
         <DashboardCards data={dashboard.data} isLoading={dashboard.isLoading} />
 
@@ -178,6 +192,8 @@ export default function AdminReportsPage() {
             onDaysChange={setTrendDays}
           />
         </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </ManagerGuard>
   );
