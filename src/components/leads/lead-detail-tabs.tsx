@@ -157,7 +157,7 @@ export function LeadDetailTabs({ lead, callRefreshKey: externalRefreshKey }: Lea
         <TabsContent value="timeline" className="mt-4">
           <Card>
             <CardContent className="pt-6">
-              <LeadTimeline leadId={lead.id} />
+              <LeadTimeline leadId={lead.id} fallbackLostReason={lead.lost_reason} />
             </CardContent>
           </Card>
         </TabsContent>

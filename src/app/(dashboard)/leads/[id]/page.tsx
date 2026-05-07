@@ -182,10 +182,20 @@ export default function LeadDetailPage() {
               <Badge variant="outline">Source: {lead.lead_source.name}</Badge>
             )}
           </div>
-          {lead.current_stage === "lost" && lead.lost_reason && (
-            <p className="mt-2 text-sm text-red-700">
-              <span className="font-medium">Lost reason:</span> {lead.lost_reason}
-            </p>
+          {lead.current_stage === "lost" && (lead.lost_reason || lead.lost_time) && (
+            <div className="mt-2 space-y-0.5 text-sm text-red-700">
+              {lead.lost_reason && (
+                <p>
+                  <span className="font-medium">Lost reason:</span> {lead.lost_reason}
+                </p>
+              )}
+              {lead.lost_time && (
+                <p>
+                  <span className="font-medium">Lost on:</span>{" "}
+                  {format(new Date(lead.lost_time), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+              )}
+            </div>
           )}
         </div>
         <div className="flex flex-wrap gap-2">

@@ -10,9 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface LeadTimelineProps {
   leadId: string;
+  fallbackLostReason?: string;
 }
 
-export function LeadTimeline({ leadId }: LeadTimelineProps) {
+export function LeadTimeline({ leadId, fallbackLostReason }: LeadTimelineProps) {
   const [logs, setLogs] = useState<LeadStageLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { getEntry } = useStageConfig();
@@ -56,6 +57,13 @@ export function LeadTimeline({ leadId }: LeadTimelineProps) {
       <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
       {logs.map((log, index) => {
         const stageConfig = getEntry(log.to_stage);
+        const isLost = log.to_stage === "lost";
+        // Lost reason is captured via the transition modal — backend stores it
+        // on the stage_log row's conversation_notes. Fall back to the lead's
+        // current lost_reason if the log entry didn't carry it.
+        const lostReason = isLost
+          ? log.lost_reason || log.conversation_notes || fallbackLostReason
+          : undefined;
         return (
           <div key={log.id || index} className="relative flex gap-4 pb-6">
             <div className={`relative z-10 h-8 w-8 rounded-full ${stageConfig.color} flex items-center justify-center shrink-0`}>
@@ -76,16 +84,19 @@ export function LeadTimeline({ leadId }: LeadTimelineProps) {
                   by {log.changed_by_user.full_name}
                 </p>
               )}
-              {log.conversation_notes && (
-                <p className="text-sm mt-1">{log.conversation_notes}</p>
+              {isLost ? (
+                lostReason && (
+                  <p className="text-sm text-red-700 mt-1">
+                    <span className="font-medium">Lost reason:</span> {lostReason}
+                  </p>
+                )
+              ) : (
+                log.conversation_notes && (
+                  <p className="text-sm mt-1">{log.conversation_notes}</p>
+                )
               )}
               {log.agent_agenda && (
                 <p className="text-sm text-muted-foreground mt-1">Agenda: {log.agent_agenda}</p>
-              )}
-              {log.lost_reason && (
-                <p className="text-sm text-red-700 mt-1">
-                  <span className="font-medium">Lost reason:</span> {log.lost_reason}
-                </p>
               )}
               <p className="text-xs text-muted-foreground mt-1">
                 {format(new Date(log.created_at), "MMM d, yyyy 'at' h:mm a")}

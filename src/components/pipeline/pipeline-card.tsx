@@ -111,6 +111,16 @@ export function PipelineCard({ lead, onChangeStage }: PipelineCardProps) {
             {lead.phone}
           </div>
         )}
+        {lead.current_stage === "lost" && lead.lost_reason && (
+          <p
+            className="text-xs text-red-700 line-clamp-2"
+            title={lead.lost_reason}
+          >
+            {lead.lost_reason.length > 60
+              ? `${lead.lost_reason.slice(0, 60).trimEnd()}…`
+              : lead.lost_reason}
+          </p>
+        )}
         {lead.lead_source && (
           <Badge variant="outline" className="text-xs">
             {lead.lead_source.name}
