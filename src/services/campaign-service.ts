@@ -63,6 +63,26 @@ export interface CsvUploadResult {
   errors: Array<{ row: number; error: string }>;
 }
 
+export interface BulkAssignByFilterRequest {
+  csv_import_id?: string;
+  current_stage?: string;
+  lead_source_id?: string;
+  assigned_agent_id?: string;
+  created_after?: string;
+  created_before?: string;
+  search?: string;
+  tags_any?: string[];
+  limit?: number;
+}
+
+export interface BulkAssignByFilterResult {
+  matched: number;
+  added: number;
+  skipped_no_phone: number;
+  skipped_already_assigned: number;
+  truncated: boolean;
+}
+
 export function getCsvTemplateUrl(): string {
   return "/api/v1/campaigns/csv-template";
 }
@@ -95,6 +115,14 @@ export const campaignService = {
 
   assignLeads: async (id: string, lead_ids: string[]) => {
     const res = await api.post(`/campaigns/${id}/assign-leads`, { lead_ids });
+    return res.data;
+  },
+
+  assignLeadsBulk: async (
+    id: string,
+    body: BulkAssignByFilterRequest
+  ): Promise<BulkAssignByFilterResult> => {
+    const res = await api.post(`/campaigns/${id}/assign-leads-bulk`, body);
     return res.data;
   },
 

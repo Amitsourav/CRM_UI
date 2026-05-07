@@ -14,11 +14,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Megaphone } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
 import api from "@/lib/api";
+import { AddCsvImportToCampaignDialog } from "@/components/campaigns/add-csv-import-to-campaign-dialog";
 import type { CSVImport } from "@/types";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -35,6 +36,7 @@ export default function AdminCsvHistoryPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [addToCampaign, setAddToCampaign] = useState<{ id: string; fileName: string } | null>(null);
 
   const fetchHistory = useCallback(async () => {
     setIsLoading(true);
@@ -78,12 +80,13 @@ export default function AdminCsvHistoryPage() {
                   <TableHead className="text-right">Failed</TableHead>
                   <TableHead className="text-right">Duplicates</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {imports.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       No CSV imports found
                     </TableCell>
                   </TableRow>
@@ -131,11 +134,26 @@ export default function AdminCsvHistoryPage() {
                         <TableCell>
                           {format(new Date(imp.created_at), "MMM d, yyyy h:mm a")}
                         </TableCell>
+                        <TableCell className="text-right">
+                          {imp.status === "completed" && imp.success_count > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAddToCampaign({ id: imp.id, fileName: imp.file_name });
+                              }}
+                            >
+                              <Megaphone className="mr-1.5 h-3.5 w-3.5" />
+                              Add to campaign
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                       {expandedId === imp.id &&
                         imp.error_details?.length > 0 && (
                           <TableRow key={`${imp.id}-errors`}>
-                            <TableCell colSpan={8} className="bg-muted/50">
+                            <TableCell colSpan={9} className="bg-muted/50">
                               <div className="p-3 space-y-1 max-h-48 overflow-y-auto">
                                 <p className="text-sm font-medium mb-2">
                                   Error Details:
@@ -169,6 +187,13 @@ export default function AdminCsvHistoryPage() {
         )}
 
         <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+        <AddCsvImportToCampaignDialog
+          open={!!addToCampaign}
+          onOpenChange={(open) => !open && setAddToCampaign(null)}
+          csvImportId={addToCampaign?.id || ""}
+          csvFileName={addToCampaign?.fileName}
+        />
       </div>
     </ManagerGuard>
   );

@@ -38,6 +38,7 @@ import {
   XCircle,
   Loader2,
   Plus,
+  Filter,
   Upload,
   Download,
   X,
@@ -45,6 +46,7 @@ import {
 import { toast } from "sonner";
 import { campaignService, getCsvTemplateUrl } from "@/services/campaign-service";
 import type { Campaign, CampaignLead, CsvUploadResult } from "@/services/campaign-service";
+import { CampaignBulkAddDialog } from "@/components/campaigns/campaign-bulk-add-dialog";
 import { formatDistanceToNow } from "date-fns";
 import api from "@/lib/api";
 import type { Lead } from "@/types";
@@ -90,6 +92,7 @@ export default function CampaignDetailPage() {
   const [availableLoading, setAvailableLoading] = useState(false);
   const [selectedNewLeads, setSelectedNewLeads] = useState<Set<string>>(new Set());
   const [isAssigning, setIsAssigning] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   // Delete
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -347,6 +350,9 @@ export default function CampaignDetailPage() {
               <>
                 <Button variant="outline" size="sm" onClick={openAssign}>
                   <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Leads
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
+                  <Filter className="mr-1.5 h-3.5 w-3.5" /> Bulk by filter
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setCsvModalOpen(true)}>
                   <Upload className="mr-1.5 h-3.5 w-3.5" /> Upload CSV
@@ -868,6 +874,16 @@ export default function CampaignDetailPage() {
           confirmLabel={isDeleting ? "Deleting..." : "Delete"}
           onConfirm={handleDelete}
           destructive
+        />
+
+        <CampaignBulkAddDialog
+          open={bulkOpen}
+          onOpenChange={setBulkOpen}
+          campaignId={id}
+          onSuccess={() => {
+            fetchCampaign();
+            if (tab === "leads") fetchLeads();
+          }}
         />
       </div>
     </ManagerGuard>
