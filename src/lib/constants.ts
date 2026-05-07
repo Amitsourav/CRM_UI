@@ -13,11 +13,17 @@ export type CompanySlug = "fundmycampus" | "admitverse";
 export const ADMITVERSE_SLUG = "admitverse";
 
 const FMC_STAGES_LIST: LeadStage[] = [
-  "lead",
-  "called",
-  "connected",
-  "qualified_lead",
-  "won",
+  "created",
+  "contacted",
+  "dnp",
+  "qualified",
+  "processing",
+  "docs_pending",
+  "logged_in",
+  "sanctioned",
+  "pf_paid",
+  "disbursed",
+  "opportunity",
   "lost",
 ];
 
@@ -44,12 +50,26 @@ const ADMITVERSE_STAGES_LIST: LeadStage[] = [
 ];
 
 const FMC_STAGE_CONFIG: Partial<Record<LeadStage, StageConfigEntry>> = {
-  lead: { label: "New Lead", color: "bg-slate-500", bgClass: "bg-slate-100", textClass: "text-slate-700", order: 0 },
-  called: { label: "Called", color: "bg-blue-500", bgClass: "bg-blue-100", textClass: "text-blue-700", order: 1 },
-  connected: { label: "Connected", color: "bg-yellow-500", bgClass: "bg-yellow-100", textClass: "text-yellow-700", order: 2 },
-  qualified_lead: { label: "Qualified", color: "bg-purple-500", bgClass: "bg-purple-100", textClass: "text-purple-700", order: 3 },
-  won: { label: "Won", color: "bg-green-500", bgClass: "bg-green-100", textClass: "text-green-700", order: 4 },
-  lost: { label: "Lost", color: "bg-red-500", bgClass: "bg-red-100", textClass: "text-red-700", order: 5 },
+  // Active 12-stage FMC pipeline (post-2026-05 revamp).
+  created: { label: "Created", color: "bg-slate-500", bgClass: "bg-slate-100", textClass: "text-slate-700", order: 0 },
+  contacted: { label: "Contacted", color: "bg-blue-400", bgClass: "bg-blue-50", textClass: "text-blue-700", order: 1 },
+  dnp: { label: "DNP", color: "bg-orange-500", bgClass: "bg-orange-100", textClass: "text-orange-700", order: 2 },
+  qualified: { label: "Qualified", color: "bg-indigo-500", bgClass: "bg-indigo-100", textClass: "text-indigo-700", order: 3 },
+  processing: { label: "Processing", color: "bg-indigo-600", bgClass: "bg-indigo-100", textClass: "text-indigo-800", order: 4 },
+  docs_pending: { label: "Docs Pending", color: "bg-amber-500", bgClass: "bg-amber-100", textClass: "text-amber-800", order: 5 },
+  logged_in: { label: "Logged In", color: "bg-cyan-500", bgClass: "bg-cyan-100", textClass: "text-cyan-800", order: 6 },
+  sanctioned: { label: "Sanctioned", color: "bg-teal-500", bgClass: "bg-teal-100", textClass: "text-teal-700", order: 7 },
+  pf_paid: { label: "PF Paid", color: "bg-emerald-500", bgClass: "bg-emerald-100", textClass: "text-emerald-700", order: 8 },
+  disbursed: { label: "Disbursed", color: "bg-green-700", bgClass: "bg-green-200", textClass: "text-green-900", order: 9 },
+  opportunity: { label: "Opportunity", color: "bg-purple-400", bgClass: "bg-purple-50", textClass: "text-purple-700", order: 10 },
+  lost: { label: "Lost", color: "bg-red-500", bgClass: "bg-red-100", textClass: "text-red-700", order: 11 },
+  // Legacy FMC stages (kept so historical stage_log badges still render with a
+  // sensible label/color; not in FMC_STAGES_LIST so they don't render as columns).
+  lead: { label: "New Lead", color: "bg-slate-500", bgClass: "bg-slate-100", textClass: "text-slate-700", order: 100 },
+  called: { label: "Called", color: "bg-blue-500", bgClass: "bg-blue-100", textClass: "text-blue-700", order: 101 },
+  connected: { label: "Connected", color: "bg-yellow-500", bgClass: "bg-yellow-100", textClass: "text-yellow-700", order: 102 },
+  qualified_lead: { label: "Qualified (legacy)", color: "bg-purple-500", bgClass: "bg-purple-100", textClass: "text-purple-700", order: 103 },
+  won: { label: "Won", color: "bg-green-500", bgClass: "bg-green-100", textClass: "text-green-700", order: 104 },
 };
 
 const ADMITVERSE_STAGE_CONFIG: Partial<Record<LeadStage, StageConfigEntry>> = {
@@ -76,14 +96,9 @@ const ADMITVERSE_STAGE_CONFIG: Partial<Record<LeadStage, StageConfigEntry>> = {
 
 const ADMITVERSE_TERMINAL_STAGES: ReadonlySet<LeadStage> = new Set(["lost", "enrolled"]);
 
-const FMC_VALID_TRANSITIONS: Partial<Record<LeadStage, LeadStage[]>> = {
-  lead: ["called", "lost"],
-  called: ["connected", "lost"],
-  connected: ["qualified_lead", "lost"],
-  qualified_lead: ["won", "lost"],
-  won: [],
-  lost: ["lead"],
-};
+// FMC: free movement except disbursed (terminal) and lost (admin-only reopen
+// to Created — backend enforces the admin check, frontend just exposes it).
+const FMC_TERMINAL_STAGES: ReadonlySet<LeadStage> = new Set(["disbursed"]);
 
 const FALLBACK_STAGE_ENTRY: StageConfigEntry = {
   label: "Unknown",
@@ -130,7 +145,10 @@ export function canTransition(
     if (ADMITVERSE_TERMINAL_STAGES.has(from)) return false;
     return ADMITVERSE_STAGE_CONFIG[to] !== undefined;
   }
-  return FMC_VALID_TRANSITIONS[from]?.includes(to) ?? false;
+  // FMC
+  if (from === "lost") return to === "created";
+  if (FMC_TERMINAL_STAGES.has(from)) return false;
+  return FMC_STAGE_CONFIG[to] !== undefined && FMC_STAGES_LIST.includes(to);
 }
 
 export function getValidTransitions(
@@ -141,17 +159,19 @@ export function getValidTransitions(
     if (ADMITVERSE_TERMINAL_STAGES.has(from)) return [];
     return ADMITVERSE_STAGES_LIST.filter((s) => s !== from);
   }
-  return FMC_VALID_TRANSITIONS[from] ?? [];
+  // FMC
+  if (from === "lost") return ["created"];
+  if (FMC_TERMINAL_STAGES.has(from)) return [];
+  return FMC_STAGES_LIST.filter((s) => s !== from);
 }
 
-// FMC requires conversation notes for the call-flow stages. Admitverse moves
-// freely, so only `lost` gates with a reason — handled separately by callers.
+// Neither pipeline gates transitions on free-form notes anymore. `lost` still
+// requires a `lost_reason` — handled separately by callers.
 export function stageRequiresNotes(
-  slug: string | null | undefined,
-  stage: LeadStage
+  _slug: string | null | undefined,
+  _stage: LeadStage
 ): boolean {
-  if (isAdmitverse(slug)) return false;
-  return ["called", "connected", "qualified_lead"].includes(stage);
+  return false;
 }
 
 export const DISPOSITION_LABELS: Record<CallDisposition, string> = {

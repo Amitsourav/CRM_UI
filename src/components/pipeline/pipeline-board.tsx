@@ -225,9 +225,10 @@ export function PipelineBoard() {
     }
   };
 
-  // Single entry point for both drag-drop and the per-card dropdown.
-  // Always opens the dialog so the user can add a remark; the dialog's
-  // body decides which fields to require based on the target stage.
+  // Single entry point for both drag-drop and the per-card dropdown. Lost
+  // and notes-required stages open a dialog; everything else fires straight
+  // through. Lead detail page has its own "Change Stage" button that always
+  // opens a dialog (so users can attach a remark there if they want).
   const requestStageChange = (
     leadId: string,
     fromStage: LeadStage,
@@ -240,7 +241,11 @@ export function PipelineBoard() {
       );
       return;
     }
-    setStageChangeData({ leadId, fromStage, toStage });
+    if (stageRequiresNotes(toStage) || toStage === "lost") {
+      setStageChangeData({ leadId, fromStage, toStage });
+      return;
+    }
+    performStageChange(leadId, fromStage, toStage);
   };
 
   const handleDragEnd = (result: DropResult) => {
@@ -250,6 +255,42 @@ export function PipelineBoard() {
       result.source.droppableId as LeadStage,
       result.destination.droppableId as LeadStage
     );
+  };
+
+  const handleToggleImportant = async (leadId: string, currentValue: boolean) => {
+    const nextValue = !currentValue;
+    const flip = (value: boolean) =>
+      setStageData((prev) => {
+        const next = { ...prev };
+        for (const stage of Object.keys(next)) {
+          const idx = next[stage].leads.findIndex((l) => l.id === leadId);
+          if (idx >= 0) {
+            next[stage] = {
+              ...next[stage],
+              leads: next[stage].leads.map((l) =>
+                l.id === leadId ? { ...l, is_important: value } : l
+              ),
+            };
+            return next;
+          }
+        }
+        return prev;
+      });
+
+    flip(nextValue);
+    try {
+      await api.patch(`/leads/${leadId}/important`, { is_important: nextValue });
+    } catch (error: unknown) {
+      flip(currentValue);
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string } };
+      };
+      if (err.response?.status === 403) {
+        toast.error("You don't have permission to modify this lead");
+      } else {
+        toast.error(err.response?.data?.detail || "Failed to update");
+      }
+    }
   };
 
   const handleStageChangeSubmit = async () => {
@@ -361,6 +402,7 @@ export function PipelineBoard() {
               isLoadingMore={stageData[stage].isLoadingMore}
               onLoadMore={() => handleLoadMore(stage)}
               onChangeStage={requestStageChange}
+              onToggleImportant={handleToggleImportant}
             />
           ))}
         </div>

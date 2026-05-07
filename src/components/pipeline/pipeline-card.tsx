@@ -12,7 +12,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Phone, Calendar, MoreVertical, Check } from "lucide-react";
+import { Phone, Calendar, MoreVertical, Check, Star } from "lucide-react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import type { Lead, LeadStage } from "@/types";
@@ -20,9 +20,10 @@ import type { Lead, LeadStage } from "@/types";
 interface PipelineCardProps {
   lead: Lead;
   onChangeStage: (leadId: string, fromStage: LeadStage, toStage: LeadStage) => void;
+  onToggleImportant: (leadId: string, currentValue: boolean) => void;
 }
 
-export function PipelineCard({ lead, onChangeStage }: PipelineCardProps) {
+export function PipelineCard({ lead, onChangeStage, onToggleImportant }: PipelineCardProps) {
   const router = useRouter();
   const { getEntry, getValidTransitions } = useStageConfig();
 
@@ -50,8 +51,26 @@ export function PipelineCard({ lead, onChangeStage }: PipelineCardProps) {
       onClick={() => router.push(`/leads/${lead.id}`)}
     >
       <div className="space-y-2">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-1">
           <p className="font-medium text-sm truncate flex-1">{lead.full_name}</p>
+          <button
+            type="button"
+            aria-label={lead.is_important ? "Unmark important" : "Mark important"}
+            className="-m-1 p-1 rounded hover:bg-muted shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleImportant(lead.id, !!lead.is_important);
+            }}
+            onPointerDown={stopBubble}
+          >
+            <Star
+              className={`h-4 w-4 ${
+                lead.is_important
+                  ? "fill-yellow-400 text-yellow-500"
+                  : "text-muted-foreground"
+              }`}
+            />
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger
               asChild

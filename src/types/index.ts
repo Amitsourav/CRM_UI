@@ -2,7 +2,7 @@
 export type Role = "admin" | "manager" | "telecaller";
 
 export type LeadStage =
-  // FMC pipeline
+  // FMC legacy (pre-2026-05 pipeline; kept for historical stage_log entries)
   | "lead"
   | "called"
   | "qualified_lead"
@@ -10,14 +10,21 @@ export type LeadStage =
   // Shared
   | "connected"
   | "lost"
-  // Admitverse pipeline
   | "created"
   | "contacted"
-  | "dnp_pre_qualified"
   | "qualified"
-  | "opportunity"
-  | "dnp_post_qualified"
   | "processing"
+  | "opportunity"
+  // FMC pipeline (12 stages)
+  | "dnp"
+  | "docs_pending"
+  | "logged_in"
+  | "sanctioned"
+  | "pf_paid"
+  | "disbursed"
+  // Admitverse pipeline
+  | "dnp_pre_qualified"
+  | "dnp_post_qualified"
   | "important"
   | "partial_docs_collected"
   | "docs_collected"
@@ -115,6 +122,7 @@ export interface Lead {
   won_time?: string;
   lost_time?: string;
   lost_reason?: string;
+  is_important?: boolean;
   custom_fields?: Record<string, unknown>;
   tags?: string[];
   notes?: string;
