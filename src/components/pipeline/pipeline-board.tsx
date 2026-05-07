@@ -25,16 +25,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Loader2, RefreshCw } from "lucide-react";
-import { format } from "date-fns";
+import { Loader2, RefreshCw } from "lucide-react";
 
 const PER_STAGE_LIMIT = 30;
 
@@ -54,8 +48,8 @@ interface StageChangeData {
 export function PipelineBoard() {
   const { isManager } = useAuthStore();
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
-  const { stages: STAGES, getEntry, canTransition, stageRequiresNotes } =
-    useStageConfig();
+  const { slug, stages: STAGES, getEntry, canTransition } = useStageConfig();
+  const isFmc = slug !== "admitverse";
 
   const [stageData, setStageData] = useState<Record<string, StageData>>(() => {
     const initial: Record<string, StageData> = {};
@@ -93,9 +87,8 @@ export function PipelineBoard() {
   // Stage change dialog
   const [stageChangeData, setStageChangeData] = useState<StageChangeData | null>(null);
   const [notes, setNotes] = useState("");
-  const [agenda, setAgenda] = useState("");
   const [lostReason, setLostReason] = useState("");
-  const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [dueDateTime, setDueDateTime] = useState(""); // datetime-local: "YYYY-MM-DDTHH:mm"
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load filter options
@@ -225,10 +218,10 @@ export function PipelineBoard() {
     }
   };
 
-  // Single entry point for both drag-drop and the per-card dropdown. Lost
-  // and notes-required stages open a dialog; everything else fires straight
-  // through. Lead detail page has its own "Change Stage" button that always
-  // opens a dialog (so users can attach a remark there if they want).
+  // Single entry point for both drag-drop and the per-card dropdown.
+  // FMC: always open the modal so the agent can capture a remark + next-
+  //   callback datetime on every move. Lost still gates on lost_reason.
+  // Admitverse: free-flow design — only Lost opens the modal.
   const requestStageChange = (
     leadId: string,
     fromStage: LeadStage,
@@ -241,7 +234,7 @@ export function PipelineBoard() {
       );
       return;
     }
-    if (stageRequiresNotes(toStage) || toStage === "lost") {
+    if (toStage === "lost" || isFmc) {
       setStageChangeData({ leadId, fromStage, toStage });
       return;
     }
@@ -297,10 +290,6 @@ export function PipelineBoard() {
     if (!stageChangeData) return;
     const { leadId, fromStage, toStage } = stageChangeData;
 
-    if (stageRequiresNotes(toStage) && (!notes.trim() || !agenda.trim())) {
-      toast.error("Notes and agenda are required");
-      return;
-    }
     if (toStage === "lost" && !lostReason.trim()) {
       toast.error("Lost reason is required");
       return;
@@ -308,15 +297,16 @@ export function PipelineBoard() {
 
     setIsSubmitting(true);
     const extraData: Record<string, unknown> = {};
-    if (stageRequiresNotes(toStage)) {
-      extraData.conversation_notes = notes;
-      extraData.agent_agenda = agenda;
-    } else if (notes.trim()) {
-      // Optional remark on a non-gated transition.
-      extraData.conversation_notes = notes.trim();
+    if (toStage === "lost") {
+      extraData.lost_reason = lostReason.trim();
+    } else {
+      if (notes.trim()) extraData.conversation_notes = notes.trim();
+      if (dueDateTime) {
+        // datetime-local gives a TZ-naive value; toISOString() reads it as
+        // local time and emits UTC, which is what the backend expects.
+        extraData.due_date = new Date(dueDateTime).toISOString();
+      }
     }
-    if (toStage === "lost") extraData.lost_reason = lostReason;
-    if (dueDate) extraData.due_date = format(dueDate, "yyyy-MM-dd");
 
     await performStageChange(leadId, fromStage, toStage, extraData);
     setIsSubmitting(false);
@@ -326,9 +316,8 @@ export function PipelineBoard() {
   const closeStageDialog = () => {
     setStageChangeData(null);
     setNotes("");
-    setAgenda("");
     setLostReason("");
-    setDueDate(undefined);
+    setDueDateTime("");
   };
 
   if (isLoading) {
@@ -418,54 +407,47 @@ export function PipelineBoard() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {stageChangeData && (
+            {stageChangeData?.toStage === "lost" ? (
               <div className="space-y-2">
-                <Label>
-                  {stageRequiresNotes(stageChangeData.toStage)
-                    ? "Conversation Notes *"
-                    : "Remark (optional)"}
-                </Label>
+                <Label>Reason for lost *</Label>
                 <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder={
-                    stageRequiresNotes(stageChangeData.toStage)
-                      ? "Notes from conversation..."
-                      : "Add a note about this change..."
-                  }
+                  value={lostReason}
+                  onChange={(e) => setLostReason(e.target.value)}
+                  placeholder="Why is this lead lost?"
+                  autoFocus
                 />
               </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>Remark (optional)</Label>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="What happened on this call?"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Next callback date (optional)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={dueDateTime}
+                    onChange={(e) => setDueDateTime(e.target.value)}
+                    aria-label="When to follow up next"
+                  />
+                </div>
+              </>
             )}
-            {stageChangeData && stageRequiresNotes(stageChangeData.toStage) && (
-              <div className="space-y-2">
-                <Label>Agent Agenda *</Label>
-                <Textarea value={agenda} onChange={(e) => setAgenda(e.target.value)} />
-              </div>
-            )}
-            {stageChangeData?.toStage === "lost" && (
-              <div className="space-y-2">
-                <Label>Lost Reason *</Label>
-                <Textarea value={lostReason} onChange={(e) => setLostReason(e.target.value)} />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Due Date (Optional)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dueDate ? format(dueDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={dueDate} onSelect={setDueDate} />
-                </PopoverContent>
-              </Popover>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeStageDialog}>Cancel</Button>
-            <Button onClick={handleStageChangeSubmit} disabled={isSubmitting}>
+            <Button
+              onClick={handleStageChangeSubmit}
+              disabled={
+                isSubmitting ||
+                (stageChangeData?.toStage === "lost" && !lostReason.trim())
+              }
+            >
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirm
             </Button>
