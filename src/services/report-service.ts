@@ -2,6 +2,9 @@ import api from "@/lib/api";
 
 export interface DailyMetrics {
   calls_made: number;
+  // calls_implied: distinct leads moved or updated today (proxy for call
+  // activity until the dialer ships and calls_made becomes meaningful).
+  calls_implied: number;
   calls_connected: number;
   call_duration_minutes: number;
   leads_created: number;

@@ -42,7 +42,9 @@ const KPI_ORDER: Array<{
   label: string;
   format?: (v: number) => string;
 }> = [
-  { key: "calls_made", label: "Calls Made" },
+  // Sourced from calls_implied (stage-move-driven proxy) until the dialer
+  // ships; calls_made stays as a backend field but is ~always 0 today.
+  { key: "calls_implied", label: "Calls Made" },
   { key: "calls_connected", label: "Calls Connected" },
   {
     key: "call_duration_minutes",
@@ -126,7 +128,12 @@ export function DailyReportView() {
       .finally(() => setLoadingRange(false));
   }, [userId, isAdmin]);
 
-  const targetPct = daily?.percent_of_target ?? null;
+  // Compute against calls_implied locally — backend's percent_of_target may
+  // still be tied to calls_made and would lag behind the displayed number.
+  const targetPct =
+    daily?.target_call_count && daily.target_call_count > 0
+      ? (daily.metrics.calls_implied / daily.target_call_count) * 100
+      : null;
   const targetBarColor =
     targetPct === null
       ? ""
@@ -203,7 +210,7 @@ export function DailyReportView() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium">
-                Daily call target: {daily.metrics.calls_made} /{" "}
+                Daily call target: {daily.metrics.calls_implied} /{" "}
                 {daily.target_call_count}
               </p>
               <span className={`text-sm font-semibold ${targetTextColor}`}>
@@ -305,7 +312,7 @@ export function DailyReportView() {
                       <TableCell>
                         {format(new Date(row.date), "EEE, MMM d")}
                       </TableCell>
-                      <TableCell className="text-right">{m.calls_made}</TableCell>
+                      <TableCell className="text-right">{m.calls_implied}</TableCell>
                       <TableCell className="text-right">
                         {m.calls_connected}
                       </TableCell>
