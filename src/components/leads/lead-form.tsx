@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -68,6 +67,10 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     target_intake: "",
     preferred_countries: "",
     preferred_universities: "",
+    loan_amount: "",
+    bank_status: "",
+    docs_required: "6",
+    docs_submitted: "",
     notes: "",
     tags: "",
   });
@@ -96,6 +99,10 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         target_intake: lead.target_intake || "",
         preferred_countries: lead.preferred_countries?.join(", ") || "",
         preferred_universities: lead.preferred_universities?.join(", ") || "",
+        loan_amount: lead.loan_amount || "",
+        bank_status: lead.bank_status || "",
+        docs_required: lead.docs_required?.toString() || "6",
+        docs_submitted: lead.docs_submitted?.toString() || "",
         notes: lead.notes || "",
         tags: lead.tags?.join(", ") || "",
       });
@@ -106,6 +113,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         pincode: "", highest_qualification: "", stream: "", passing_year: "",
         college_name: "", university: "", percentage: "", target_degree: "",
         target_intake: "", preferred_countries: "", preferred_universities: "",
+        loan_amount: "", bank_status: "", docs_required: "6", docs_submitted: "",
         notes: "", tags: "",
       });
     }
@@ -164,6 +172,21 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
       toast.error("Please fix the validation errors");
       return;
     }
+    const docsRequired = form.docs_required
+      ? parseInt(form.docs_required)
+      : undefined;
+    const docsSubmitted = form.docs_submitted
+      ? parseInt(form.docs_submitted)
+      : undefined;
+    if (
+      docsRequired !== undefined &&
+      docsSubmitted !== undefined &&
+      docsSubmitted > docsRequired
+    ) {
+      toast.error("Docs submitted can't exceed docs required");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const payload: Record<string, unknown> = {
@@ -191,6 +214,10 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         preferred_universities: form.preferred_universities
           ? form.preferred_universities.split(",").map((s) => s.trim()).filter(Boolean)
           : undefined,
+        loan_amount: form.loan_amount || undefined,
+        bank_status: form.bank_status || undefined,
+        docs_required: docsRequired,
+        docs_submitted: docsSubmitted,
         notes: form.notes || undefined,
         tags: form.tags
           ? form.tags.split(",").map((s) => s.trim()).filter(Boolean)
@@ -218,12 +245,12 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle>{isEdit ? "Edit Lead" : "Create Lead"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <ScrollArea className="max-h-[60vh] pr-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto px-6 py-5">
             <div className="space-y-6">
               {/* Personal Info */}
               <div>
@@ -343,6 +370,63 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 </div>
               </div>
 
+              {/* Loan Details */}
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Loan Details</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Loan Amount</Label>
+                    <Input
+                      value={form.loan_amount}
+                      onChange={(e) => updateField("loan_amount", e.target.value)}
+                      placeholder="25 L / 2.5 cr / 500000"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Bank Status</Label>
+                    <Select
+                      value={form.bank_status || "__not_set"}
+                      onValueChange={(v) =>
+                        updateField("bank_status", v === "__not_set" ? "" : v)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__not_set">Not Set</SelectItem>
+                        <SelectItem value="applied">Applied</SelectItem>
+                        <SelectItem value="docs_reviewed">Docs Reviewed</SelectItem>
+                        <SelectItem value="under_review">Under Review</SelectItem>
+                        <SelectItem value="loan_login">Loan Login</SelectItem>
+                        <SelectItem value="sanctioned">Sanctioned</SelectItem>
+                        <SelectItem value="pf_paid">PF Paid</SelectItem>
+                        <SelectItem value="disbursed">Disbursed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Docs Required</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={form.docs_required}
+                      onChange={(e) => updateField("docs_required", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Docs Submitted</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={form.docs_required || undefined}
+                      value={form.docs_submitted}
+                      onChange={(e) => updateField("docs_submitted", e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Meta */}
               <div>
                 <h4 className="text-sm font-semibold mb-3">Other</h4>
@@ -358,8 +442,8 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 </div>
               </div>
             </div>
-          </ScrollArea>
-          <DialogFooter className="mt-4">
+          </div>
+          <DialogFooter className="px-6 py-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

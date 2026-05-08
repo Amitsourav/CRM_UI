@@ -73,6 +73,15 @@ export type CSVImportStatus =
   | "completed"
   | "failed";
 
+export type BankStatus =
+  | "applied"
+  | "docs_reviewed"
+  | "under_review"
+  | "loan_login"
+  | "sanctioned"
+  | "pf_paid"
+  | "disbursed";
+
 /* ── Models ── */
 export interface User {
   id: string;
@@ -123,6 +132,18 @@ export interface Lead {
   lost_time?: string;
   lost_reason?: string;
   is_important?: boolean;
+  // Loan/bank fields (FMC). Optional — Admitverse leads don't populate them.
+  loan_amount?: string;
+  bank_status?: BankStatus | null;
+  docs_required?: number;
+  docs_submitted?: number;
+  // Card-shape extras returned by the by-stage endpoint.
+  assigned_agent_name?: string;
+  assigned_agent_role?: Role;
+  task_count?: number;
+  call_count?: number;
+  notes_count?: number;
+  has_active_ai_campaign?: boolean;
   custom_fields?: Record<string, unknown>;
   tags?: string[];
   notes?: string;

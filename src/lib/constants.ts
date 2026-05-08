@@ -1,4 +1,10 @@
-import type { LeadStage, CallDisposition, TaskType, TaskStatus } from "@/types";
+import type {
+  BankStatus,
+  CallDisposition,
+  LeadStage,
+  TaskStatus,
+  TaskType,
+} from "@/types";
 
 export type StageConfigEntry = {
   label: string;
@@ -197,4 +203,14 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   in_progress: "In Progress",
   completed: "Completed",
   overdue: "Overdue",
+};
+
+export const BANK_STATUS_LABELS: Record<BankStatus, string> = {
+  applied: "Applied",
+  docs_reviewed: "Docs Reviewed",
+  under_review: "Under Review",
+  loan_login: "Loan Login",
+  sanctioned: "Sanctioned",
+  pf_paid: "PF Paid",
+  disbursed: "Disbursed",
 };
