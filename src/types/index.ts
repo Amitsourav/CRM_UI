@@ -138,6 +138,7 @@ export interface Lead {
   bank_status?: BankStatus | null;
   docs_required?: number;
   docs_submitted?: number;
+  submitted_docs?: string[];
   // Card-shape extras returned by the by-stage endpoint.
   assigned_agent_name?: string;
   assigned_agent_role?: Role;

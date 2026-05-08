@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { BANK_STATUS_LABELS } from "@/lib/constants";
+import { DocsChecklist } from "@/components/leads/docs-checklist";
 import type { BankStatus, Lead, LeadStage, Task } from "@/types";
 
 interface PipelineCardProps {
@@ -48,12 +49,14 @@ interface PipelineCardProps {
     toStage: LeadStage
   ) => void;
   onToggleImportant: (leadId: string, currentValue: boolean) => void;
+  onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
 }
 
 export function PipelineCard({
   lead,
   onChangeStage,
   onToggleImportant,
+  onUpdateLead,
 }: PipelineCardProps) {
   const router = useRouter();
   const { slug, getEntry, getValidTransitions } = useStageConfig();
@@ -228,6 +231,7 @@ export function PipelineCard({
       starButton={StarButton}
       stopBubble={stopBubble}
       onCardClick={() => router.push(`/leads/${lead.id}`)}
+      onUpdateLead={onUpdateLead}
     />
   );
 }
@@ -240,16 +244,19 @@ function FmcEnhancedCard({
   starButton,
   stopBubble,
   onCardClick,
+  onUpdateLead,
 }: {
   lead: Lead;
   stageDropdown: React.ReactNode;
   starButton: React.ReactNode;
   stopBubble: (e: React.SyntheticEvent) => void;
   onCardClick: () => void;
+  onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
 }) {
   const [tasksOpen, setTasksOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [tasksLoading, setTasksLoading] = useState(false);
+  const [docsOpen, setDocsOpen] = useState(false);
 
   const handleEmail = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -303,10 +310,6 @@ function FmcEnhancedCard({
       ? BANK_STATUS_LABELS[lead.bank_status as BankStatus]
       : null;
   const bankNameTrimmed = lead.bank_name?.trim() || null;
-  const bankRow =
-    bankNameTrimmed && bankStatusLabel
-      ? `${bankNameTrimmed} · ${bankStatusLabel}`
-      : bankNameTrimmed || bankStatusLabel;
   const docsTotal = lead.docs_required;
   const docsDone = lead.docs_submitted;
   const showDocs =
@@ -379,7 +382,8 @@ function FmcEnhancedCard({
         {/* Loan / education section */}
         {(lead.target_degree ||
           lead.loan_amount ||
-          bankRow ||
+          bankNameTrimmed ||
+          bankStatusLabel ||
           showDocs) && (
           <div className="border-t pt-2 space-y-1">
             {lead.target_degree && (
@@ -394,18 +398,106 @@ function FmcEnhancedCard({
                 <span className="truncate">{lead.loan_amount}</span>
               </div>
             )}
-            {bankRow && (
+            {(bankNameTrimmed || bankStatusLabel) && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80">
                 <Landmark className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{bankRow}</span>
+                {bankNameTrimmed && (
+                  <>
+                    <span className="truncate">{bankNameTrimmed}</span>
+                    <span className="text-muted-foreground">·</span>
+                  </>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    asChild
+                    onClick={stopBubble}
+                    onPointerDown={stopBubble}
+                  >
+                    <button
+                      type="button"
+                      className="-m-0.5 px-0.5 py-0.5 rounded hover:bg-muted inline-flex items-center gap-0.5"
+                    >
+                      <span>{bankStatusLabel ?? "Set status"}</span>
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    onClick={stopBubble}
+                    onPointerDown={stopBubble}
+                  >
+                    {(Object.keys(BANK_STATUS_LABELS) as BankStatus[]).map(
+                      (status) => (
+                        <DropdownMenuItem
+                          key={status}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (lead.bank_status === status) return;
+                            onUpdateLead(lead.id, { bank_status: status });
+                          }}
+                        >
+                          {lead.bank_status === status ? (
+                            <Check className="mr-1.5 h-3.5 w-3.5" />
+                          ) : (
+                            <span className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          {BANK_STATUS_LABELS[status]}
+                        </DropdownMenuItem>
+                      )
+                    )}
+                    {lead.bank_status && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUpdateLead(lead.id, { bank_status: null });
+                          }}
+                          className="text-muted-foreground"
+                        >
+                          <span className="mr-1.5 h-3.5 w-3.5" />— Clear
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             )}
             {showDocs && (
-              <div className="flex items-center gap-1.5 text-xs text-foreground/80">
-                <FileText className="h-3.5 w-3.5 shrink-0" />
-                <span>
-                  {docsDone ?? 0} / {docsTotal} docs
-                </span>
+              <div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDocsOpen((v) => !v);
+                  }}
+                  onPointerDown={stopBubble}
+                  className="flex items-center gap-1.5 text-xs text-foreground/80 hover:underline"
+                >
+                  <FileText className="h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    {docsDone ?? 0} / {docsTotal} docs
+                  </span>
+                  {docsOpen ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
+                </button>
+                {docsOpen && (
+                  <DocsChecklist
+                    selected={lead.submitted_docs ?? []}
+                    onToggle={(key) => {
+                      const current = lead.submitted_docs ?? [];
+                      const next = current.includes(key)
+                        ? current.filter((k) => k !== key)
+                        : [...current, key];
+                      onUpdateLead(lead.id, { submitted_docs: next });
+                    }}
+                    onItemPointerDown={stopBubble}
+                    className="mt-1.5 ml-5"
+                  />
+                )}
               </div>
             )}
           </div>

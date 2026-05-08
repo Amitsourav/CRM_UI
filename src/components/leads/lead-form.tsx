@@ -23,6 +23,8 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useTaskCountStore } from "@/stores/task-count-store";
+import { useStageConfig } from "@/hooks/use-stage-config";
+import { DocsChecklist } from "@/components/leads/docs-checklist";
 import type { Lead } from "@/types";
 
 interface LeadFormProps {
@@ -44,8 +46,11 @@ interface FieldErrors {
 export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps) {
   const isEdit = !!lead;
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
+  const { slug } = useStageConfig();
+  const isFmc = slug !== "admitverse";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [submittedDocs, setSubmittedDocs] = useState<string[]>([]);
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -78,6 +83,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
 
   useEffect(() => {
     setErrors({});
+    setSubmittedDocs(lead?.submitted_docs ?? []);
     if (lead) {
       setForm({
         full_name: lead.full_name || "",
@@ -182,6 +188,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
       ? parseInt(form.docs_submitted)
       : undefined;
     if (
+      !isFmc &&
       docsRequired !== undefined &&
       docsSubmitted !== undefined &&
       docsSubmitted > docsRequired
@@ -221,7 +228,10 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         bank_name: form.bank_name || undefined,
         bank_status: form.bank_status || undefined,
         docs_required: docsRequired,
-        docs_submitted: docsSubmitted,
+        // FMC drives docs_submitted from the checklist via submitted_docs;
+        // other brands keep the manual numeric field.
+        docs_submitted: isFmc ? undefined : docsSubmitted,
+        submitted_docs: isFmc ? submittedDocs : undefined,
         notes: form.notes || undefined,
         tags: form.tags
           ? form.tags.split(",").map((s) => s.trim()).filter(Boolean)
@@ -426,17 +436,39 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                       onChange={(e) => updateField("docs_required", e.target.value)}
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label>Docs Submitted</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={form.docs_required || undefined}
-                      value={form.docs_submitted}
-                      onChange={(e) => updateField("docs_submitted", e.target.value)}
-                    />
-                  </div>
+                  {!isFmc && (
+                    <div className="space-y-1">
+                      <Label>Docs Submitted</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={form.docs_required || undefined}
+                        value={form.docs_submitted}
+                        onChange={(e) =>
+                          updateField("docs_submitted", e.target.value)
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
+                {isFmc && (
+                  <div className="mt-3 space-y-1.5">
+                    <Label>Submitted Documents</Label>
+                    <DocsChecklist
+                      selected={submittedDocs}
+                      onToggle={(key) =>
+                        setSubmittedDocs((prev) =>
+                          prev.includes(key)
+                            ? prev.filter((k) => k !== key)
+                            : [...prev, key]
+                        )
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground pt-1">
+                      {submittedDocs.length} of {form.docs_required || "—"} submitted
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Meta */}

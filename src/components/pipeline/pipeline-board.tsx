@@ -246,6 +246,83 @@ export function PipelineBoard() {
     );
   };
 
+  // Optimistic patch for inline-editable card fields (bank_status, submitted_docs).
+  // Captures the original lead, applies the optimistic update, syncs from
+  // server response on success, reverts on error.
+  const handleUpdateLead = async (
+    leadId: string,
+    update: Partial<Lead>
+  ) => {
+    let original: Lead | null = null;
+    setStageData((prev) => {
+      const next = { ...prev };
+      for (const stage of Object.keys(next)) {
+        const idx = next[stage].leads.findIndex((l) => l.id === leadId);
+        if (idx >= 0) {
+          original = next[stage].leads[idx];
+          next[stage] = {
+            ...next[stage],
+            leads: next[stage].leads.map((l) =>
+              l.id === leadId ? { ...l, ...update } : l
+            ),
+          };
+          return next;
+        }
+      }
+      return prev;
+    });
+
+    try {
+      const { data } = await api.put<Lead>(`/leads/${leadId}`, update);
+      // Sync server-derived fields (e.g., docs_submitted is recomputed from
+      // submitted_docs on the backend).
+      setStageData((prev) => {
+        const next = { ...prev };
+        for (const stage of Object.keys(next)) {
+          const idx = next[stage].leads.findIndex((l) => l.id === leadId);
+          if (idx >= 0) {
+            next[stage] = {
+              ...next[stage],
+              leads: next[stage].leads.map((l) =>
+                l.id === leadId ? { ...l, ...data } : l
+              ),
+            };
+            return next;
+          }
+        }
+        return prev;
+      });
+    } catch (error: unknown) {
+      if (original) {
+        const orig = original;
+        setStageData((prev) => {
+          const next = { ...prev };
+          for (const stage of Object.keys(next)) {
+            const idx = next[stage].leads.findIndex((l) => l.id === leadId);
+            if (idx >= 0) {
+              next[stage] = {
+                ...next[stage],
+                leads: next[stage].leads.map((l) =>
+                  l.id === leadId ? orig : l
+                ),
+              };
+              return next;
+            }
+          }
+          return prev;
+        });
+      }
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string } };
+      };
+      if (err.response?.status === 403) {
+        toast.error("You don't have permission to modify this lead");
+      } else {
+        toast.error(err.response?.data?.detail || "Failed to update lead");
+      }
+    }
+  };
+
   const handleToggleImportant = async (leadId: string, currentValue: boolean) => {
     const nextValue = !currentValue;
     const flip = (value: boolean) =>
@@ -388,6 +465,7 @@ export function PipelineBoard() {
               onLoadMore={() => handleLoadMore(stage)}
               onChangeStage={requestStageChange}
               onToggleImportant={handleToggleImportant}
+              onUpdateLead={handleUpdateLead}
             />
           ))}
         </div>
