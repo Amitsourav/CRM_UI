@@ -68,6 +68,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     preferred_countries: "",
     preferred_universities: "",
     loan_amount: "",
+    bank_name: "",
     bank_status: "",
     docs_required: "6",
     docs_submitted: "",
@@ -100,6 +101,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         preferred_countries: lead.preferred_countries?.join(", ") || "",
         preferred_universities: lead.preferred_universities?.join(", ") || "",
         loan_amount: lead.loan_amount || "",
+        bank_name: lead.bank_name || "",
         bank_status: lead.bank_status || "",
         docs_required: lead.docs_required?.toString() || "6",
         docs_submitted: lead.docs_submitted?.toString() || "",
@@ -113,7 +115,8 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         pincode: "", highest_qualification: "", stream: "", passing_year: "",
         college_name: "", university: "", percentage: "", target_degree: "",
         target_intake: "", preferred_countries: "", preferred_universities: "",
-        loan_amount: "", bank_status: "", docs_required: "6", docs_submitted: "",
+        loan_amount: "", bank_name: "", bank_status: "", docs_required: "6",
+        docs_submitted: "",
         notes: "", tags: "",
       });
     }
@@ -215,6 +218,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
           ? form.preferred_universities.split(",").map((s) => s.trim()).filter(Boolean)
           : undefined,
         loan_amount: form.loan_amount || undefined,
+        bank_name: form.bank_name || undefined,
         bank_status: form.bank_status || undefined,
         docs_required: docsRequired,
         docs_submitted: docsSubmitted,
@@ -380,6 +384,14 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                       value={form.loan_amount}
                       onChange={(e) => updateField("loan_amount", e.target.value)}
                       placeholder="25 L / 2.5 cr / 500000"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Bank Name</Label>
+                    <Input
+                      value={form.bank_name}
+                      onChange={(e) => updateField("bank_name", e.target.value)}
+                      placeholder="SBI / Axis Bank / PNB"
                     />
                   </div>
                   <div className="space-y-1">

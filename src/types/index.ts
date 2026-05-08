@@ -134,6 +134,7 @@ export interface Lead {
   is_important?: boolean;
   // Loan/bank fields (FMC). Optional — Admitverse leads don't populate them.
   loan_amount?: string;
+  bank_name?: string | null;
   bank_status?: BankStatus | null;
   docs_required?: number;
   docs_submitted?: number;

@@ -302,6 +302,11 @@ function FmcEnhancedCard({
     lead.bank_status && lead.bank_status in BANK_STATUS_LABELS
       ? BANK_STATUS_LABELS[lead.bank_status as BankStatus]
       : null;
+  const bankNameTrimmed = lead.bank_name?.trim() || null;
+  const bankRow =
+    bankNameTrimmed && bankStatusLabel
+      ? `${bankNameTrimmed} · ${bankStatusLabel}`
+      : bankNameTrimmed || bankStatusLabel;
   const docsTotal = lead.docs_required;
   const docsDone = lead.docs_submitted;
   const showDocs =
@@ -374,7 +379,7 @@ function FmcEnhancedCard({
         {/* Loan / education section */}
         {(lead.target_degree ||
           lead.loan_amount ||
-          bankStatusLabel ||
+          bankRow ||
           showDocs) && (
           <div className="border-t pt-2 space-y-1">
             {lead.target_degree && (
@@ -389,10 +394,10 @@ function FmcEnhancedCard({
                 <span className="truncate">{lead.loan_amount}</span>
               </div>
             )}
-            {bankStatusLabel && (
+            {bankRow && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80">
                 <Landmark className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{bankStatusLabel}</span>
+                <span className="truncate">{bankRow}</span>
               </div>
             )}
             {showDocs && (
