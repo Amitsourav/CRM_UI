@@ -37,7 +37,10 @@ import { format, isBefore, startOfDay } from "date-fns";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useStageConfig } from "@/hooks/use-stage-config";
-import { BANK_STATUS_LABELS } from "@/lib/constants";
+import {
+  BANK_STATUS_BADGE_CLASSES,
+  BANK_STATUS_LABELS,
+} from "@/lib/constants";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
 import type { BankStatus, Lead, LeadStage, Task } from "@/types";
 
@@ -232,6 +235,7 @@ export function PipelineCard({
       stopBubble={stopBubble}
       onCardClick={() => router.push(`/leads/${lead.id}`)}
       onUpdateLead={onUpdateLead}
+      stageColorClass={currentEntry.color}
     />
   );
 }
@@ -245,6 +249,7 @@ function FmcEnhancedCard({
   stopBubble,
   onCardClick,
   onUpdateLead,
+  stageColorClass,
 }: {
   lead: Lead;
   stageDropdown: React.ReactNode;
@@ -252,6 +257,7 @@ function FmcEnhancedCard({
   stopBubble: (e: React.SyntheticEvent) => void;
   onCardClick: () => void;
   onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
+  stageColorClass: string;
 }) {
   const [tasksOpen, setTasksOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[] | null>(null);
@@ -324,11 +330,32 @@ function FmcEnhancedCard({
   const taskCount = lead.task_count ?? 0;
   const notesCount = lead.notes_count ?? 0;
 
+  // Docs progress color ramp: gray → amber → blue → green
+  const docsPct =
+    showDocs && (docsTotal ?? 0) > 0
+      ? ((docsDone ?? 0) / (docsTotal as number)) * 100
+      : 0;
+  const docsCountColor =
+    !showDocs || docsPct === 0
+      ? "text-muted-foreground"
+      : docsPct >= 100
+        ? "text-green-700 font-medium"
+        : docsPct >= 50
+          ? "text-blue-700"
+          : "text-amber-700";
+
   return (
     <Card
-      className="p-3 cursor-pointer hover:shadow-md transition-shadow relative"
+      className={`p-3 pl-4 cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden ${
+        lead.is_important ? "ring-1 ring-yellow-300/70" : ""
+      }`}
       onClick={onCardClick}
     >
+      {/* Stage-color accent stripe */}
+      <span
+        aria-hidden
+        className={`absolute left-0 top-0 bottom-0 w-1 ${stageColorClass}`}
+      />
       <div className="space-y-2">
         {/* Row 1: name + action icons + stage dropdown */}
         <div className="flex items-start justify-between gap-1">
@@ -388,19 +415,19 @@ function FmcEnhancedCard({
           <div className="border-t pt-2 space-y-1">
             {lead.target_degree && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80">
-                <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+                <GraduationCap className="h-3.5 w-3.5 shrink-0 text-indigo-500" />
                 <span className="truncate">{lead.target_degree}</span>
               </div>
             )}
             {lead.loan_amount && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80">
-                <IndianRupee className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{lead.loan_amount}</span>
+                <IndianRupee className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                <span className="truncate font-medium">{lead.loan_amount}</span>
               </div>
             )}
             {(bankNameTrimmed || bankStatusLabel) && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80">
-                <Landmark className="h-3.5 w-3.5 shrink-0" />
+                <Landmark className="h-3.5 w-3.5 shrink-0 text-blue-500" />
                 {bankNameTrimmed && (
                   <>
                     <span className="truncate">{bankNameTrimmed}</span>
@@ -415,7 +442,14 @@ function FmcEnhancedCard({
                   >
                     <button
                       type="button"
-                      className="-m-0.5 px-0.5 py-0.5 rounded hover:bg-muted inline-flex items-center gap-0.5"
+                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[11px] leading-none transition-colors ${
+                        lead.bank_status &&
+                        lead.bank_status in BANK_STATUS_BADGE_CLASSES
+                          ? BANK_STATUS_BADGE_CLASSES[
+                              lead.bank_status as BankStatus
+                            ]
+                          : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
+                      }`}
                     >
                       <span>{bankStatusLabel ?? "Set status"}</span>
                       <ChevronDown className="h-3 w-3" />
@@ -474,8 +508,8 @@ function FmcEnhancedCard({
                   onPointerDown={stopBubble}
                   className="flex items-center gap-1.5 text-xs text-foreground/80 hover:underline"
                 >
-                  <FileText className="h-3.5 w-3.5 shrink-0" />
-                  <span>
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-cyan-600" />
+                  <span className={docsCountColor}>
                     {docsDone ?? 0} / {docsTotal} docs
                   </span>
                   {docsOpen ? (
@@ -538,15 +572,15 @@ function FmcEnhancedCard({
           </p>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <PhoneCall className="h-3 w-3" />
+              <PhoneCall className="h-3 w-3 text-blue-500" />
               {callCount} {callCount === 1 ? "Call" : "Calls"}
             </span>
             <span className="flex items-center gap-1">
-              <ClipboardList className="h-3 w-3" />
+              <ClipboardList className="h-3 w-3 text-orange-500" />
               {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
             </span>
             <span className="flex items-center gap-1">
-              <StickyNote className="h-3 w-3" />
+              <StickyNote className="h-3 w-3 text-violet-500" />
               {notesCount} {notesCount === 1 ? "Note" : "Notes"}
             </span>
           </div>
@@ -595,21 +629,28 @@ function FmcEnhancedCard({
 
         {/* Tags */}
         {tags.length > 0 && (
-          <div className="border-t pt-2 text-xs text-muted-foreground truncate">
-            <span className="font-medium">Tags:</span>{" "}
-            {tags.join(" · ")}
+          <div className="border-t pt-2 flex flex-wrap gap-1">
+            {tags.map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] leading-none bg-pink-50 text-pink-700 border border-pink-200"
+              >
+                {t}
+              </span>
+            ))}
           </div>
         )}
       </div>
 
-      {/* AI watermark */}
+      {/* AI campaign watermark */}
       {lead.has_active_ai_campaign && (
-        <div
-          className="absolute bottom-2 right-2 text-purple-500"
+        <span
+          className="absolute bottom-2 right-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] leading-none bg-purple-50 text-purple-700 border border-purple-200"
           title="Active AI campaign"
         >
-          <Bot className="h-3.5 w-3.5" />
-        </div>
+          <Bot className="h-3 w-3" />
+          AI
+        </span>
       )}
     </Card>
   );

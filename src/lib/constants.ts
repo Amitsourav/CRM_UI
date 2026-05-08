@@ -214,3 +214,14 @@ export const BANK_STATUS_LABELS: Record<BankStatus, string> = {
   pf_paid: "PF Paid",
   disbursed: "Disbursed",
 };
+
+// Used by pill-style badges; walks blue → green to mirror funnel progression.
+export const BANK_STATUS_BADGE_CLASSES: Record<BankStatus, string> = {
+  applied: "bg-blue-50 text-blue-700 border-blue-200",
+  docs_reviewed: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  under_review: "bg-amber-50 text-amber-700 border-amber-200",
+  loan_login: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  sanctioned: "bg-teal-50 text-teal-700 border-teal-200",
+  pf_paid: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  disbursed: "bg-green-100 text-green-800 border-green-300",
+};
