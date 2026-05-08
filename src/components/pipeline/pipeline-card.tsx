@@ -419,14 +419,12 @@ function FmcEnhancedCard({
           </p>
         )}
 
-        {/* Agent + counts */}
-        {(agentName ||
-          callCount > 0 ||
-          taskCount > 0 ||
-          notesCount > 0) && (
-          <div className="border-t pt-2 space-y-1">
-            {agentName && (
-              <p className="text-xs font-medium truncate">
+        {/* Agent + counts — always render so admins can spot unassigned
+            leads and so 0-count badges still appear. */}
+        <div className="border-t pt-2 space-y-1">
+          <p className="text-xs font-medium truncate">
+            {agentName ? (
+              <>
                 {agentName}
                 {agentRole && (
                   <span className="text-muted-foreground font-normal capitalize">
@@ -434,24 +432,28 @@ function FmcEnhancedCard({
                     ({agentRole})
                   </span>
                 )}
-              </p>
+              </>
+            ) : (
+              <span className="text-muted-foreground italic font-normal">
+                Unassigned
+              </span>
             )}
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <PhoneCall className="h-3 w-3" />
-                {callCount} {callCount === 1 ? "Call" : "Calls"}
-              </span>
-              <span className="flex items-center gap-1">
-                <ClipboardList className="h-3 w-3" />
-                {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
-              </span>
-              <span className="flex items-center gap-1">
-                <StickyNote className="h-3 w-3" />
-                {notesCount} {notesCount === 1 ? "Note" : "Notes"}
-              </span>
-            </div>
+          </p>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <PhoneCall className="h-3 w-3" />
+              {callCount} {callCount === 1 ? "Call" : "Calls"}
+            </span>
+            <span className="flex items-center gap-1">
+              <ClipboardList className="h-3 w-3" />
+              {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
+            </span>
+            <span className="flex items-center gap-1">
+              <StickyNote className="h-3 w-3" />
+              {notesCount} {notesCount === 1 ? "Note" : "Notes"}
+            </span>
           </div>
-        )}
+        </div>
 
         {/* Top 3 pending tasks (expandable) */}
         <div className="border-t pt-2">
