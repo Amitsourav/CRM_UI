@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -14,8 +14,14 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Phone,
-  Calendar,
   MoreVertical,
   Check,
   Star,
@@ -32,8 +38,20 @@ import {
   ChevronRight,
   Bot,
   Loader2,
+  Pencil,
+  X as IconX,
+  Globe,
+  Wallet,
+  CalendarClock,
+  UserRound,
+  Sparkles,
 } from "lucide-react";
-import { format, isBefore, startOfDay } from "date-fns";
+import {
+  format,
+  formatDistanceToNowStrict,
+  differenceInCalendarDays,
+  startOfDay,
+} from "date-fns";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useStageConfig } from "@/hooks/use-stage-config";
@@ -42,7 +60,7 @@ import {
   BANK_STATUS_LABELS,
 } from "@/lib/constants";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
-import type { BankStatus, Lead, LeadStage, Task } from "@/types";
+import type { BankStatus, Lead, LeadStage, Task, User } from "@/types";
 
 interface PipelineCardProps {
   lead: Lead;
@@ -150,77 +168,20 @@ export function PipelineCard({
   );
 
   // ───────────────────────────────────────────────────────────────────────
-  // Admitverse keeps its current slim card unchanged (per brand spec).
+  // Admitverse enhanced tile — inline-editable fields (Intake / Country /
+  // Budget / Counsellor / Lead created / Follow up). Preserves the existing
+  // slim-card elements (name, phone, star, kebab, source, lost reason).
   // ───────────────────────────────────────────────────────────────────────
   if (!isFmc) {
-    const isOverdue =
-      lead.due_date &&
-      isBefore(new Date(lead.due_date), startOfDay(new Date()));
-
-    const agentInitials = lead.assigned_agent?.full_name
-      ?.split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-
     return (
-      <Card
-        className="p-3 cursor-pointer hover:shadow-md transition-shadow"
-        onClick={() => router.push(`/leads/${lead.id}`)}
-      >
-        <div className="space-y-2">
-          <div className="flex items-start justify-between gap-1">
-            <p className="font-medium text-sm truncate flex-1">
-              {lead.full_name}
-            </p>
-            {StarButton}
-            {StageDropdown}
-          </div>
-          {lead.phone && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Phone className="h-3 w-3" />
-              {lead.phone}
-            </div>
-          )}
-          {lead.current_stage === "lost" && lead.lost_reason && (
-            <p
-              className="text-xs text-red-700 line-clamp-2"
-              title={lead.lost_reason}
-            >
-              {lead.lost_reason.length > 60
-                ? `${lead.lost_reason.slice(0, 60).trimEnd()}…`
-                : lead.lost_reason}
-            </p>
-          )}
-          {lead.lead_source && (
-            <Badge variant="outline" className="text-xs">
-              {lead.lead_source.name}
-            </Badge>
-          )}
-          <div className="flex items-center justify-between">
-            {lead.due_date && (
-              <div
-                className={`flex items-center gap-1 text-xs ${
-                  isOverdue
-                    ? "text-red-600 font-medium"
-                    : "text-muted-foreground"
-                }`}
-              >
-                <Calendar className="h-3 w-3" />
-                {format(new Date(lead.due_date), "MMM d")}
-              </div>
-            )}
-            {lead.assigned_agent && (
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-[10px]">
-                  {agentInitials}
-                </AvatarFallback>
-              </Avatar>
-            )}
-          </div>
-        </div>
-      </Card>
+      <AdmitverseEnhancedCard
+        lead={lead}
+        stageDropdown={StageDropdown}
+        starButton={StarButton}
+        stopBubble={stopBubble}
+        onCardClick={() => router.push(`/leads/${lead.id}`)}
+        onUpdateLead={onUpdateLead}
+      />
     );
   }
 
@@ -652,6 +613,500 @@ function FmcEnhancedCard({
           AI
         </span>
       )}
+    </Card>
+  );
+}
+
+// Map sep_2026 → "Sep 2026"; passes through anything unrecognized.
+function formatIntake(raw?: string): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const m = trimmed.match(/^([a-z]+)_(\d{4})$/i);
+  if (!m) return trimmed;
+  const [, month, year] = m;
+  return `${month.charAt(0).toUpperCase()}${month.slice(1).toLowerCase()} ${year}`;
+}
+
+function formatRelative(iso?: string): string | null {
+  if (!iso) return null;
+  try {
+    return formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
+  } catch {
+    return null;
+  }
+}
+
+// Returns "in 2 days", "today", "1 day overdue", etc.
+function formatFollowUp(iso?: string): { label: string; overdue: boolean } | null {
+  if (!iso) return null;
+  try {
+    const date = new Date(iso);
+    const today = startOfDay(new Date());
+    const target = startOfDay(date);
+    const diffDays = differenceInCalendarDays(target, today);
+    if (diffDays === 0) {
+      return { label: `${format(date, "MMM d")} (today)`, overdue: false };
+    }
+    if (diffDays > 0) {
+      return {
+        label: `${format(date, "MMM d")} (in ${diffDays}d)`,
+        overdue: false,
+      };
+    }
+    const overdueDays = Math.abs(diffDays);
+    return {
+      label: `${format(date, "MMM d")} (${overdueDays}d overdue)`,
+      overdue: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+interface InlineRowProps {
+  Icon: React.ComponentType<{ className?: string }>;
+  iconClass?: string;
+  label: string;
+  display: React.ReactNode;
+  editing: boolean;
+  onStartEdit: (e: React.MouseEvent) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  stopBubble: (e: React.SyntheticEvent) => void;
+  children?: React.ReactNode; // edit-mode input
+  hideIfEmpty?: boolean;
+  isEmpty?: boolean;
+  isOverdue?: boolean;
+}
+
+function InlineRow({
+  Icon,
+  iconClass,
+  label,
+  display,
+  editing,
+  onStartEdit,
+  onSave,
+  onCancel,
+  stopBubble,
+  children,
+  hideIfEmpty,
+  isEmpty,
+  isOverdue,
+}: InlineRowProps) {
+  if (!editing && hideIfEmpty && isEmpty) return null;
+
+  return (
+    <div
+      className="flex items-center gap-1.5 text-xs text-foreground/80 group"
+      onClick={stopBubble}
+    >
+      <Icon className={`h-3.5 w-3.5 shrink-0 ${iconClass ?? ""}`} />
+      <span className="text-muted-foreground shrink-0">{label}:</span>
+      {editing ? (
+        <>
+          {children}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSave();
+            }}
+            onPointerDown={stopBubble}
+            aria-label="Save"
+            className="-m-0.5 p-0.5 rounded hover:bg-green-100 text-green-700"
+          >
+            <Check className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCancel();
+            }}
+            onPointerDown={stopBubble}
+            aria-label="Cancel"
+            className="-m-0.5 p-0.5 rounded hover:bg-red-100 text-red-700"
+          >
+            <IconX className="h-3.5 w-3.5" />
+          </button>
+        </>
+      ) : (
+        <>
+          <span
+            className={`truncate ${isOverdue ? "text-red-600 font-medium" : ""}`}
+          >
+            {isEmpty ? (
+              <span className="text-muted-foreground italic">—</span>
+            ) : (
+              display
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={onStartEdit}
+            onPointerDown={stopBubble}
+            aria-label={`Edit ${label}`}
+            className="-m-0.5 p-0.5 rounded hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+type EditField =
+  | "target_intake"
+  | "preferred_countries"
+  | "budget"
+  | "assigned_agent_id"
+  | "created_at"
+  | "due_date";
+
+// Admitverse-only enhanced card with inline-edit pencils on each new field.
+// Preserves the existing slim card's behavior for name, phone, star, kebab,
+// source badge, and lost-reason preview.
+function AdmitverseEnhancedCard({
+  lead,
+  stageDropdown,
+  starButton,
+  stopBubble,
+  onCardClick,
+  onUpdateLead,
+}: {
+  lead: Lead;
+  stageDropdown: React.ReactNode;
+  starButton: React.ReactNode;
+  stopBubble: (e: React.SyntheticEvent) => void;
+  onCardClick: () => void;
+  onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
+}) {
+  const [editing, setEditing] = useState<EditField | null>(null);
+  const [draft, setDraft] = useState<string>("");
+  const [agents, setAgents] = useState<User[] | null>(null);
+  const [agentsLoading, setAgentsLoading] = useState(false);
+
+  // Lazy-fetch agents when the user opens the counsellor edit.
+  useEffect(() => {
+    if (editing !== "assigned_agent_id" || agents !== null || agentsLoading) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAgentsLoading(true);
+    api
+      .get("/users?is_active=true")
+      .then(({ data }) => setAgents(data.items || data || []))
+      .catch(() => setAgents([]))
+      .finally(() => setAgentsLoading(false));
+  }, [editing, agents, agentsLoading]);
+
+  const startEdit = (field: EditField, current: string) => {
+    setEditing(field);
+    setDraft(current);
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setDraft("");
+  };
+
+  const saveEdit = () => {
+    if (!editing) return;
+    const update: Partial<Lead> = {};
+    if (editing === "target_intake") {
+      const v = draft.trim();
+      update.target_intake = v ? v.toLowerCase().replace(/\s+/g, "_") : undefined;
+    } else if (editing === "budget") {
+      update.budget = draft.trim() || undefined;
+    } else if (editing === "preferred_countries") {
+      const list = draft
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      update.preferred_countries = list;
+    } else if (editing === "assigned_agent_id") {
+      update.assigned_agent_id = draft || undefined;
+    } else if (editing === "created_at") {
+      // YYYY-MM-DD from <input type="date"> → ISO at start-of-day in local TZ
+      update.created_at = draft ? new Date(draft).toISOString() : undefined;
+    } else if (editing === "due_date") {
+      update.due_date = draft ? new Date(draft).toISOString() : undefined;
+    }
+    onUpdateLead(lead.id, update);
+    cancelEdit();
+  };
+
+  const intakeDisplay = formatIntake(lead.target_intake);
+  const countries = lead.preferred_countries ?? [];
+  const countriesPreview = countries.slice(0, 2).join(", ");
+  const countriesExtra = countries.length > 2 ? countries.length - 2 : 0;
+
+  const agentName = lead.assigned_agent_name || lead.assigned_agent?.full_name;
+  const followUp = formatFollowUp(lead.due_date);
+  const created = formatRelative(lead.created_at);
+
+  // For <input type="date"> binding: trim ISO to YYYY-MM-DD.
+  const toDateInput = (iso?: string): string =>
+    iso ? iso.slice(0, 10) : "";
+
+  return (
+    <Card
+      className={`p-3 cursor-pointer hover:shadow-md transition-shadow ${
+        lead.is_important ? "ring-1 ring-yellow-300/70" : ""
+      }`}
+      onClick={onCardClick}
+    >
+      <div className="space-y-2">
+        {/* Row 1: name + star + kebab */}
+        <div className="flex items-start justify-between gap-1">
+          <p className="font-medium text-sm truncate flex-1">
+            {lead.full_name}
+          </p>
+          {starButton}
+          {stageDropdown}
+        </div>
+
+        {/* Phone */}
+        {lead.phone && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Phone className="h-3 w-3" />
+            {lead.phone}
+          </div>
+        )}
+
+        {/* Source badge */}
+        {lead.lead_source && (
+          <Badge variant="outline" className="text-xs">
+            {lead.lead_source.name}
+          </Badge>
+        )}
+
+        {/* Lost reason */}
+        {lead.current_stage === "lost" && lead.lost_reason && (
+          <p
+            className="text-xs text-red-700 line-clamp-2"
+            title={lead.lost_reason}
+          >
+            <span className="font-medium">Lost:</span>{" "}
+            {lead.lost_reason.length > 60
+              ? `${lead.lost_reason.slice(0, 60).trimEnd()}…`
+              : lead.lost_reason}
+          </p>
+        )}
+
+        {/* Application info */}
+        <div className="border-t pt-2 space-y-1">
+          <InlineRow
+            Icon={GraduationCap}
+            iconClass="text-indigo-500"
+            label="Intake"
+            display={intakeDisplay}
+            isEmpty={!intakeDisplay}
+            editing={editing === "target_intake"}
+            onStartEdit={(e) => {
+              e.stopPropagation();
+              startEdit("target_intake", intakeDisplay ?? lead.target_intake ?? "");
+            }}
+            onSave={saveEdit}
+            onCancel={cancelEdit}
+            stopBubble={stopBubble}
+          >
+            <Input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onClick={stopBubble}
+              onPointerDown={stopBubble}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveEdit();
+                if (e.key === "Escape") cancelEdit();
+              }}
+              placeholder="Sep 2026"
+              className="h-6 text-xs py-0 px-1"
+            />
+          </InlineRow>
+
+          <InlineRow
+            Icon={Globe}
+            iconClass="text-cyan-600"
+            label="Country"
+            display={
+              <>
+                {countriesPreview}
+                {countriesExtra > 0 && (
+                  <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] leading-none bg-cyan-50 text-cyan-700 border border-cyan-200">
+                    +{countriesExtra} more
+                  </span>
+                )}
+              </>
+            }
+            isEmpty={countries.length === 0}
+            hideIfEmpty
+            editing={editing === "preferred_countries"}
+            onStartEdit={(e) => {
+              e.stopPropagation();
+              startEdit("preferred_countries", countries.join(", "));
+            }}
+            onSave={saveEdit}
+            onCancel={cancelEdit}
+            stopBubble={stopBubble}
+          >
+            <Input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onClick={stopBubble}
+              onPointerDown={stopBubble}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveEdit();
+                if (e.key === "Escape") cancelEdit();
+              }}
+              placeholder="USA, UK, Canada"
+              className="h-6 text-xs py-0 px-1"
+            />
+          </InlineRow>
+
+          <InlineRow
+            Icon={Wallet}
+            iconClass="text-amber-600"
+            label="Budget"
+            display={lead.budget}
+            isEmpty={!lead.budget}
+            editing={editing === "budget"}
+            onStartEdit={(e) => {
+              e.stopPropagation();
+              startEdit("budget", lead.budget ?? "");
+            }}
+            onSave={saveEdit}
+            onCancel={cancelEdit}
+            stopBubble={stopBubble}
+          >
+            <Input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onClick={stopBubble}
+              onPointerDown={stopBubble}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveEdit();
+                if (e.key === "Escape") cancelEdit();
+              }}
+              placeholder="50 L"
+              className="h-6 text-xs py-0 px-1"
+            />
+          </InlineRow>
+        </div>
+
+        {/* People + timeline */}
+        <div className="border-t pt-2 space-y-1">
+          <InlineRow
+            Icon={UserRound}
+            iconClass="text-violet-500"
+            label="Counsellor"
+            display={agentName}
+            isEmpty={!agentName}
+            editing={editing === "assigned_agent_id"}
+            onStartEdit={(e) => {
+              e.stopPropagation();
+              startEdit("assigned_agent_id", lead.assigned_agent_id ?? "");
+            }}
+            onSave={saveEdit}
+            onCancel={cancelEdit}
+            stopBubble={stopBubble}
+          >
+            <Select
+              value={draft || "__unset"}
+              onValueChange={(v) => setDraft(v === "__unset" ? "" : v)}
+            >
+              <SelectTrigger
+                className="h-6 text-xs py-0 px-1.5 min-w-[8rem]"
+                onClick={stopBubble}
+                onPointerDown={stopBubble}
+              >
+                <SelectValue placeholder="Pick a counsellor" />
+              </SelectTrigger>
+              <SelectContent
+                onClick={stopBubble}
+                onPointerDown={stopBubble}
+              >
+                <SelectItem value="__unset">Unassigned</SelectItem>
+                {agentsLoading && (
+                  <SelectItem value="__loading" disabled>
+                    Loading…
+                  </SelectItem>
+                )}
+                {(agents ?? []).map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </InlineRow>
+
+          <InlineRow
+            Icon={Sparkles}
+            iconClass="text-emerald-500"
+            label="Lead created"
+            display={created}
+            isEmpty={!created}
+            editing={editing === "created_at"}
+            onStartEdit={(e) => {
+              e.stopPropagation();
+              startEdit("created_at", toDateInput(lead.created_at));
+            }}
+            onSave={saveEdit}
+            onCancel={cancelEdit}
+            stopBubble={stopBubble}
+          >
+            <Input
+              autoFocus
+              type="date"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onClick={stopBubble}
+              onPointerDown={stopBubble}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveEdit();
+                if (e.key === "Escape") cancelEdit();
+              }}
+              className="h-6 text-xs py-0 px-1"
+            />
+          </InlineRow>
+
+          <InlineRow
+            Icon={CalendarClock}
+            iconClass={followUp?.overdue ? "text-red-600" : "text-blue-500"}
+            label="Follow up"
+            display={followUp?.label}
+            isEmpty={!followUp}
+            isOverdue={followUp?.overdue}
+            editing={editing === "due_date"}
+            onStartEdit={(e) => {
+              e.stopPropagation();
+              startEdit("due_date", toDateInput(lead.due_date));
+            }}
+            onSave={saveEdit}
+            onCancel={cancelEdit}
+            stopBubble={stopBubble}
+          >
+            <Input
+              autoFocus
+              type="date"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onClick={stopBubble}
+              onPointerDown={stopBubble}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveEdit();
+                if (e.key === "Escape") cancelEdit();
+              }}
+              className="h-6 text-xs py-0 px-1"
+            />
+          </InlineRow>
+        </div>
+      </div>
     </Card>
   );
 }

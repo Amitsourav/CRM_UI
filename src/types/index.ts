@@ -120,6 +120,7 @@ export interface Lead {
   target_intake?: string;
   preferred_countries?: string[];
   preferred_universities?: string[];
+  budget?: string;
   current_stage: LeadStage;
   assigned_agent_id?: string;
   assigned_agent?: User;
