@@ -80,8 +80,10 @@ export function PipelineBoard() {
   // Filters
   const [agentFilter, setAgentFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [campaignFilter, setCampaignFilter] = useState("all");
   const [agents, setAgents] = useState<User[]>([]);
   const [sources, setSources] = useState<LeadSource[]>([]);
+  const [campaigns, setCampaigns] = useState<{ id: string; name: string }[]>([]);
 
   // Stage change dialog
   const [stageChangeData, setStageChangeData] = useState<StageChangeData | null>(null);
@@ -102,6 +104,16 @@ export function PipelineBoard() {
       .get("/leads/sources/list")
       .then(({ data }) => setSources(Array.isArray(data) ? data : data.items || []))
       .catch(() => {});
+    api
+      .get("/campaigns?page=1&page_size=100")
+      .then(({ data }) =>
+        setCampaigns(
+          (Array.isArray(data) ? data : data.items || []).map(
+            (c: { id: string; name: string }) => ({ id: c.id, name: c.name })
+          )
+        )
+      )
+      .catch(() => {});
   }, [isManager]);
 
   const buildParams = useCallback(
@@ -112,9 +124,10 @@ export function PipelineBoard() {
       params.set("page_size", PER_STAGE_LIMIT.toString());
       if (agentFilter !== "all") params.set("agent_id", agentFilter);
       if (sourceFilter !== "all") params.set("source_id", sourceFilter);
+      if (campaignFilter !== "all") params.set("campaign_id", campaignFilter);
       return params.toString();
     },
-    [agentFilter, sourceFilter]
+    [agentFilter, sourceFilter, campaignFilter]
   );
 
   const fetchStage = useCallback(
@@ -438,6 +451,19 @@ export function PipelineBoard() {
             {sources.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={campaignFilter} onValueChange={(v) => setCampaignFilter(v)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Campaigns" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Campaigns</SelectItem>
+            {campaigns.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
               </SelectItem>
             ))}
           </SelectContent>

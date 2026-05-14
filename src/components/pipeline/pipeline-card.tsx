@@ -48,7 +48,6 @@ import {
 } from "lucide-react";
 import {
   format,
-  formatDistanceToNowStrict,
   differenceInCalendarDays,
   startOfDay,
 } from "date-fns";
@@ -628,10 +627,23 @@ function formatIntake(raw?: string): string | null {
   return `${month.charAt(0).toUpperCase()}${month.slice(1).toLowerCase()} ${year}`;
 }
 
+// "3d ago", "5h ago" — abbreviated relative format per spec.
 function formatRelative(iso?: string): string | null {
   if (!iso) return null;
   try {
-    return formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
+    const diffMs = Date.now() - new Date(iso).getTime();
+    if (diffMs < 0) return "just now";
+    const minutes = Math.floor(diffMs / 60000);
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months}mo ago`;
+    const years = Math.floor(months / 12);
+    return `${years}y ago`;
   } catch {
     return null;
   }
@@ -895,7 +907,9 @@ function AdmitverseEnhancedCard({
           </p>
         )}
 
-        {/* Application info */}
+        {/* Application info (all 3 fields hide-when-empty so the whole section
+            collapses if there's nothing to show) */}
+        {(intakeDisplay || countries.length > 0 || lead.budget) && (
         <div className="border-t pt-2 space-y-1">
           <InlineRow
             Icon={GraduationCap}
@@ -903,6 +917,7 @@ function AdmitverseEnhancedCard({
             label="Intake"
             display={intakeDisplay}
             isEmpty={!intakeDisplay}
+            hideIfEmpty
             editing={editing === "target_intake"}
             onStartEdit={(e) => {
               e.stopPropagation();
@@ -973,6 +988,7 @@ function AdmitverseEnhancedCard({
             label="Budget"
             display={lead.budget}
             isEmpty={!lead.budget}
+            hideIfEmpty
             editing={editing === "budget"}
             onStartEdit={(e) => {
               e.stopPropagation();
@@ -997,6 +1013,7 @@ function AdmitverseEnhancedCard({
             />
           </InlineRow>
         </div>
+        )}
 
         {/* People + timeline */}
         <div className="border-t pt-2 space-y-1">
