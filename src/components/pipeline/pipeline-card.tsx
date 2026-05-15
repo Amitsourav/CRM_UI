@@ -282,7 +282,6 @@ function FmcEnhancedCard({
     typeof docsTotal === "number" && docsTotal > 0;
 
   const agentName = lead.assigned_agent_name || lead.assigned_agent?.full_name;
-  const agentRole = lead.assigned_agent_role || lead.assigned_agent?.role;
 
   const tags = lead.tags ?? [];
 
@@ -311,10 +310,12 @@ function FmcEnhancedCard({
       }`}
       onClick={onCardClick}
     >
-      {/* Stage-color accent stripe */}
+      {/* Stage-color accent stripe — negative inset covers the Card's 1px
+          border so no gray gap appears between the column edge and the stripe.
+          Round-l-lg matches the Card's rounded corner. */}
       <span
         aria-hidden
-        className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${stageColorClass}`}
+        className={`absolute -inset-y-px -left-px w-1 rounded-l-lg ${stageColorClass}`}
       />
       <div className="space-y-2">
         {/* Row 1: name + action icons + stage dropdown */}
