@@ -6,6 +6,7 @@ import { PipelineColumn } from "./pipeline-column";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTaskCountStore } from "@/stores/task-count-store";
+import { useLostReasonsStore } from "@/stores/lost-reasons-store";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import type { Lead, LeadStage, User, LeadSource, PaginatedResponse } from "@/types";
@@ -48,7 +49,10 @@ interface StageChangeData {
 export function PipelineBoard() {
   const { isManager } = useAuthStore();
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
-  const { stages: STAGES, getEntry, canTransition } = useStageConfig();
+  const { slug, stages: STAGES, getEntry, canTransition } = useStageConfig();
+  const isFmc = slug !== "admitverse";
+  const lostReasons = useLostReasonsStore((s) => s.reasons);
+  const ensureLostReasons = useLostReasonsStore((s) => s.ensureFetched);
 
   const [stageData, setStageData] = useState<Record<string, StageData>>(() => {
     const initial: Record<string, StageData> = {};
@@ -248,6 +252,7 @@ export function PipelineBoard() {
       return;
     }
     setStageChangeData({ leadId, fromStage, toStage });
+    if (toStage === "lost" && isFmc) ensureLostReasons();
   };
 
   const handleDragEnd = (result: DropResult) => {
@@ -509,12 +514,40 @@ export function PipelineBoard() {
             {stageChangeData?.toStage === "lost" ? (
               <div className="space-y-2">
                 <Label>Reason for lost *</Label>
-                <Textarea
-                  value={lostReason}
-                  onChange={(e) => setLostReason(e.target.value)}
-                  placeholder="Why is this lead lost?"
-                  autoFocus
-                />
+                {isFmc ? (
+                  <>
+                    <Select value={lostReason} onValueChange={setLostReason}>
+                      <SelectTrigger autoFocus>
+                        <SelectValue placeholder="Select a reason..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {lostReasons.length === 0 ? (
+                          <SelectItem value="__loading" disabled>
+                            Loading reasons…
+                          </SelectItem>
+                        ) : (
+                          lostReasons.map((r) => (
+                            <SelectItem key={r} value={r}>
+                              {r}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {!lostReason.trim() && (
+                      <p className="text-xs text-red-600">
+                        Lost Reason is required
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <Textarea
+                    value={lostReason}
+                    onChange={(e) => setLostReason(e.target.value)}
+                    placeholder="Why is this lead lost?"
+                    autoFocus
+                  />
+                )}
               </div>
             ) : (
               <>

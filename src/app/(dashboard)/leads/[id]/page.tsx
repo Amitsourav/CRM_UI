@@ -58,14 +58,18 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { useTaskCountStore } from "@/stores/task-count-store";
+import { useLostReasonsStore } from "@/stores/lost-reasons-store";
 import type { Lead, LeadStage } from "@/types";
 
 export default function LeadDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { isAdmin, isManager } = useAuthStore();
-  const { getEntry, getValidTransitions, stageRequiresNotes } = useStageConfig();
+  const { slug, getEntry, getValidTransitions, stageRequiresNotes } = useStageConfig();
+  const isFmc = slug !== "admitverse";
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
+  const lostReasons = useLostReasonsStore((s) => s.reasons);
+  const ensureLostReasons = useLostReasonsStore((s) => s.ensureFetched);
   const leadId = params.id as string;
 
   const [lead, setLead] = useState<Lead | null>(null);
@@ -116,6 +120,7 @@ export default function LeadDetailPage() {
     setLostReason("");
     setStageDueDate(undefined);
     setStageDialogOpen(true);
+    if (stage === "lost" && isFmc) ensureLostReasons();
   };
 
   const handleStageSubmit = async () => {
@@ -305,11 +310,39 @@ export default function LeadDetailPage() {
             {targetStage === "lost" && (
               <div className="space-y-2">
                 <Label>Lost Reason *</Label>
-                <Textarea
-                  value={lostReason}
-                  onChange={(e) => setLostReason(e.target.value)}
-                  placeholder="Reason for marking as lost..."
-                />
+                {isFmc ? (
+                  <>
+                    <Select value={lostReason} onValueChange={setLostReason}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a reason..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {lostReasons.length === 0 ? (
+                          <SelectItem value="__loading" disabled>
+                            Loading reasons…
+                          </SelectItem>
+                        ) : (
+                          lostReasons.map((r) => (
+                            <SelectItem key={r} value={r}>
+                              {r}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {!lostReason.trim() && (
+                      <p className="text-xs text-red-600">
+                        Lost Reason is required
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <Textarea
+                    value={lostReason}
+                    onChange={(e) => setLostReason(e.target.value)}
+                    placeholder="Reason for marking as lost..."
+                  />
+                )}
               </div>
             )}
             <div className="space-y-2">
@@ -329,7 +362,13 @@ export default function LeadDetailPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStageDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleStageSubmit} disabled={stageSubmitting}>
+            <Button
+              onClick={handleStageSubmit}
+              disabled={
+                stageSubmitting ||
+                (targetStage === "lost" && !lostReason.trim())
+              }
+            >
               {stageSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirm
             </Button>
