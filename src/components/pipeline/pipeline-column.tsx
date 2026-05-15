@@ -59,7 +59,7 @@ export function PipelineColumn({
       </div>
       <Droppable droppableId={stage}>
         {(provided, snapshot) => (
-          <ScrollArea className="flex-1" style={{ maxHeight: "calc(100vh - 180px)" }}>
+          <ScrollArea className="flex-1 min-h-0">
             <div
               ref={provided.innerRef}
               {...provided.droppableProps}

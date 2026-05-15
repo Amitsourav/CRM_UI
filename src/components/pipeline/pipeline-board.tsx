@@ -424,9 +424,9 @@ export function PipelineBoard() {
   }
 
   return (
-    <>
+    <div className="flex flex-col h-[calc(100vh-7rem)]">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-4 shrink-0">
         {isManager && (
           <Select value={agentFilter} onValueChange={(v) => setAgentFilter(v)}>
             <SelectTrigger className="w-[180px]">
@@ -474,10 +474,11 @@ export function PipelineBoard() {
         </Button>
       </div>
 
-      {/* Pipeline board — items-start so empty columns shrink to their drop
-          zone instead of stretching to match the tallest column. */}
+      {/* Pipeline board — columns stretch to fill the available height so
+          the kanban uses the full viewport. Internal ScrollArea scrolls
+          per-column. */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex items-start gap-4 overflow-x-auto pb-4">
+        <div className="flex items-stretch gap-4 overflow-x-auto pb-4 flex-1 min-h-0">
           {STAGES.map((stage) => (
             <PipelineColumn
               key={stage}
@@ -552,6 +553,6 @@ export function PipelineBoard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
