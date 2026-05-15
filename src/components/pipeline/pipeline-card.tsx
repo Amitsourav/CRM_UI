@@ -306,7 +306,7 @@ function FmcEnhancedCard({
 
   return (
     <Card
-      className={`p-3 pl-4 cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden ${
+      className={`p-3 pl-4 cursor-pointer hover:shadow-md transition-shadow relative ${
         lead.is_important ? "ring-1 ring-yellow-300/70" : ""
       }`}
       onClick={onCardClick}
@@ -314,7 +314,7 @@ function FmcEnhancedCard({
       {/* Stage-color accent stripe */}
       <span
         aria-hidden
-        className={`absolute left-0 top-0 bottom-0 w-1 ${stageColorClass}`}
+        className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${stageColorClass}`}
       />
       <div className="space-y-2">
         {/* Row 1: name + action icons + stage dropdown */}
