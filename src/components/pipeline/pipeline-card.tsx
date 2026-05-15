@@ -516,11 +516,19 @@ function FmcEnhancedCard({
           <p className="text-xs font-medium truncate">
             {agentName ? (
               <>
+                <span className="text-muted-foreground font-normal">Counsellor:</span>{" "}
                 {agentName}
-                {agentRole && (
+                {agentRole && !lead.pre_counsellor_name && (
                   <span className="text-muted-foreground font-normal capitalize">
                     {" "}
                     ({agentRole})
+                  </span>
+                )}
+                {lead.pre_counsellor_name && (
+                  <span className="text-muted-foreground font-normal">
+                    {" "}
+                    | <span className="text-muted-foreground">Pre Counsellor:</span>{" "}
+                    <span className="text-foreground">{lead.pre_counsellor_name}</span>
                   </span>
                 )}
               </>

@@ -124,6 +124,9 @@ export interface Lead {
   current_stage: LeadStage;
   assigned_agent_id?: string;
   assigned_agent?: User;
+  // FMC second-line owner ("Pre Counsellor") — Admitverse doesn't use it.
+  pre_counsellor_id?: string | null;
+  pre_counsellor_name?: string;
   lead_source_id?: string;
   lead_source?: LeadSource;
   call_attempt_count: number;

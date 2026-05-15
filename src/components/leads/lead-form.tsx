@@ -19,7 +19,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useTaskCountStore } from "@/stores/task-count-store";
@@ -77,9 +91,17 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     bank_status: "",
     docs_required: "6",
     docs_submitted: "",
+    assigned_agent_id: "",
+    pre_counsellor_id: "",
+    lead_source_id: "",
     notes: "",
     tags: "",
   });
+  const [users, setUsers] = useState<{ id: string; full_name: string; role: string }[]>([]);
+  const [sources, setSources] = useState<{ id: string; name: string }[]>([]);
+  const [sourceQuery, setSourceQuery] = useState("");
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [creatingSource, setCreatingSource] = useState(false);
 
   useEffect(() => {
     setErrors({});
@@ -111,6 +133,9 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         bank_status: lead.bank_status || "",
         docs_required: lead.docs_required?.toString() || "6",
         docs_submitted: lead.docs_submitted?.toString() || "",
+        assigned_agent_id: lead.assigned_agent_id || "",
+        pre_counsellor_id: lead.pre_counsellor_id || "",
+        lead_source_id: lead.lead_source_id || "",
         notes: lead.notes || "",
         tags: lead.tags?.join(", ") || "",
       });
@@ -123,10 +148,26 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         target_intake: "", preferred_countries: "", preferred_universities: "",
         loan_amount: "", bank_name: "", bank_status: "", docs_required: "6",
         docs_submitted: "",
+        assigned_agent_id: "", pre_counsellor_id: "", lead_source_id: "",
         notes: "", tags: "",
       });
     }
   }, [lead, open]);
+
+  // Load picker options when the form opens.
+  useEffect(() => {
+    if (!open) return;
+    api
+      .get("/users?is_active=true")
+      .then(({ data }) => setUsers(data.items || data || []))
+      .catch(() => {});
+    api
+      .get("/leads/sources/list")
+      .then(({ data }) =>
+        setSources(Array.isArray(data) ? data : data.items || [])
+      )
+      .catch(() => {});
+  }, [open]);
 
   const validateField = (key: string, value: string): string | undefined => {
     switch (key) {
@@ -224,6 +265,9 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         preferred_universities: form.preferred_universities
           ? form.preferred_universities.split(",").map((s) => s.trim()).filter(Boolean)
           : undefined,
+        assigned_agent_id: form.assigned_agent_id || undefined,
+        pre_counsellor_id: form.pre_counsellor_id || null,
+        lead_source_id: form.lead_source_id || undefined,
         loan_amount: form.loan_amount || undefined,
         bank_name: form.bank_name || undefined,
         bank_status: form.bank_status || undefined,
@@ -384,6 +428,88 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 </div>
               </div>
 
+              {/* Assignment & Source */}
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Assignment</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Counsellor</Label>
+                    <Select
+                      value={form.assigned_agent_id || "__unset"}
+                      onValueChange={(v) =>
+                        updateField("assigned_agent_id", v === "__unset" ? "" : v)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Unassigned" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__unset">Unassigned</SelectItem>
+                        {users.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.full_name}
+                            <span className="text-xs text-muted-foreground ml-1 capitalize">
+                              ({u.role})
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {isFmc && (
+                    <div className="space-y-1">
+                      <Label>Pre Counsellor</Label>
+                      <Select
+                        value={form.pre_counsellor_id || "__unset"}
+                        onValueChange={(v) =>
+                          updateField(
+                            "pre_counsellor_id",
+                            v === "__unset" ? "" : v
+                          )
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="None" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__unset">None</SelectItem>
+                          {users.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.full_name}
+                              <span className="text-xs text-muted-foreground ml-1 capitalize">
+                                ({u.role})
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className={isFmc ? "col-span-2 space-y-1" : "space-y-1"}>
+                    <Label>Source</Label>
+                    <SourceCombobox
+                      sources={sources}
+                      value={form.lead_source_id}
+                      onSelect={(id) => updateField("lead_source_id", id)}
+                      onCreated={(src) => {
+                        setSources((prev) =>
+                          prev.find((s) => s.id === src.id)
+                            ? prev
+                            : [...prev, src]
+                        );
+                        updateField("lead_source_id", src.id);
+                      }}
+                      query={sourceQuery}
+                      onQueryChange={setSourceQuery}
+                      open={sourceOpen}
+                      onOpenChange={setSourceOpen}
+                      isCreating={creatingSource}
+                      setCreating={setCreatingSource}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Loan Details */}
               <div>
                 <h4 className="text-sm font-semibold mb-3">Loan Details</h4>
@@ -499,5 +625,141 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface SourceLite { id: string; name: string; }
+
+interface SourceComboboxProps {
+  sources: SourceLite[];
+  value: string;
+  onSelect: (id: string) => void;
+  onCreated: (src: SourceLite) => void;
+  query: string;
+  onQueryChange: (q: string) => void;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  isCreating: boolean;
+  setCreating: (v: boolean) => void;
+}
+
+function SourceCombobox({
+  sources,
+  value,
+  onSelect,
+  onCreated,
+  query,
+  onQueryChange,
+  open,
+  onOpenChange,
+  isCreating,
+  setCreating,
+}: SourceComboboxProps) {
+  const current = sources.find((s) => s.id === value);
+  const trimmed = query.trim();
+  const exactMatch = trimmed
+    ? sources.find((s) => s.name.toLowerCase() === trimmed.toLowerCase())
+    : null;
+
+  const handleCreate = async () => {
+    if (!trimmed || exactMatch || isCreating) return;
+    setCreating(true);
+    try {
+      const { data } = await api.post<SourceLite>("/leads/sources", {
+        name: trimmed,
+        source_type: "manual",
+      });
+      onCreated({ id: data.id, name: data.name });
+      onQueryChange("");
+      onOpenChange(false);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "Failed to create source");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          className="w-full justify-between font-normal"
+        >
+          {current?.name ?? (
+            <span className="text-muted-foreground">Pick or type a source…</span>
+          )}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+        <Command>
+          <CommandInput
+            placeholder="Search or type to create…"
+            value={query}
+            onValueChange={onQueryChange}
+          />
+          <CommandList>
+            <CommandEmpty>
+              {trimmed && !exactMatch ? (
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={isCreating}
+                  className="flex w-full items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted rounded"
+                >
+                  {isCreating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  Create &quot;{trimmed}&quot;
+                </button>
+              ) : (
+                <span className="text-sm text-muted-foreground">No sources found.</span>
+              )}
+            </CommandEmpty>
+            <CommandGroup>
+              {sources.map((s) => (
+                <CommandItem
+                  key={s.id}
+                  value={s.name}
+                  onSelect={() => {
+                    onSelect(s.id);
+                    onQueryChange("");
+                    onOpenChange(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === s.id ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {s.name}
+                </CommandItem>
+              ))}
+              {trimmed && !exactMatch && sources.length > 0 && (
+                <CommandItem
+                  value={`__create_${trimmed}`}
+                  onSelect={handleCreate}
+                  disabled={isCreating}
+                >
+                  {isCreating ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="mr-2 h-4 w-4" />
+                  )}
+                  Create &quot;{trimmed}&quot;
+                </CommandItem>
+              )}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
