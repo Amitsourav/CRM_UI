@@ -59,6 +59,7 @@ import {
   BANK_STATUS_LABELS,
   getStageHex,
 } from "@/lib/constants";
+import { formatLakhs } from "@/lib/utils";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
 import type { BankStatus, Lead, LeadStage, Task, User } from "@/types";
 
@@ -373,11 +374,22 @@ function FmcEnhancedCard({
             )}
             <div className="flex items-center gap-1.5 text-xs text-foreground/80">
               <IndianRupee className="h-3.5 w-3.5 shrink-0 text-amber-600" />
-              {lead.loan_amount ? (
-                <span className="truncate font-medium">{lead.loan_amount}</span>
-              ) : (
-                <span className="text-muted-foreground italic">—</span>
-              )}
+              {(() => {
+                const { display, crore } = formatLakhs(lead.loan_amount);
+                if (!lead.loan_amount) {
+                  return <span className="text-muted-foreground italic">—</span>;
+                }
+                return (
+                  <span className="truncate font-medium">
+                    {display} Lakhs
+                    {crore && (
+                      <span className="ml-1 text-muted-foreground font-normal">
+                        ({crore} Cr)
+                      </span>
+                    )}
+                  </span>
+                );
+              })()}
             </div>
             {(bankNameTrimmed || bankStatusLabel) && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80">

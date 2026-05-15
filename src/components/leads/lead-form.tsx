@@ -515,12 +515,28 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 <h4 className="text-sm font-semibold mb-3">Loan Details</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Loan Amount</Label>
+                    <Label>{isFmc ? "Loan Amount (in Lakhs)" : "Loan Amount"}</Label>
                     <Input
+                      inputMode={isFmc ? "decimal" : "text"}
                       value={form.loan_amount}
-                      onChange={(e) => updateField("loan_amount", e.target.value)}
-                      placeholder="25 L / 2.5 cr / 500000"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (isFmc) {
+                          // Numeric-only: digits + one optional decimal point.
+                          if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                            updateField("loan_amount", val);
+                          }
+                        } else {
+                          updateField("loan_amount", val);
+                        }
+                      }}
+                      placeholder={isFmc ? "25" : "25 L / 2.5 cr / 500000"}
                     />
+                    {isFmc && (
+                      <p className="text-xs text-muted-foreground">
+                        Enter in Lakhs. e.g. 25 = 25L, 100 = 1Cr, 300 = 3Cr
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label>Bank Name</Label>
