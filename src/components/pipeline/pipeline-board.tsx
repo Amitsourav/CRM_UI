@@ -474,12 +474,10 @@ export function PipelineBoard() {
         </Button>
       </div>
 
-      {/* Pipeline board */}
+      {/* Pipeline board — items-start so empty columns shrink to their drop
+          zone instead of stretching to match the tallest column. */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div
-          className="flex gap-4 overflow-x-auto pb-4"
-          style={{ minHeight: "calc(100vh - 260px)" }}
-        >
+        <div className="flex items-start gap-4 overflow-x-auto pb-4">
           {STAGES.map((stage) => (
             <PipelineColumn
               key={stage}
