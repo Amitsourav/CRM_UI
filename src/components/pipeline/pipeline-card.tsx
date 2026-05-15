@@ -350,18 +350,53 @@ function FmcEnhancedCard({
             const n = lead.dnp_count ?? 0;
             const label = n > 0 ? `DNP-${n}` : "DNP";
             const tone =
-              n >= 3
-                ? "bg-red-100 text-red-700 border-red-200"
-                : n >= 1
-                  ? "bg-amber-100 text-amber-700 border-amber-200"
-                  : "bg-slate-100 text-slate-700 border-slate-200";
+              n >= 5
+                ? "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"
+                : n >= 3
+                  ? "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200"
+                  : n >= 1
+                    ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+                    : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200";
             return (
-              <span
-                title={`Moved to DNP ${n} time${n === 1 ? "" : "s"}`}
-                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] leading-none font-medium border shrink-0 ${tone}`}
-              >
-                {label}
-              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  asChild
+                  onClick={stopBubble}
+                  onPointerDown={stopBubble}
+                >
+                  <button
+                    type="button"
+                    title={`Moved to DNP ${n} time${n === 1 ? "" : "s"} — click to change`}
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] leading-none font-medium border shrink-0 transition-colors ${tone}`}
+                  >
+                    {label}
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  onClick={stopBubble}
+                  onPointerDown={stopBubble}
+                >
+                  {[1, 2, 3, 4, 5, 6].map((value) => (
+                    <DropdownMenuItem
+                      key={value}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (value === n) return;
+                        onUpdateLead(lead.id, { dnp_count: value });
+                      }}
+                    >
+                      {n === value ? (
+                        <Check className="mr-1.5 h-3.5 w-3.5" />
+                      ) : (
+                        <span className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      DNP-{value}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             );
           })()}
           <div className="flex items-center gap-0.5 shrink-0">
@@ -1272,6 +1307,7 @@ function InlineText({
 
   useEffect(() => {
     if (editing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDraft(value);
       cancelledRef.current = false;
     }
