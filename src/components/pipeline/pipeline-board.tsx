@@ -430,10 +430,10 @@ export function PipelineBoard() {
         {isManager && (
           <Select value={agentFilter} onValueChange={(v) => setAgentFilter(v)}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Telecallers" />
+              <SelectValue placeholder="All Pre Counsellors" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Telecallers</SelectItem>
+              <SelectItem value="all">All Pre Counsellors</SelectItem>
               {agents.map((a) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.full_name}

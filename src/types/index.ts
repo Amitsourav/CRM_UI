@@ -1,5 +1,5 @@
 /* ── Enums ── */
-export type Role = "admin" | "manager" | "telecaller";
+export type Role = "admin" | "manager" | "pre_counsellor";
 
 export type LeadStage =
   // FMC legacy (pre-2026-05 pipeline; kept for historical stage_log entries)

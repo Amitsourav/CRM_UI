@@ -24,13 +24,8 @@ import { AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useStageConfig } from "@/hooks/use-stage-config";
-import type { Role, User } from "@/types";
-
-const ROLE_LABELS: Record<Role, string> = {
-  admin: "Admin",
-  manager: "Manager",
-  telecaller: "Telecaller",
-};
+import { roleLabel } from "@/lib/constants";
+import type { User } from "@/types";
 
 type OrderBy = "created_at_desc" | "created_at_asc";
 
@@ -90,7 +85,7 @@ export function DistributeByRangeDialog({
     }
   }, [open]);
 
-  // Load active users (admins + managers + telecallers).
+  // Load active users (admins + managers + pre counsellors).
   useEffect(() => {
     if (!open) return;
     api
@@ -318,7 +313,7 @@ export function DistributeByRangeDialog({
                             <span className="flex items-center gap-2">
                               <span>{u.full_name}</span>
                               <Badge variant="outline" className="text-xs">
-                                {ROLE_LABELS[u.role] ?? u.role}
+                                {roleLabel(u.role)}
                               </Badge>
                             </span>
                           </SelectItem>

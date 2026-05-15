@@ -33,7 +33,7 @@ const mainNav = [
   { href: "/notifications", label: "Notifications", icon: Bell },
 ];
 
-const telecallerNav = [
+const preCounsellorNav = [
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
@@ -90,7 +90,7 @@ export function MobileNav() {
               </Link>
             ))}
             {!isManager &&
-              telecallerNav.map((item) => (
+              preCounsellorNav.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

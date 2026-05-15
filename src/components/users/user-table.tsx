@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, BarChart3, Edit, UserX } from "lucide-react";
 import { format } from "date-fns";
+import { roleLabel } from "@/lib/constants";
 import type { User } from "@/types";
 
 interface UserTableProps {
@@ -37,8 +38,8 @@ export function UserTable({ users, isLoading, onEdit, onDeactivate }: UserTableP
       key: "role",
       header: "Role",
       cell: (user) => (
-        <Badge variant={user.role === "admin" ? "default" : user.role === "manager" ? "outline" : "secondary"} className="capitalize">
-          {user.role}
+        <Badge variant={user.role === "admin" ? "default" : user.role === "manager" ? "outline" : "secondary"}>
+          {roleLabel(user.role)}
         </Badge>
       ),
     },

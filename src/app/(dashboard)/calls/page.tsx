@@ -66,7 +66,7 @@ export default function CallsPage() {
   const [dateTo, setDateTo] = useState<Date | undefined>();
   const [page, setPage] = useState(0);
 
-  // Telecallers for filter
+  // Pre counsellors for filter
   const [telecallers, setTelecallers] = useState<User[]>([]);
   useEffect(() => {
     if (isManager) {
@@ -185,10 +185,10 @@ export default function CallsPage() {
         {isManager && (
           <Select value={telecallerId} onValueChange={(v) => { setTelecallerId(v); setPage(0); }}>
             <SelectTrigger className="w-[170px]">
-              <SelectValue placeholder="All Telecallers" />
+              <SelectValue placeholder="All Pre Counsellors" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Telecallers</SelectItem>
+              <SelectItem value="all">All Pre Counsellors</SelectItem>
               {telecallers.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.full_name}
@@ -272,7 +272,7 @@ export default function CallsPage() {
                   <TableHead>Status</TableHead>
                   <TableHead>Sentiment</TableHead>
                   <TableHead>Agent</TableHead>
-                  {isManager && <TableHead>Telecaller</TableHead>}
+                  {isManager && <TableHead>Pre Counsellor</TableHead>}
                   <TableHead>Duration</TableHead>
                   <TableHead>Cost</TableHead>
                   <TableHead>Date</TableHead>

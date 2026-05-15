@@ -20,13 +20,8 @@ import {
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import type { Role, User } from "@/types";
-
-const ROLE_LABELS: Record<Role, string> = {
-  admin: "Admin",
-  manager: "Manager",
-  telecaller: "Telecaller",
-};
+import { roleLabel } from "@/lib/constants";
+import type { User } from "@/types";
 
 interface BulkAssignDialogProps {
   open: boolean;
@@ -101,7 +96,7 @@ export function BulkAssignDialog({
                     <p className="text-xs text-muted-foreground truncate">{agent.email}</p>
                   </div>
                   <Badge variant="outline" className="text-xs shrink-0">
-                    {ROLE_LABELS[agent.role] ?? agent.role}
+                    {roleLabel(agent.role)}
                   </Badge>
                 </div>
               </CommandItem>

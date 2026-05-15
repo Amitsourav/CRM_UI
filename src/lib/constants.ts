@@ -2,9 +2,26 @@ import type {
   BankStatus,
   CallDisposition,
   LeadStage,
+  Role,
   TaskStatus,
   TaskType,
 } from "@/types";
+
+// Human-readable role labels. Includes a "telecaller" key as a 24-hour
+// compat shim — backend renamed the user_role enum from telecaller →
+// pre_counsellor (commit 94e1170) but cached JWTs may still carry the old
+// value until the user re-logs.
+export const ROLE_LABELS: Record<Role | "telecaller", string> = {
+  admin: "Admin",
+  manager: "Manager",
+  pre_counsellor: "Pre Counsellor",
+  telecaller: "Pre Counsellor",
+};
+
+export function roleLabel(role: string | null | undefined): string {
+  if (!role) return "—";
+  return (ROLE_LABELS as Record<string, string>)[role] ?? role;
+}
 
 export type StageConfigEntry = {
   label: string;

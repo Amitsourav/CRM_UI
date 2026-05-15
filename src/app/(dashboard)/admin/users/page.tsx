@@ -85,7 +85,7 @@ export default function AdminUsersPage() {
               <SelectItem value="all">All Roles</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
               <SelectItem value="manager">Manager</SelectItem>
-              <SelectItem value="telecaller">Telecaller</SelectItem>
+              <SelectItem value="pre_counsellor">Pre Counsellor</SelectItem>
             </SelectContent>
           </Select>
         </div>

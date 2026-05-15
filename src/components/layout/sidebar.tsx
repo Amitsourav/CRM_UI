@@ -34,10 +34,10 @@ const mainNav = [
   { href: "/notifications", label: "Notifications", icon: Bell },
 ];
 
-// Telecallers don't have access to /admin/reports — give them their own
+// Pre Counsellors don't have access to /admin/reports — give them their own
 // daily-activity page in the main nav. Admin/manager use /admin/reports
 // (which has the daily view as a tab).
-const telecallerNav = [
+const preCounsellorNav = [
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
@@ -103,7 +103,7 @@ export function Sidebar() {
             ))}
 
             {!isManager &&
-              telecallerNav.map((item) => (
+              preCounsellorNav.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

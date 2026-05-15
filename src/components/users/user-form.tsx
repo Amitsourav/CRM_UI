@@ -39,7 +39,7 @@ export function UserForm({ open, onOpenChange, user, onSuccess }: UserFormProps)
     password: "",
     full_name: "",
     phone: "",
-    role: "telecaller" as Role,
+    role: "pre_counsellor" as Role,
     vertical: "",
     is_active: true,
   });
@@ -61,7 +61,7 @@ export function UserForm({ open, onOpenChange, user, onSuccess }: UserFormProps)
         password: "",
         full_name: "",
         phone: "",
-        role: "telecaller",
+        role: "pre_counsellor",
         vertical: "",
         is_active: true,
       });
@@ -145,7 +145,7 @@ export function UserForm({ open, onOpenChange, user, onSuccess }: UserFormProps)
               <SelectContent>
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="manager">Manager</SelectItem>
-                <SelectItem value="telecaller">Telecaller</SelectItem>
+                <SelectItem value="pre_counsellor">Pre Counsellor</SelectItem>
               </SelectContent>
             </Select>
           </div>

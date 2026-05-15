@@ -97,7 +97,7 @@ export function CallDetail({ call }: CallDetailProps) {
             {call.telecaller_id && (
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Telecaller:</span>
+                <span className="text-muted-foreground">Pre Counsellor:</span>
                 <span className="font-medium">{call.telecaller_id}</span>
               </div>
             )}

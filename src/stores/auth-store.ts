@@ -15,7 +15,7 @@ interface AuthState {
   isLoading: boolean;
   isAdmin: boolean;
   isManager: boolean;
-  isTelecaller: boolean;
+  isPreCounsellor: boolean;
 
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -35,13 +35,20 @@ function extractCompany(data: Record<string, unknown>): CompanyInfo | null {
   return null;
 }
 
+// 24-hour compat shim: backend renamed the user_role enum value from
+// "telecaller" → "pre_counsellor". Cached JWTs may still carry "telecaller"
+// until the user logs out + back in. Treat both as the pre-counsellor role.
+function isPreCounsellorRole(role: string | undefined | null): boolean {
+  return role === "pre_counsellor" || role === "telecaller";
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   company: null,
   isLoading: true,
   isAdmin: false,
   isManager: false,
-  isTelecaller: false,
+  isPreCounsellor: false,
 
   login: async (email, password) => {
     const { data } = await api.post<AuthTokens>("/auth/login", {
@@ -57,13 +64,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         company: extractCompany(me.data as unknown as Record<string, unknown>),
         isAdmin: me.data.role === "admin",
         isManager: me.data.role === "admin" || me.data.role === "manager",
-        isTelecaller: me.data.role === "telecaller",
+        isPreCounsellor: isPreCounsellorRole(me.data.role),
         isLoading: false,
       });
     } catch {
       // /users/me failed — extract minimal info from JWT as fallback
       const payload = JSON.parse(atob(data.access_token.split(".")[1]));
-      const role = payload.user_metadata?.role || "telecaller";
+      const role = payload.user_metadata?.role || "pre_counsellor";
       set({
         user: {
           id: payload.sub,
@@ -76,7 +83,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         } as User,
         isAdmin: role === "admin",
         isManager: role === "admin" || role === "manager",
-        isTelecaller: role === "telecaller",
+        isPreCounsellor: isPreCounsellorRole(role),
         isLoading: false,
       });
     }
@@ -89,7 +96,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.clear();
       // Clear the httpOnly cookie used by middleware
       await fetch("/api/auth/set-cookie", { method: "DELETE" }).catch(() => {});
-      set({ user: null, company: null, isAdmin: false, isManager: false, isTelecaller: false });
+      set({ user: null, company: null, isAdmin: false, isManager: false, isPreCounsellor: false });
     }
   },
 
@@ -101,7 +108,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         company: extractCompany(data as unknown as Record<string, unknown>),
         isAdmin: data.role === "admin",
         isManager: data.role === "admin" || data.role === "manager",
-        isTelecaller: data.role === "telecaller",
+        isPreCounsellor: isPreCounsellorRole(data.role),
         isLoading: false,
       });
     } catch (error: unknown) {
@@ -109,12 +116,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Only clear user on 401 (unauthorized). For 500/network errors,
       // keep existing user state to avoid false logouts.
       if (err.response?.status === 401 || !localStorage.getItem("access_token")) {
-        set({ user: null, company: null, isAdmin: false, isManager: false, isTelecaller: false, isLoading: false });
+        set({ user: null, company: null, isAdmin: false, isManager: false, isPreCounsellor: false, isLoading: false });
       } else {
         set({ isLoading: false });
       }
     }
   },
 
-  reset: () => set({ user: null, company: null, isAdmin: false, isManager: false, isTelecaller: false, isLoading: false }),
+  reset: () => set({ user: null, company: null, isAdmin: false, isManager: false, isPreCounsellor: false, isLoading: false }),
 }));
