@@ -36,7 +36,11 @@ export function PipelineColumn({
   const config = getEntry(stage);
 
   return (
-    <div className="flex flex-col shrink-0 w-[300px] bg-muted/50 rounded-lg">
+    <div
+      className={`flex flex-col shrink-0 bg-muted/50 rounded-lg ${
+        stage === "created" ? "w-[360px]" : "w-[300px]"
+      }`}
+    >
       <div className="flex items-center justify-between p-3 border-b">
         <div className="flex items-center gap-2">
           <div className={`h-3 w-3 rounded-full ${config.color}`} />
