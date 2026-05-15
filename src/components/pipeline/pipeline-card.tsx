@@ -57,6 +57,7 @@ import { useStageConfig } from "@/hooks/use-stage-config";
 import {
   BANK_STATUS_BADGE_CLASSES,
   BANK_STATUS_LABELS,
+  getStageHex,
 } from "@/lib/constants";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
 import type { BankStatus, Lead, LeadStage, Task, User } from "@/types";
@@ -195,7 +196,7 @@ export function PipelineCard({
       stopBubble={stopBubble}
       onCardClick={() => router.push(`/leads/${lead.id}`)}
       onUpdateLead={onUpdateLead}
-      stageColorClass={currentEntry.color}
+      stageHex={getStageHex(slug, lead.current_stage)}
     />
   );
 }
@@ -209,7 +210,7 @@ function FmcEnhancedCard({
   stopBubble,
   onCardClick,
   onUpdateLead,
-  stageColorClass,
+  stageHex,
 }: {
   lead: Lead;
   stageDropdown: React.ReactNode;
@@ -217,7 +218,7 @@ function FmcEnhancedCard({
   stopBubble: (e: React.SyntheticEvent) => void;
   onCardClick: () => void;
   onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
-  stageColorClass: string;
+  stageHex: string;
 }) {
   const [tasksOpen, setTasksOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[] | null>(null);
@@ -305,18 +306,12 @@ function FmcEnhancedCard({
 
   return (
     <Card
-      className={`p-3 pl-4 cursor-pointer hover:shadow-md transition-shadow relative ${
+      className={`p-3 cursor-pointer hover:shadow-md transition-shadow relative ${
         lead.is_important ? "ring-1 ring-yellow-300/70" : ""
       }`}
+      style={{ borderLeftWidth: 4, borderLeftColor: stageHex }}
       onClick={onCardClick}
     >
-      {/* Stage-color accent stripe — negative inset covers the Card's 1px
-          border so no gray gap appears between the column edge and the stripe.
-          Round-l-lg matches the Card's rounded corner. */}
-      <span
-        aria-hidden
-        className={`absolute -inset-y-px -left-px w-1 rounded-l-lg ${stageColorClass}`}
-      />
       <div className="space-y-2">
         {/* Row 1: name + action icons + stage dropdown */}
         <div className="flex items-start justify-between gap-1">

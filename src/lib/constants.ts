@@ -216,6 +216,59 @@ export const BANK_STATUS_LABELS: Record<BankStatus, string> = {
 };
 
 // Used by pill-style badges; walks blue → green to mirror funnel progression.
+// Hex colors mirroring the Tailwind classes used in STAGE_CONFIG. Used where
+// Tailwind utility classes can't be applied (e.g. inline border-left-color).
+const FMC_STAGE_HEX: Partial<Record<LeadStage, string>> = {
+  created: "#64748b",          // slate-500
+  contacted: "#60a5fa",        // blue-400
+  dnp: "#f97316",              // orange-500
+  qualified: "#6366f1",        // indigo-500
+  processing: "#4f46e5",       // indigo-600
+  docs_pending: "#f59e0b",     // amber-500
+  logged_in: "#06b6d4",        // cyan-500
+  sanctioned: "#14b8a6",       // teal-500
+  pf_paid: "#10b981",          // emerald-500
+  disbursed: "#15803d",        // green-700
+  opportunity: "#c084fc",      // purple-400
+  lost: "#ef4444",             // red-500
+  // Legacy
+  lead: "#64748b",
+  called: "#3b82f6",
+  connected: "#eab308",
+  qualified_lead: "#a855f7",
+  won: "#22c55e",
+};
+
+const ADMITVERSE_STAGE_HEX: Partial<Record<LeadStage, string>> = {
+  created: "#9ca3af",                   // gray-400
+  contacted: "#60a5fa",                 // blue-400
+  dnp_pre_qualified: "#fb923c",         // orange-400
+  connected: "#3b82f6",                 // blue-500
+  qualified: "#6366f1",                 // indigo-500
+  opportunity: "#c084fc",               // purple-400
+  dnp_post_qualified: "#f97316",        // orange-500
+  processing: "#4f46e5",                // indigo-600
+  important: "#eab308",                 // yellow-500
+  partial_docs_collected: "#22d3ee",    // cyan-400
+  docs_collected: "#0891b2",            // cyan-600
+  application_done: "#14b8a6",          // teal-500
+  conditional_draft: "#0d9488",         // teal-600
+  ucol: "#10b981",                      // emerald-500
+  deposit_paid: "#22c55e",              // green-500
+  cas_received: "#16a34a",              // green-600
+  visa_applied: "#15803d",              // green-700
+  enrolled: "#166534",                  // green-800
+  lost: "#ef4444",                      // red-500
+};
+
+export function getStageHex(
+  slug: string | null | undefined,
+  stage: LeadStage
+): string {
+  const map = isAdmitverse(slug) ? ADMITVERSE_STAGE_HEX : FMC_STAGE_HEX;
+  return map[stage] ?? FMC_STAGE_HEX[stage] ?? ADMITVERSE_STAGE_HEX[stage] ?? "#94a3b8";
+}
+
 export const BANK_STATUS_BADGE_CLASSES: Record<BankStatus, string> = {
   applied: "bg-blue-50 text-blue-700 border-blue-200",
   docs_reviewed: "bg-indigo-50 text-indigo-700 border-indigo-200",
