@@ -328,7 +328,7 @@ function FmcEnhancedCard({
               aria-label="Email"
               onClick={handleEmail}
               onPointerDown={stopBubble}
-              className="-m-1 p-1 rounded hover:bg-muted text-muted-foreground"
+              className="-m-1 p-1 rounded hover:bg-muted text-slate-500"
             >
               <Mail className="h-3.5 w-3.5" />
             </button>
@@ -337,7 +337,7 @@ function FmcEnhancedCard({
               aria-label="Call"
               onClick={handlePhone}
               onPointerDown={stopBubble}
-              className="-m-1 p-1 rounded hover:bg-muted text-muted-foreground"
+              className="-m-1 p-1 rounded hover:bg-muted text-blue-500"
             >
               <Phone className="h-3.5 w-3.5" />
             </button>
@@ -366,25 +366,23 @@ function FmcEnhancedCard({
           {starButton}
         </div>
 
-        {/* Loan / education section */}
-        {(lead.target_degree ||
-          lead.loan_amount ||
-          bankNameTrimmed ||
-          bankStatusLabel ||
-          showDocs) && (
-          <div className="border-t pt-2 space-y-1">
+        {/* Loan / education section — loan and docs always render so every
+            FMC card has the same row structure. */}
+        <div className="border-t pt-2 space-y-1">
             {lead.target_degree && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80">
                 <GraduationCap className="h-3.5 w-3.5 shrink-0 text-indigo-500" />
                 <span className="truncate">{lead.target_degree}</span>
               </div>
             )}
-            {lead.loan_amount && (
-              <div className="flex items-center gap-1.5 text-xs text-foreground/80">
-                <IndianRupee className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+            <div className="flex items-center gap-1.5 text-xs text-foreground/80">
+              <IndianRupee className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+              {lead.loan_amount ? (
                 <span className="truncate font-medium">{lead.loan_amount}</span>
-              </div>
-            )}
+              ) : (
+                <span className="text-muted-foreground italic">—</span>
+              )}
+            </div>
             {(bankNameTrimmed || bankStatusLabel) && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80">
                 <Landmark className="h-3.5 w-3.5 shrink-0 text-blue-500" />
@@ -495,7 +493,6 @@ function FmcEnhancedCard({
               </div>
             )}
           </div>
-        )}
 
         {/* Lost reason (preserve from previous behavior) */}
         {lead.current_stage === "lost" && lead.lost_reason && (
@@ -513,29 +510,21 @@ function FmcEnhancedCard({
         {/* Agent + counts — always render so admins can spot unassigned
             leads and so 0-count badges still appear. */}
         <div className="border-t pt-2 space-y-1">
-          <p className="text-xs font-medium truncate">
+          <p className="text-xs font-medium leading-snug break-words">
+            <span className="text-muted-foreground font-normal">Counsellor:</span>{" "}
             {agentName ? (
-              <>
-                <span className="text-muted-foreground font-normal">Counsellor:</span>{" "}
-                {agentName}
-                {agentRole && !lead.pre_counsellor_name && (
-                  <span className="text-muted-foreground font-normal capitalize">
-                    {" "}
-                    ({agentRole})
-                  </span>
-                )}
-                {lead.pre_counsellor_name && (
-                  <span className="text-muted-foreground font-normal">
-                    {" "}
-                    | <span className="text-muted-foreground">Pre Counsellor:</span>{" "}
-                    <span className="text-foreground">{lead.pre_counsellor_name}</span>
-                  </span>
-                )}
-              </>
+              <span>{agentName}</span>
             ) : (
-              <span className="text-muted-foreground italic font-normal">
+              <span className="italic text-muted-foreground font-normal">
                 Unassigned
               </span>
+            )}
+            <span className="text-muted-foreground font-normal"> | </span>
+            <span className="text-muted-foreground font-normal">Pre Counsellor:</span>{" "}
+            {lead.pre_counsellor_name ? (
+              <span>{lead.pre_counsellor_name}</span>
+            ) : (
+              <span className="text-muted-foreground font-normal">—</span>
             )}
           </p>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
