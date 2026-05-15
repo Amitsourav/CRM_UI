@@ -306,13 +306,13 @@ function FmcEnhancedCard({
 
   return (
     <Card
-      className={`p-3 cursor-pointer hover:shadow-md transition-shadow relative ${
+      className={`w-full max-w-full overflow-hidden p-3 cursor-pointer hover:shadow-md transition-shadow relative ${
         lead.is_important ? "ring-1 ring-yellow-300/70" : ""
       }`}
       style={{ borderLeftWidth: 4, borderLeftColor: stageHex }}
       onClick={onCardClick}
     >
-      <div className="space-y-2">
+      <div className="space-y-2 min-w-0">
         {/* Row 1: name + action icons + stage dropdown */}
         <div className="flex items-start justify-between gap-1">
           <p className="font-medium text-sm truncate flex-1">
