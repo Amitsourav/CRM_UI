@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -81,7 +80,6 @@ export function PipelineCard({
   onToggleImportant,
   onUpdateLead,
 }: PipelineCardProps) {
-  const router = useRouter();
   const { slug, getEntry, getValidTransitions } = useStageConfig();
   const isFmc = slug !== "admitverse";
 
@@ -174,6 +172,8 @@ export function PipelineCard({
   // Budget / Counsellor / Lead created / Follow up). Preserves the existing
   // slim-card elements (name, phone, star, kebab, source, lost reason).
   // ───────────────────────────────────────────────────────────────────────
+  const leadHref = `/leads/${lead.id}`;
+
   if (!isFmc) {
     return (
       <AdmitverseEnhancedCard
@@ -181,7 +181,7 @@ export function PipelineCard({
         stageDropdown={StageDropdown}
         starButton={StarButton}
         stopBubble={stopBubble}
-        onCardClick={() => router.push(`/leads/${lead.id}`)}
+        leadHref={leadHref}
         onUpdateLead={onUpdateLead}
       />
     );
@@ -196,7 +196,7 @@ export function PipelineCard({
       stageDropdown={StageDropdown}
       starButton={StarButton}
       stopBubble={stopBubble}
-      onCardClick={() => router.push(`/leads/${lead.id}`)}
+      leadHref={leadHref}
       onUpdateLead={onUpdateLead}
       stageHex={getStageHex(slug, lead.current_stage)}
     />
@@ -210,7 +210,7 @@ function FmcEnhancedCard({
   stageDropdown,
   starButton,
   stopBubble,
-  onCardClick,
+  leadHref,
   onUpdateLead,
   stageHex,
 }: {
@@ -218,7 +218,7 @@ function FmcEnhancedCard({
   stageDropdown: React.ReactNode;
   starButton: React.ReactNode;
   stopBubble: (e: React.SyntheticEvent) => void;
-  onCardClick: () => void;
+  leadHref: string;
   onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
   stageHex: string;
 }) {
@@ -328,12 +328,17 @@ function FmcEnhancedCard({
           : "text-amber-700";
 
   return (
+    <a
+      href={leadHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block text-inherit no-underline"
+    >
     <Card
       className={`w-full max-w-full overflow-hidden p-3 cursor-pointer hover:shadow-md transition-shadow relative ${
         lead.is_important ? "ring-1 ring-yellow-300/70" : ""
       }`}
       style={{ borderLeftWidth: 4, borderLeftColor: stageHex }}
-      onClick={onCardClick}
     >
       <div className="space-y-2 min-w-0">
         {/* Row 1: name + action icons + stage dropdown */}
@@ -696,6 +701,7 @@ function FmcEnhancedCard({
         </span>
       )}
     </Card>
+    </a>
   );
 }
 
@@ -869,14 +875,14 @@ function AdmitverseEnhancedCard({
   stageDropdown,
   starButton,
   stopBubble,
-  onCardClick,
+  leadHref,
   onUpdateLead,
 }: {
   lead: Lead;
   stageDropdown: React.ReactNode;
   starButton: React.ReactNode;
   stopBubble: (e: React.SyntheticEvent) => void;
-  onCardClick: () => void;
+  leadHref: string;
   onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
 }) {
   const [editing, setEditing] = useState<EditField | null>(null);
@@ -946,11 +952,16 @@ function AdmitverseEnhancedCard({
     iso ? iso.slice(0, 10) : "";
 
   return (
+    <a
+      href={leadHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block text-inherit no-underline"
+    >
     <Card
       className={`p-3 cursor-pointer hover:shadow-md transition-shadow ${
         lead.is_important ? "ring-1 ring-yellow-300/70" : ""
       }`}
-      onClick={onCardClick}
     >
       <div className="space-y-2 min-w-0">
         {/* Row 1: name + star + kebab */}
@@ -1208,6 +1219,7 @@ function AdmitverseEnhancedCard({
         </div>
       </div>
     </Card>
+    </a>
   );
 }
 
