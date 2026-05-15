@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -227,6 +227,27 @@ function FmcEnhancedCard({
   const [tasksLoading, setTasksLoading] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
 
+  // Inline-edit state for Country / College / Loan / Bank name.
+  // Bank Status keeps its existing dropdown pattern.
+  type FmcEditField = "country" | "university" | "loan_amount" | "bank_name";
+  const [editing, setEditing] = useState<FmcEditField | null>(null);
+
+  const startEdit = (field: FmcEditField) => setEditing(field);
+  const cancelEdit = () => setEditing(null);
+  const saveEdit = (field: FmcEditField, raw: string) => {
+    const v = raw.trim();
+    const update: Partial<Lead> =
+      field === "country"
+        ? { preferred_countries: v ? [v] : [] }
+        : field === "university"
+          ? { university: v || undefined }
+          : field === "loan_amount"
+            ? { loan_amount: v || undefined }
+            : { bank_name: v || null };
+    onUpdateLead(lead.id, update);
+    setEditing(null);
+  };
+
   const handleEmail = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!lead.email) {
@@ -371,24 +392,36 @@ function FmcEnhancedCard({
             <div className="flex items-start gap-1.5 text-xs text-foreground/80 min-w-0">
               <Globe className="h-3.5 w-3.5 shrink-0 text-cyan-600 mt-0.5" />
               <span className="text-muted-foreground shrink-0">Country:</span>
-              {lead.preferred_countries && lead.preferred_countries[0] ? (
-                <span className="font-medium break-words min-w-0">
-                  {lead.preferred_countries[0]}
-                </span>
-              ) : (
-                <span className="italic text-muted-foreground">—</span>
-              )}
+              <InlineText
+                value={lead.preferred_countries?.[0] ?? ""}
+                displayNode={
+                  <span className="font-medium">
+                    {lead.preferred_countries?.[0]}
+                  </span>
+                }
+                editing={editing === "country"}
+                onStartEdit={() => startEdit("country")}
+                onSave={(v) => saveEdit("country", v)}
+                onCancel={cancelEdit}
+                stopBubble={stopBubble}
+                placeholder="USA"
+              />
             </div>
             <div className="flex items-start gap-1.5 text-xs text-foreground/80 min-w-0">
               <School className="h-3.5 w-3.5 shrink-0 text-blue-500 mt-0.5" />
               <span className="text-muted-foreground shrink-0">College:</span>
-              {lead.university ? (
-                <span className="font-medium break-words min-w-0">
-                  {lead.university}
-                </span>
-              ) : (
-                <span className="italic text-muted-foreground">—</span>
-              )}
+              <InlineText
+                value={lead.university ?? ""}
+                displayNode={
+                  <span className="font-medium">{lead.university}</span>
+                }
+                editing={editing === "university"}
+                onStartEdit={() => startEdit("university")}
+                onSave={(v) => saveEdit("university", v)}
+                onCancel={cancelEdit}
+                stopBubble={stopBubble}
+                placeholder="MIT / Oxford / …"
+              />
             </div>
             {lead.target_degree && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80">
@@ -400,29 +433,50 @@ function FmcEnhancedCard({
               <IndianRupee className="h-3.5 w-3.5 shrink-0 text-amber-600" />
               {(() => {
                 const { display, crore } = formatLakhs(lead.loan_amount);
-                if (!lead.loan_amount) {
-                  return <span className="text-muted-foreground italic">—</span>;
-                }
                 return (
-                  <span className="truncate font-medium">
-                    {display} Lakhs
-                    {crore && (
-                      <span className="ml-1 text-muted-foreground font-normal">
-                        ({crore} Cr)
+                  <InlineText
+                    value={lead.loan_amount ?? ""}
+                    displayNode={
+                      <span className="font-medium">
+                        {display} Lakhs
+                        {crore && (
+                          <span className="ml-1 text-muted-foreground font-normal">
+                            ({crore} Cr)
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
+                    }
+                    editing={editing === "loan_amount"}
+                    onStartEdit={() => startEdit("loan_amount")}
+                    onSave={(v) => saveEdit("loan_amount", v)}
+                    onCancel={cancelEdit}
+                    stopBubble={stopBubble}
+                    placeholder="25"
+                    numericOnly
+                  />
                 );
               })()}
             </div>
-            {(bankNameTrimmed || bankStatusLabel) && (
-              <div className="flex items-center gap-1.5 text-xs text-foreground/80">
+            {(bankNameTrimmed || bankStatusLabel || editing === "bank_name") && (
+              <div className="flex items-center gap-1.5 text-xs text-foreground/80 min-w-0">
                 <Landmark className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                <InlineText
+                  value={lead.bank_name ?? ""}
+                  displayNode={
+                    <span className="font-medium">{bankNameTrimmed}</span>
+                  }
+                  editing={editing === "bank_name"}
+                  onStartEdit={() => startEdit("bank_name")}
+                  onSave={(v) => saveEdit("bank_name", v)}
+                  onCancel={cancelEdit}
+                  stopBubble={stopBubble}
+                  placeholder="SBI / HDFC / ICICI"
+                  emptyDisplay={
+                    <span className="italic text-muted-foreground">Add bank</span>
+                  }
+                />
                 {bankNameTrimmed && (
-                  <>
-                    <span className="truncate">{bankNameTrimmed}</span>
-                    <span className="text-muted-foreground">·</span>
-                  </>
+                  <span className="text-muted-foreground shrink-0">·</span>
                 )}
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -1154,5 +1208,98 @@ function AdmitverseEnhancedCard({
         </div>
       </div>
     </Card>
+  );
+}
+
+// Click-to-edit text field used on the FMC tile. Renders the value as a
+// button (with hover pencil) in display mode; switches to an Input in edit
+// mode. Enter / blur saves; Escape cancels.
+function InlineText({
+  value,
+  displayNode,
+  editing,
+  onStartEdit,
+  onSave,
+  onCancel,
+  stopBubble,
+  placeholder,
+  numericOnly,
+  emptyDisplay,
+}: {
+  value: string;
+  displayNode: React.ReactNode;
+  editing: boolean;
+  onStartEdit: () => void;
+  onSave: (v: string) => void;
+  onCancel: () => void;
+  stopBubble: (e: React.SyntheticEvent) => void;
+  placeholder?: string;
+  numericOnly?: boolean;
+  emptyDisplay?: React.ReactNode;
+}) {
+  const [draft, setDraft] = useState(value);
+  const cancelledRef = useRef(false);
+
+  useEffect(() => {
+    if (editing) {
+      setDraft(value);
+      cancelledRef.current = false;
+    }
+  }, [editing, value]);
+
+  if (editing) {
+    return (
+      <Input
+        autoFocus
+        onFocus={(e) => e.target.select()}
+        value={draft}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (numericOnly && v !== "" && !/^\d*\.?\d*$/.test(v)) return;
+          setDraft(v);
+        }}
+        onBlur={() => {
+          if (cancelledRef.current) {
+            cancelledRef.current = false;
+            onCancel();
+          } else {
+            onSave(draft);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            cancelledRef.current = true;
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        onClick={stopBubble}
+        onPointerDown={stopBubble}
+        placeholder={placeholder}
+        inputMode={numericOnly ? "decimal" : undefined}
+        className="h-6 text-xs py-0 px-1.5"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onStartEdit();
+      }}
+      onPointerDown={stopBubble}
+      className="group inline-flex items-center gap-1 min-w-0 text-left rounded -mx-0.5 px-0.5 hover:bg-muted/60 break-words"
+    >
+      <span className="min-w-0 break-words">
+        {value ? displayNode : (emptyDisplay ?? <span className="italic text-muted-foreground">—</span>)}
+      </span>
+      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 shrink-0" />
+    </button>
   );
 }
