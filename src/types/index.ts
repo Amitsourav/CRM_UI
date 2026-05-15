@@ -260,6 +260,16 @@ export interface CallFilters {
   limit?: number;
 }
 
+export interface Remark {
+  id: string;
+  lead_id: string;
+  author_id: string;
+  author_name: string;
+  author_role: string;
+  body: string;
+  created_at: string;
+}
+
 export interface LeadStageLog {
   id: string;
   company_id?: string;

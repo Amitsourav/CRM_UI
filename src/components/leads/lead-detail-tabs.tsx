@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LeadTimeline } from "./lead-timeline";
+import { LeadRemarks } from "./lead-remarks";
 import { CallHistory } from "@/components/calls/call-history";
 import { CallLogForm } from "@/components/calls/call-log-form";
 import { TaskForm } from "@/components/tasks/task-form";
@@ -62,6 +63,7 @@ export function LeadDetailTabs({ lead, callRefreshKey: externalRefreshKey }: Lea
       <Tabs defaultValue="profile" className="mt-6">
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="remarks">Remarks</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="calls">Calls</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
@@ -152,6 +154,14 @@ export function LeadDetailTabs({ lead, callRefreshKey: externalRefreshKey }: Lea
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="remarks" className="mt-4">
+          <Card>
+            <CardContent className="pt-6">
+              <LeadRemarks leadId={lead.id} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="timeline" className="mt-4">
