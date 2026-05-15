@@ -314,8 +314,8 @@ function FmcEnhancedCard({
     >
       <div className="space-y-2 min-w-0">
         {/* Row 1: name + action icons + stage dropdown */}
-        <div className="flex items-start justify-between gap-1">
-          <p className="font-medium text-sm truncate flex-1">
+        <div className="flex items-start justify-between gap-1 min-w-0">
+          <p className="font-medium text-sm truncate flex-1 min-w-0">
             {lead.full_name}
           </p>
           <div className="flex items-center gap-0.5 shrink-0">
@@ -862,10 +862,10 @@ function AdmitverseEnhancedCard({
       }`}
       onClick={onCardClick}
     >
-      <div className="space-y-2">
+      <div className="space-y-2 min-w-0">
         {/* Row 1: name + star + kebab */}
-        <div className="flex items-start justify-between gap-1">
-          <p className="font-medium text-sm truncate flex-1">
+        <div className="flex items-start justify-between gap-1 min-w-0">
+          <p className="font-medium text-sm truncate flex-1 min-w-0">
             {lead.full_name}
           </p>
           {starButton}
