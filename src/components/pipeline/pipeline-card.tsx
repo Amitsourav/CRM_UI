@@ -45,6 +45,7 @@ import {
   CalendarClock,
   UserRound,
   Sparkles,
+  School,
 } from "lucide-react";
 import {
   format,
@@ -364,8 +365,31 @@ function FmcEnhancedCard({
         </div>
 
         {/* Loan / education section — loan and docs always render so every
-            FMC card has the same row structure. */}
+            FMC card has the same row structure. Country and College are also
+            always rendered with "—" fallback so the layout is consistent. */}
         <div className="border-t pt-2 space-y-1">
+            <div className="flex items-start gap-1.5 text-xs text-foreground/80 min-w-0">
+              <Globe className="h-3.5 w-3.5 shrink-0 text-cyan-600 mt-0.5" />
+              <span className="text-muted-foreground shrink-0">Country:</span>
+              {lead.preferred_countries && lead.preferred_countries[0] ? (
+                <span className="font-medium break-words min-w-0">
+                  {lead.preferred_countries[0]}
+                </span>
+              ) : (
+                <span className="italic text-muted-foreground">—</span>
+              )}
+            </div>
+            <div className="flex items-start gap-1.5 text-xs text-foreground/80 min-w-0">
+              <School className="h-3.5 w-3.5 shrink-0 text-blue-500 mt-0.5" />
+              <span className="text-muted-foreground shrink-0">College:</span>
+              {lead.university ? (
+                <span className="font-medium break-words min-w-0">
+                  {lead.university}
+                </span>
+              ) : (
+                <span className="italic text-muted-foreground">—</span>
+              )}
+            </div>
             {lead.target_degree && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80">
                 <GraduationCap className="h-3.5 w-3.5 shrink-0 text-indigo-500" />
