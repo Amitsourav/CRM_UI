@@ -1355,17 +1355,23 @@ function InlineText({
   return (
     <button
       type="button"
+      onMouseDown={stopBubble}
       onClick={(e) => {
+        // preventDefault stops the parent anchor from navigating on any
+        // browser that doesn't strictly enforce the "button inside anchor"
+        // interactive-content rule; stopPropagation keeps drag-handle and
+        // other parent listeners out of it.
+        e.preventDefault();
         e.stopPropagation();
         onStartEdit();
       }}
       onPointerDown={stopBubble}
-      className="group inline-flex items-center gap-1 min-w-0 text-left rounded -mx-0.5 px-0.5 hover:bg-muted/60 break-words"
+      className="group inline-flex items-center gap-1 min-w-0 text-left rounded -mx-0.5 px-1 hover:bg-muted/60 break-words cursor-text"
     >
       <span className="min-w-0 break-words">
         {value ? displayNode : (emptyDisplay ?? <span className="italic text-muted-foreground">—</span>)}
       </span>
-      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 shrink-0" />
+      <Pencil className="h-3 w-3 opacity-30 group-hover:opacity-80 shrink-0 text-muted-foreground" />
     </button>
   );
 }
