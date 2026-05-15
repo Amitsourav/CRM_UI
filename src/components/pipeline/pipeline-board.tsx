@@ -89,7 +89,7 @@ export function PipelineBoard() {
   const [stageChangeData, setStageChangeData] = useState<StageChangeData | null>(null);
   const [notes, setNotes] = useState("");
   const [lostReason, setLostReason] = useState("");
-  const [dueDateTime, setDueDateTime] = useState(""); // datetime-local: "YYYY-MM-DDTHH:mm"
+  const [dueDateTime, setDueDateTime] = useState(""); // date-only: "YYYY-MM-DD" (backend accepts plain ISO date)
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load filter options
@@ -388,9 +388,9 @@ export function PipelineBoard() {
     } else {
       if (notes.trim()) extraData.conversation_notes = notes.trim();
       if (dueDateTime) {
-        // datetime-local gives a TZ-naive value; toISOString() reads it as
-        // local time and emits UTC, which is what the backend expects.
-        extraData.due_date = new Date(dueDateTime).toISOString();
+        // Send the date string as-is; backend's timestamptz column accepts
+        // "YYYY-MM-DD" and stores it as midnight UTC.
+        extraData.due_date = dueDateTime;
       }
     }
 
@@ -530,7 +530,7 @@ export function PipelineBoard() {
                 <div className="space-y-2">
                   <Label>Next callback date (optional)</Label>
                   <Input
-                    type="datetime-local"
+                    type="date"
                     value={dueDateTime}
                     onChange={(e) => setDueDateTime(e.target.value)}
                     aria-label="When to follow up next"
