@@ -136,6 +136,8 @@ export interface Lead {
   lost_time?: string;
   lost_reason?: string;
   is_important?: boolean;
+  // FMC-only: count of times this lead has been moved into the DNP stage.
+  dnp_count?: number;
   // Loan/bank fields (FMC). Optional — Admitverse leads don't populate them.
   loan_amount?: string;
   bank_name?: string | null;

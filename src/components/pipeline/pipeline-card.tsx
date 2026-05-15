@@ -346,6 +346,24 @@ function FmcEnhancedCard({
           <p className="font-medium text-sm truncate flex-1 min-w-0">
             {lead.full_name}
           </p>
+          {lead.current_stage === "dnp" && (() => {
+            const n = lead.dnp_count ?? 0;
+            const label = n > 0 ? `DNP-${n}` : "DNP";
+            const tone =
+              n >= 3
+                ? "bg-red-100 text-red-700 border-red-200"
+                : n >= 1
+                  ? "bg-amber-100 text-amber-700 border-amber-200"
+                  : "bg-slate-100 text-slate-700 border-slate-200";
+            return (
+              <span
+                title={`Moved to DNP ${n} time${n === 1 ? "" : "s"}`}
+                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] leading-none font-medium border shrink-0 ${tone}`}
+              >
+                {label}
+              </span>
+            );
+          })()}
           <div className="flex items-center gap-0.5 shrink-0">
             <button
               type="button"
