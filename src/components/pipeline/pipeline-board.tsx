@@ -406,12 +406,26 @@ export function PipelineBoard() {
     }
   };
 
+  // Backend requires due_date on every non-terminal stage move. Terminal
+  // stages (where due_date is optional and can be blank):
+  //   FMC:         lost, disbursed
+  //   Admitverse:  lost, enrolled
+  const isDueDateRequiredForStage = (stage: LeadStage): boolean => {
+    if (stage === "lost") return false;
+    if (isFmc) return stage !== "disbursed";
+    return stage !== "enrolled";
+  };
+
   const handleStageChangeSubmit = async () => {
     if (!stageChangeData) return;
     const { leadId, fromStage, toStage } = stageChangeData;
 
     if (toStage === "lost" && !lostReason.trim()) {
       toast.error("Lost reason is required");
+      return;
+    }
+    if (isDueDateRequiredForStage(toStage) && !dueDateTime) {
+      toast.error("Follow-up date is required.");
       return;
     }
 
@@ -592,15 +606,36 @@ export function PipelineBoard() {
                     placeholder="What happened on this call?"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Next callback date (optional)</Label>
-                  <Input
-                    type="date"
-                    value={dueDateTime}
-                    onChange={(e) => setDueDateTime(e.target.value)}
-                    aria-label="When to follow up next"
-                  />
-                </div>
+                {(() => {
+                  const required =
+                    !!stageChangeData &&
+                    isDueDateRequiredForStage(stageChangeData.toStage);
+                  return (
+                    <div className="space-y-2">
+                      <Label>
+                        Next callback date{" "}
+                        {required ? (
+                          <span className="text-red-600">*</span>
+                        ) : (
+                          <span className="text-muted-foreground font-normal">
+                            (optional)
+                          </span>
+                        )}
+                      </Label>
+                      <Input
+                        type="date"
+                        value={dueDateTime}
+                        onChange={(e) => setDueDateTime(e.target.value)}
+                        aria-label="When to follow up next"
+                      />
+                      {required && !dueDateTime && (
+                        <p className="text-xs text-red-600">
+                          Follow-up date is required.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </>
             )}
           </div>
@@ -610,7 +645,10 @@ export function PipelineBoard() {
               onClick={handleStageChangeSubmit}
               disabled={
                 isSubmitting ||
-                (stageChangeData?.toStage === "lost" && !lostReason.trim())
+                (stageChangeData?.toStage === "lost" && !lostReason.trim()) ||
+                (!!stageChangeData &&
+                  isDueDateRequiredForStage(stageChangeData.toStage) &&
+                  !dueDateTime)
               }
             >
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

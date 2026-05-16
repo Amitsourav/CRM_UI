@@ -123,6 +123,16 @@ export default function LeadDetailPage() {
     if (stage === "lost" && isFmc) ensureLostReasons();
   };
 
+  // Backend requires due_date on every non-terminal stage move. Terminal
+  // stages (where due_date is optional and can be blank):
+  //   FMC:         lost, disbursed
+  //   Admitverse:  lost, enrolled
+  const isDueDateRequiredForStage = (stage: LeadStage): boolean => {
+    if (stage === "lost") return false;
+    if (isFmc) return stage !== "disbursed";
+    return stage !== "enrolled";
+  };
+
   const handleStageSubmit = async () => {
     if (!targetStage) return;
     if (stageRequiresNotes(targetStage) && (!stageNotes.trim() || !stageAgenda.trim())) {
@@ -131,6 +141,10 @@ export default function LeadDetailPage() {
     }
     if (targetStage === "lost" && !lostReason.trim()) {
       toast.error("Lost reason is required");
+      return;
+    }
+    if (isDueDateRequiredForStage(targetStage) && !stageDueDate) {
+      toast.error("Follow-up date is required.");
       return;
     }
 
@@ -349,20 +363,40 @@ export default function LeadDetailPage() {
                 )}
               </div>
             )}
-            <div className="space-y-2">
-              <Label>Due Date (Optional)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {stageDueDate ? format(stageDueDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={stageDueDate} onSelect={setStageDueDate} />
-                </PopoverContent>
-              </Popover>
-            </div>
+            {(() => {
+              const required =
+                !!targetStage && isDueDateRequiredForStage(targetStage);
+              return (
+                <div className="space-y-2">
+                  <Label>
+                    Next callback date{" "}
+                    {required ? (
+                      <span className="text-red-600">*</span>
+                    ) : (
+                      <span className="text-muted-foreground font-normal">
+                        (optional)
+                      </span>
+                    )}
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {stageDueDate ? format(stageDueDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar mode="single" selected={stageDueDate} onSelect={setStageDueDate} />
+                    </PopoverContent>
+                  </Popover>
+                  {required && !stageDueDate && (
+                    <p className="text-xs text-red-600">
+                      Follow-up date is required.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStageDialogOpen(false)}>Cancel</Button>
@@ -370,7 +404,10 @@ export default function LeadDetailPage() {
               onClick={handleStageSubmit}
               disabled={
                 stageSubmitting ||
-                (targetStage === "lost" && !lostReason.trim())
+                (targetStage === "lost" && !lostReason.trim()) ||
+                (!!targetStage &&
+                  isDueDateRequiredForStage(targetStage) &&
+                  !stageDueDate)
               }
             >
               {stageSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
