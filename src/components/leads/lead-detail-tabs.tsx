@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +59,7 @@ export function LeadDetailTabs({
 }: LeadDetailTabsProps) {
   const { slug } = useStageConfig();
   const isFmc = slug !== "admitverse";
+  const [activeTab, setActiveTab] = useState<string>("profile");
   const [callLogOpen, setCallLogOpen] = useState(false);
   const [internalRefreshKey, setInternalRefreshKey] = useState(0);
   const callRefreshKey = (externalRefreshKey || 0) + internalRefreshKey;
@@ -86,7 +88,7 @@ export function LeadDetailTabs({
 
   return (
     <>
-      <Tabs defaultValue="profile" className="mt-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="remarks">Remarks</TabsTrigger>
@@ -101,6 +103,7 @@ export function LeadDetailTabs({
             lead={lead}
             isFmc={isFmc}
             onRefetchLead={onRefetchLead}
+            onOpenBanksTab={() => setActiveTab("banks")}
           />
         </TabsContent>
 
@@ -220,10 +223,12 @@ function ProfileSection({
   lead,
   isFmc,
   onRefetchLead,
+  onOpenBanksTab,
 }: {
   lead: Lead;
   isFmc: boolean;
   onRefetchLead?: () => void;
+  onOpenBanksTab?: () => void;
 }) {
   const followUp = formatFollowUp(lead.due_date);
   const primaryBank =
@@ -238,6 +243,17 @@ function ProfileSection({
   const leadScore = cf.lead_score;
   const quickLenderUpdate = cf.quick_lender_update;
   const bankHistory = cf.bank_history;
+  const disbursementDate = cf.disbursement_date;
+  const disbursementAmount = cf.disbursement_amount;
+  const followUpText = cf.follow_up_text;
+  const originalSourceText = cf.original_source_text;
+  // Legacy bank_history is only useful when no structured BankEntry
+  // rows exist — otherwise the Banks tab is the source of truth.
+  const showLegacyBankHistory =
+    typeof bankHistory === "string" &&
+    bankHistory.trim().length > 0 &&
+    (lead.bank_count ?? 0) === 0 &&
+    (lead.top_banks?.length ?? 0) === 0;
 
   const updateLead = async (update: Partial<Lead>) => {
     try {
@@ -479,7 +495,12 @@ function ProfileSection({
             <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
               <span className="text-sm text-muted-foreground">Primary bank</span>
               {primaryBank ? (
-                <span className="flex items-center gap-2 text-sm">
+                <button
+                  type="button"
+                  onClick={onOpenBanksTab}
+                  className="flex items-center gap-2 text-sm rounded -m-1 p-1 hover:bg-muted/60 transition-colors"
+                  title="Manage banks"
+                >
                   <Landmark className="h-3.5 w-3.5 text-blue-500" />
                   <span className="font-medium">{primaryBank.bank_name}</span>
                   <span
@@ -498,9 +519,15 @@ function ProfileSection({
                       +{(lead.bank_count ?? 1) - 1} more
                     </span>
                   )}
-                </span>
+                </button>
               ) : (
-                <span className="text-sm text-muted-foreground">—</span>
+                <button
+                  type="button"
+                  onClick={onOpenBanksTab}
+                  className="text-sm text-muted-foreground italic hover:underline"
+                >
+                  — Add bank
+                </button>
               )}
             </div>
             <div className="py-1.5 border-b border-border/50">
@@ -520,6 +547,17 @@ function ProfileSection({
                 />
               )}
             </div>
+            {typeof disbursementAmount === "string" &&
+              disbursementAmount.trim() && (
+                <InfoRow
+                  label="Disbursement amount"
+                  value={disbursementAmount}
+                />
+              )}
+            {typeof disbursementDate === "string" &&
+              disbursementDate.trim() && (
+                <InfoRow label="Disbursement date" value={disbursementDate} />
+              )}
             {typeof quickLenderUpdate === "string" && quickLenderUpdate && (
               <div className="py-1.5 border-b border-border/50">
                 <span className="text-sm text-muted-foreground">
@@ -530,13 +568,13 @@ function ProfileSection({
                 </p>
               </div>
             )}
-            {typeof bankHistory === "string" && bankHistory && (
+            {showLegacyBankHistory && (
               <div className="py-1.5">
                 <span className="text-sm text-muted-foreground">
-                  Bank history
+                  Bank history (legacy)
                 </span>
                 <p className="text-sm mt-1 whitespace-pre-wrap">
-                  {bankHistory}
+                  {bankHistory as string}
                 </p>
               </div>
             )}
@@ -546,7 +584,7 @@ function ProfileSection({
 
       <Card className="md:col-span-2">
         <CardHeader>
-          <CardTitle className="text-base">Tags, Score & Notes</CardTitle>
+          <CardTitle className="text-base">Other Info</CardTitle>
         </CardHeader>
         <CardContent>
           {leadScore !== undefined &&
@@ -573,16 +611,78 @@ function ProfileSection({
               )}
             </div>
           </div>
-          <div className="py-1.5">
-            <span className="text-sm text-muted-foreground">Notes</span>
-            {lead.notes ? (
-              <p className="text-sm mt-1 whitespace-pre-wrap">{lead.notes}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground mt-1">—</p>
+          {typeof followUpText === "string" && followUpText.trim() && (
+            <InfoRow label="Follow-up note (import)" value={followUpText} />
+          )}
+          {typeof originalSourceText === "string" &&
+            originalSourceText.trim() && (
+              <InfoRow
+                label="Original source (import)"
+                value={originalSourceText}
+              />
             )}
-          </div>
+          <NotesEditor
+            value={lead.notes ?? ""}
+            onSave={(next) => updateLead({ notes: next })}
+          />
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function NotesEditor({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (next: string) => Promise<void> | void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+  // Re-seed draft when the upstream value changes (e.g. after refetch).
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+  const dirty = draft !== value;
+  return (
+    <div className="py-1.5">
+      <span className="text-sm text-muted-foreground">Notes</span>
+      <Textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Free-form notes about this lead…"
+        rows={3}
+        className="mt-1 text-sm"
+      />
+      {dirty && (
+        <div className="flex justify-end gap-1.5 mt-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setDraft(value)}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={saving}
+            onClick={async () => {
+              setSaving(true);
+              try {
+                await onSave(draft);
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

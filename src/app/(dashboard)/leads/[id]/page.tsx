@@ -53,6 +53,8 @@ import {
   CalendarIcon,
   Loader2,
   Star,
+  Bot,
+  MoreVertical,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -60,6 +62,7 @@ import api from "@/lib/api";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { useTaskCountStore } from "@/stores/task-count-store";
 import { useLostReasonsStore } from "@/stores/lost-reasons-store";
+import { usePageTitleStore } from "@/stores/page-title-store";
 import type { Lead, LeadStage } from "@/types";
 
 export default function LeadDetailPage() {
@@ -109,6 +112,14 @@ export default function LeadDetailPage() {
   useEffect(() => {
     fetchLead();
   }, [fetchLead]);
+
+  // Push the lead's display name up to the topbar breadcrumb so it
+  // doesn't show the raw UUID.
+  const setSegmentOverride = usePageTitleStore((s) => s.setSegmentOverride);
+  useEffect(() => {
+    setSegmentOverride(lead?.full_name ?? null);
+    return () => setSegmentOverride(null);
+  }, [lead?.full_name, setSegmentOverride]);
 
   if (isLoading || !lead) return <PageSkeleton />;
 
@@ -229,6 +240,15 @@ export default function LeadDetailPage() {
               />
             </button>
             <LeadStageBadge stage={lead.current_stage} />
+            {lead.has_active_ai_campaign && (
+              <Badge
+                variant="outline"
+                className="bg-purple-50 text-purple-700 border-purple-200 gap-1"
+              >
+                <Bot className="h-3.5 w-3.5" />
+                AI campaign active
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
             {lead.assigned_agent && (
@@ -270,7 +290,7 @@ export default function LeadDetailPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
                   <ArrowRightLeft className="mr-2 h-4 w-4" />
-                  Change Stage
+                  Move Stage
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -307,24 +327,29 @@ export default function LeadDetailPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Edit className="mr-2 h-4 w-4" />
-            Edit
+            Edit Lead
           </Button>
           {isManager && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
-                <UserPlus className="mr-2 h-4 w-4" />
-                Assign
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </Button>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" aria-label="More actions">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setAssignOpen(true)}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Reassign
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setDeleteOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>

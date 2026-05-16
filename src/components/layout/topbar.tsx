@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useNotificationStore } from "@/stores/notification-store";
+import { usePageTitleStore } from "@/stores/page-title-store";
 import { useNotificationPolling } from "@/hooks/use-notifications";
 import { MobileNav } from "./mobile-nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -76,11 +77,17 @@ export function Topbar() {
     .toUpperCase()
     .slice(0, 2) || "?";
 
-  // Build breadcrumb
+  // Build breadcrumb. UUID-shaped segments (8-4-4-4-12) get replaced
+  // by the active page's segmentOverride if one is set, otherwise an
+  // ellipsis — they're never displayed raw.
+  const segmentOverride = usePageTitleStore((s) => s.segmentOverride);
   const segments = pathname.split("/").filter(Boolean);
-  const breadcrumb = segments.map((s) =>
-    s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-  );
+  const UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const breadcrumb = segments.map((s) => {
+    if (UUID_RE.test(s)) return segmentOverride ?? "…";
+    return s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  });
 
   const handleLogout = async () => {
     await fetch("/api/auth/set-cookie", { method: "DELETE" });
