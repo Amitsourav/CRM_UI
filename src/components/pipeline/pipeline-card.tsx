@@ -239,16 +239,15 @@ function FmcEnhancedCard({
   const [tasksLoading, setTasksLoading] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
 
-  // The card is wrapped in <a target="_blank"> for new-tab navigation on
-  // background clicks. We let clicks bubble up to the anchor and then
-  // preventDefault when the user clicked an interactive descendant. This
-  // runs in the bubble phase, AFTER Radix's trigger onClick (target phase),
-  // so the popover/menu still opens. The anchor's activation behavior runs
-  // after dispatch and respects defaultPrevented set in bubble phase, so
-  // navigation is suppressed.
-  // Important: bank-row triggers MUST NOT call stopPropagation on click —
-  // otherwise this handler never sees the event.
-  const suppressNavOnInteractive = (e: React.MouseEvent<HTMLElement>) => {
+  // Card-level click → open lead in new tab. Implemented as a div click
+  // rather than an <a target="_blank"> wrapper because nested Radix triggers
+  // (Popover/DropdownMenu) lose their open-popover behavior when the parent
+  // anchor is involved — composeEventHandlers honors defaultPrevented set
+  // on the same click event, so any preventDefault we use to suppress the
+  // anchor's activation also cancels Radix's open. Using a div removes the
+  // anchor activation behavior entirely; we only call window.open when the
+  // click target is NOT inside an interactive descendant.
+  const openLeadInNewTab = (e: React.MouseEvent<HTMLElement>) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
     if (
@@ -256,8 +255,9 @@ function FmcEnhancedCard({
         'button, input, textarea, select, [role="menuitem"], [role="option"], [role="combobox"], [data-radix-popper-content-wrapper]'
       )
     ) {
-      e.preventDefault();
+      return;
     }
+    window.open(leadHref, "_blank", "noopener,noreferrer");
   };
 
   // Inline-edit state for Country / College / Loan.
@@ -326,7 +326,25 @@ function FmcEnhancedCard({
     }
   };
 
-  const topBanks = lead.top_banks ?? [];
+  // Prefer the backend-provided top_banks list. If it's not in the
+  // by-stage payload yet (older backend), fall back to the legacy
+  // bank_name/bank_status pair as a single synthetic entry so the card
+  // still shows the bank.
+  const topBanks: {
+    id: string;
+    bank_name: string;
+    bank_status: BankStatus;
+  }[] = lead.top_banks?.length
+    ? lead.top_banks
+    : lead.bank_name?.trim()
+      ? [
+          {
+            id: "",
+            bank_name: lead.bank_name.trim(),
+            bank_status: (lead.bank_status as BankStatus) ?? "applied",
+          },
+        ]
+      : [];
   const extraBanksCount = Math.max(
     0,
     (lead.bank_count ?? 0) - topBanks.length
@@ -336,6 +354,12 @@ function FmcEnhancedCard({
     status: BankStatus
   ) => {
     if (status === entry.bank_status) return;
+    // Synthetic fallback entry (no real BankEntry row) → PATCH the
+    // lead-level bank_status field via the existing update path.
+    if (!entry.id) {
+      onUpdateLead(lead.id, { bank_status: status });
+      return;
+    }
     try {
       await leadBanksService.update(lead.id, entry.id, {
         bank_status: status,
@@ -374,12 +398,25 @@ function FmcEnhancedCard({
           : "text-amber-700";
 
   return (
-    <a
-      href={leadHref}
-      target="_blank"
-      rel="noopener noreferrer"
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={openLeadInNewTab}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          const t = e.target as HTMLElement | null;
+          if (
+            t?.closest(
+              'button, input, textarea, select, [role="menuitem"], [role="option"], [role="combobox"]'
+            )
+          ) {
+            return;
+          }
+          e.preventDefault();
+          window.open(leadHref, "_blank", "noopener,noreferrer");
+        }
+      }}
       className="block text-inherit no-underline"
-      onClick={suppressNavOnInteractive}
     >
     <Card
       className={`w-full max-w-full overflow-hidden p-3 cursor-pointer hover:shadow-md transition-shadow relative ${
@@ -606,7 +643,7 @@ function FmcEnhancedCard({
                       ? BANK_STATUS_BADGE_CLASSES[entry.bank_status]
                       : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80";
                   return (
-                    <Fragment key={entry.id}>
+                    <Fragment key={entry.id || `legacy-${entry.bank_name}`}>
                       {i > 0 && (
                         <span className="text-muted-foreground/40 shrink-0">
                           |
@@ -870,7 +907,7 @@ function FmcEnhancedCard({
         </span>
       )}
     </Card>
-    </a>
+    </div>
   );
 }
 
