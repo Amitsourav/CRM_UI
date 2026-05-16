@@ -60,6 +60,7 @@ import {
   getStageHex,
 } from "@/lib/constants";
 import { formatLakhs } from "@/lib/utils";
+import { useBanksStore } from "@/stores/banks-store";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
 import type { BankStatus, Lead, LeadStage, Task, User } from "@/types";
 
@@ -227,10 +228,13 @@ function FmcEnhancedCard({
   const [tasksLoading, setTasksLoading] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
 
-  // Inline-edit state for Country / College / Loan / Bank name.
-  // Bank Status keeps its existing dropdown pattern.
-  type FmcEditField = "country" | "university" | "loan_amount" | "bank_name";
+  // Inline-edit state for Country / College / Loan.
+  // Bank name and Bank Status both use their own dropdown patterns.
+  type FmcEditField = "country" | "university" | "loan_amount";
   const [editing, setEditing] = useState<FmcEditField | null>(null);
+
+  const banks = useBanksStore((s) => s.banks);
+  const ensureBanks = useBanksStore((s) => s.ensureFetched);
 
   const startEdit = (field: FmcEditField) => setEditing(field);
   const cancelEdit = () => setEditing(null);
@@ -241,9 +245,7 @@ function FmcEnhancedCard({
         ? { preferred_countries: v ? [v] : [] }
         : field === "university"
           ? { university: v || undefined }
-          : field === "loan_amount"
-            ? { loan_amount: v || undefined }
-            : { bank_name: v || null };
+          : { loan_amount: v || undefined };
     onUpdateLead(lead.id, update);
     setEditing(null);
   };
@@ -515,24 +517,74 @@ function FmcEnhancedCard({
                 );
               })()}
             </div>
-            {(bankNameTrimmed || bankStatusLabel || editing === "bank_name") && (
+            {(bankNameTrimmed || bankStatusLabel) && (
               <div className="flex items-center gap-1.5 text-xs text-foreground/80 min-w-0">
                 <Landmark className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-                <InlineText
-                  value={lead.bank_name ?? ""}
-                  displayNode={
-                    <span className="font-medium">{bankNameTrimmed}</span>
-                  }
-                  editing={editing === "bank_name"}
-                  onStartEdit={() => startEdit("bank_name")}
-                  onSave={(v) => saveEdit("bank_name", v)}
-                  onCancel={cancelEdit}
-                  stopBubble={stopBubble}
-                  placeholder="SBI / HDFC / ICICI"
-                  emptyDisplay={
-                    <span className="italic text-muted-foreground">Add bank</span>
-                  }
-                />
+                <DropdownMenu onOpenChange={(o) => o && ensureBanks()}>
+                  <DropdownMenuTrigger
+                    asChild
+                    onClick={stopBubble}
+                    onPointerDown={stopBubble}
+                  >
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-muted/60 transition-colors"
+                    >
+                      <span className="font-medium">
+                        {bankNameTrimmed ?? (
+                          <span className="italic text-muted-foreground font-normal">
+                            Add bank
+                          </span>
+                        )}
+                      </span>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    onClick={stopBubble}
+                    onPointerDown={stopBubble}
+                    className="max-h-[260px] overflow-y-auto"
+                  >
+                    {banks.length === 0 ? (
+                      <DropdownMenuItem disabled className="text-xs">
+                        Loading banks…
+                      </DropdownMenuItem>
+                    ) : (
+                      banks.map((b) => (
+                        <DropdownMenuItem
+                          key={b}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (b === lead.bank_name) return;
+                            onUpdateLead(lead.id, { bank_name: b });
+                          }}
+                        >
+                          {lead.bank_name === b ? (
+                            <Check className="mr-1.5 h-3.5 w-3.5" />
+                          ) : (
+                            <span className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          {b}
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    {bankNameTrimmed && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUpdateLead(lead.id, { bank_name: null });
+                          }}
+                          className="text-muted-foreground"
+                        >
+                          <span className="mr-1.5 h-3.5 w-3.5" />— Clear
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 {bankNameTrimmed && (
                   <span className="text-muted-foreground shrink-0">·</span>
                 )}

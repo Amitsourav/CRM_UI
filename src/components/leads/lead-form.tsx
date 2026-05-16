@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useTaskCountStore } from "@/stores/task-count-store";
 import { useStageConfig } from "@/hooks/use-stage-config";
+import { useBanksStore } from "@/stores/banks-store";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
 import type { Lead } from "@/types";
 
@@ -102,6 +103,10 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
   const [sourceQuery, setSourceQuery] = useState("");
   const [sourceOpen, setSourceOpen] = useState(false);
   const [creatingSource, setCreatingSource] = useState(false);
+  const banks = useBanksStore((s) => s.banks);
+  const ensureBanks = useBanksStore((s) => s.ensureFetched);
+  const [bankOpen, setBankOpen] = useState(false);
+  const [bankQuery, setBankQuery] = useState("");
 
   useEffect(() => {
     setErrors({});
@@ -167,7 +172,8 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         setSources(Array.isArray(data) ? data : data.items || [])
       )
       .catch(() => {});
-  }, [open]);
+    if (isFmc) ensureBanks();
+  }, [open, isFmc, ensureBanks]);
 
   const validateField = (key: string, value: string): string | undefined => {
     switch (key) {
@@ -540,11 +546,83 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   </div>
                   <div className="space-y-1">
                     <Label>Bank Name</Label>
-                    <Input
-                      value={form.bank_name}
-                      onChange={(e) => updateField("bank_name", e.target.value)}
-                      placeholder="SBI / Axis Bank / PNB"
-                    />
+                    {isFmc ? (
+                      <Popover open={bankOpen} onOpenChange={setBankOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between font-normal"
+                          >
+                            {form.bank_name || (
+                              <span className="text-muted-foreground">
+                                Pick a bank…
+                              </span>
+                            )}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                          <Command>
+                            <CommandInput
+                              placeholder="Search banks…"
+                              value={bankQuery}
+                              onValueChange={setBankQuery}
+                            />
+                            <CommandList>
+                              <CommandEmpty>
+                                <span className="text-sm text-muted-foreground">
+                                  No bank matches.
+                                </span>
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {banks.map((b) => (
+                                  <CommandItem
+                                    key={b}
+                                    value={b}
+                                    onSelect={() => {
+                                      updateField("bank_name", b);
+                                      setBankQuery("");
+                                      setBankOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        form.bank_name === b
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {b}
+                                  </CommandItem>
+                                ))}
+                                {form.bank_name && (
+                                  <CommandItem
+                                    value="__clear"
+                                    onSelect={() => {
+                                      updateField("bank_name", "");
+                                      setBankQuery("");
+                                      setBankOpen(false);
+                                    }}
+                                    className="text-muted-foreground"
+                                  >
+                                    <span className="mr-2 h-4 w-4" />— Clear
+                                  </CommandItem>
+                                )}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      <Input
+                        value={form.bank_name}
+                        onChange={(e) => updateField("bank_name", e.target.value)}
+                        placeholder="SBI / Axis Bank / PNB"
+                      />
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label>Bank Status</Label>
