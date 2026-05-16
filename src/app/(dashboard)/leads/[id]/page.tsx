@@ -65,6 +65,7 @@ import { useStageConfig } from "@/hooks/use-stage-config";
 import { useTaskCountStore } from "@/stores/task-count-store";
 import { useLostReasonsStore } from "@/stores/lost-reasons-store";
 import { usePageTitleStore } from "@/stores/page-title-store";
+import { useUsersStore } from "@/stores/users-store";
 import type { Lead, LeadStage } from "@/types";
 
 export default function LeadDetailPage() {
@@ -123,7 +124,27 @@ export default function LeadDetailPage() {
     return () => setSegmentOverride(null);
   }, [lead?.full_name, setSegmentOverride]);
 
+  // Lazy-load active users so we can resolve agent / pre-counsellor
+  // names even when the detail endpoint only returns the IDs.
+  const ensureUsers = useUsersStore((s) => s.ensureFetched);
+  const usersById = useUsersStore((s) => s.byId);
+  useEffect(() => {
+    if (lead?.assigned_agent_id || lead?.pre_counsellor_id) ensureUsers();
+  }, [ensureUsers, lead?.assigned_agent_id, lead?.pre_counsellor_id]);
+
   if (isLoading || !lead) return <PageSkeleton />;
+
+  const headerAgentName =
+    lead.assigned_agent_name ||
+    lead.assigned_agent?.full_name ||
+    (lead.assigned_agent_id
+      ? usersById[lead.assigned_agent_id]?.full_name
+      : undefined);
+  const headerPreCounsellorName =
+    lead.pre_counsellor_name ||
+    (lead.pre_counsellor_id
+      ? usersById[lead.pre_counsellor_id]?.full_name
+      : undefined);
 
   const validTransitions = getValidTransitions(lead.current_stage);
 
@@ -307,12 +328,12 @@ export default function LeadDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
-            {lead.assigned_agent && (
-              <Badge variant="outline">Agent: {lead.assigned_agent.full_name}</Badge>
+            {headerAgentName && (
+              <Badge variant="outline">Counsellor: {headerAgentName}</Badge>
             )}
-            {lead.pre_counsellor_name && (
+            {headerPreCounsellorName && (
               <Badge variant="outline">
-                Pre Counsellor: {lead.pre_counsellor_name}
+                Pre Counsellor: {headerPreCounsellorName}
               </Badge>
             )}
             {lead.lead_source && (

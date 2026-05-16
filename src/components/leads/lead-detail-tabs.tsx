@@ -47,6 +47,7 @@ import {
   BANK_STATUS_LABELS,
 } from "@/lib/constants";
 import { useStageConfig } from "@/hooks/use-stage-config";
+import { useUsersStore } from "@/stores/users-store";
 import type { BankStatus, Lead, Task } from "@/types";
 
 interface LeadDetailTabsProps {
@@ -233,6 +234,28 @@ function ProfileSection({
   onRefetchLead?: () => void;
   onOpenBanksTab?: () => void;
 }) {
+  // Resolve names from assigned_agent_id / pre_counsellor_id via the
+  // users store. Backend may send the denormalized *_name string on the
+  // detail endpoint; if it doesn't, this fallback fills the gap so the
+  // Pipeline & Assignment block doesn't read "—" when there's actually
+  // someone assigned.
+  const ensureUsers = useUsersStore((s) => s.ensureFetched);
+  const usersById = useUsersStore((s) => s.byId);
+  useEffect(() => {
+    if (lead.assigned_agent_id || lead.pre_counsellor_id) ensureUsers();
+  }, [ensureUsers, lead.assigned_agent_id, lead.pre_counsellor_id]);
+  const counsellorName =
+    lead.assigned_agent_name ||
+    lead.assigned_agent?.full_name ||
+    (lead.assigned_agent_id
+      ? usersById[lead.assigned_agent_id]?.full_name
+      : undefined);
+  const preCounsellorName =
+    lead.pre_counsellor_name ||
+    (lead.pre_counsellor_id
+      ? usersById[lead.pre_counsellor_id]?.full_name
+      : undefined);
+
   const followUp = formatFollowUp(lead.due_date);
   const primaryBank =
     lead.top_banks?.[0] ??
@@ -384,19 +407,9 @@ function ProfileSection({
           <CardTitle className="text-base">Pipeline & Assignment</CardTitle>
         </CardHeader>
         <CardContent>
-          <InfoRow
-            label="Counsellor"
-            value={
-              lead.assigned_agent_name ||
-              lead.assigned_agent?.full_name ||
-              undefined
-            }
-          />
+          <InfoRow label="Counsellor" value={counsellorName} />
           {isFmc && (
-            <InfoRow
-              label="Pre Counsellor"
-              value={lead.pre_counsellor_name}
-            />
+            <InfoRow label="Pre Counsellor" value={preCounsellorName} />
           )}
           <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
             <span className="text-sm text-muted-foreground">Follow up</span>
