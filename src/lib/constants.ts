@@ -286,6 +286,20 @@ export function getStageHex(
   return map[stage] ?? FMC_STAGE_HEX[stage] ?? ADMITVERSE_STAGE_HEX[stage] ?? "#94a3b8";
 }
 
+// Status priority for ordering BankEntry rows on the card: highest
+// (most progressed in the funnel) first. Matches the backend's
+// /leads/by-stage top_banks ordering so the detail page agrees with
+// the Kanban tile.
+export const BANK_STATUS_PRIORITY: Record<BankStatus, number> = {
+  disbursed: 7,
+  pf_paid: 6,
+  sanctioned: 5,
+  loan_login: 4,
+  under_review: 3,
+  docs_reviewed: 2,
+  applied: 1,
+};
+
 export const BANK_STATUS_BADGE_CLASSES: Record<BankStatus, string> = {
   applied: "bg-blue-50 text-blue-700 border-blue-200",
   docs_reviewed: "bg-indigo-50 text-indigo-700 border-indigo-200",

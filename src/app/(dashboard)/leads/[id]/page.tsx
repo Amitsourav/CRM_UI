@@ -67,7 +67,9 @@ import { useTaskCountStore } from "@/stores/task-count-store";
 import { useLostReasonsStore } from "@/stores/lost-reasons-store";
 import { usePageTitleStore } from "@/stores/page-title-store";
 import { useUsersStore } from "@/stores/users-store";
-import type { Lead, LeadStage } from "@/types";
+import { leadBanksService } from "@/services/lead-banks-service";
+import { BANK_STATUS_PRIORITY } from "@/lib/constants";
+import type { BankStatus, Lead, LeadStage } from "@/types";
 
 export default function LeadDetailPage() {
   const params = useParams();
@@ -104,8 +106,35 @@ export default function LeadDetailPage() {
 
   const fetchLead = useCallback(async () => {
     try {
-      const { data } = await api.get<Lead>(`/leads/${leadId}`);
-      setLead(data);
+      // Detail endpoint sometimes ships top_banks: [] / bank_count: 0
+      // even when /leads/{id}/banks actually returns entries. Pull the
+      // banks list directly and merge so every surface (summary tile,
+      // Finance card, Banks tab) agrees.
+      const [{ data }, banks] = await Promise.all([
+        api.get<Lead>(`/leads/${leadId}`),
+        leadBanksService.list(leadId).catch(() => []),
+      ]);
+      const top_banks = [...banks]
+        .sort((a, b) => {
+          const order = BANK_STATUS_PRIORITY[b.bank_status] -
+            BANK_STATUS_PRIORITY[a.bank_status];
+          if (order !== 0) return order;
+          return (
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime()
+          );
+        })
+        .slice(0, 2)
+        .map((b) => ({
+          id: b.id,
+          bank_name: b.bank_name,
+          bank_status: b.bank_status,
+        }));
+      setLead({
+        ...data,
+        top_banks,
+        bank_count: banks.length,
+      });
     } catch {
       toast.error("Failed to load lead");
       router.push("/leads");
