@@ -45,6 +45,7 @@ import type { BankEntry, BankStatus } from "@/types";
 interface LeadBanksManagerProps {
   leadId: string;
   showNotes?: boolean;
+  autoOpenAddIfEmpty?: boolean;
   onChanged?: () => void;
 }
 
@@ -53,6 +54,7 @@ const ALL_STATUSES = Object.keys(BANK_STATUS_LABELS) as BankStatus[];
 export function LeadBanksManager({
   leadId,
   showNotes,
+  autoOpenAddIfEmpty,
   onChanged,
 }: LeadBanksManagerProps) {
   const [entries, setEntries] = useState<BankEntry[] | null>(null);
@@ -72,16 +74,20 @@ export function LeadBanksManager({
     leadBanksService
       .list(leadId)
       .then((list) => {
-        if (!cancelled) setEntries(list);
+        if (cancelled) return;
+        setEntries(list);
+        if (autoOpenAddIfEmpty && list.length === 0) setAddOpen(true);
       })
       .catch(() => {
-        if (!cancelled) setEntries([]);
+        if (cancelled) return;
+        setEntries([]);
+        if (autoOpenAddIfEmpty) setAddOpen(true);
       });
     ensureBanks();
     return () => {
       cancelled = true;
     };
-  }, [leadId, ensureBanks]);
+  }, [leadId, ensureBanks, autoOpenAddIfEmpty]);
 
   const handleStatusChange = async (entry: BankEntry, status: BankStatus) => {
     if (status === entry.bank_status) return;

@@ -60,7 +60,6 @@ import {
   getStageHex,
 } from "@/lib/constants";
 import { formatLakhs } from "@/lib/utils";
-import { useBanksStore } from "@/stores/banks-store";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
 import { LeadBanksManager } from "@/components/leads/lead-banks-manager";
 import {
@@ -243,9 +242,6 @@ function FmcEnhancedCard({
   // Bank name and Bank Status both use their own dropdown patterns.
   type FmcEditField = "country" | "university" | "loan_amount";
   const [editing, setEditing] = useState<FmcEditField | null>(null);
-
-  const banks = useBanksStore((s) => s.banks);
-  const ensureBanks = useBanksStore((s) => s.ensureFetched);
 
   const startEdit = (field: FmcEditField) => setEditing(field);
   const cancelEdit = () => setEditing(null);
@@ -528,81 +524,58 @@ function FmcEnhancedCard({
                 );
               })()}
             </div>
-            {/* Bank row — always rendered on FMC so users can set a bank
-                directly from the card. Bank Status dropdown only appears
-                after a bank is picked. */}
+            {/* Bank row — single Popover serves all states:
+                  0 banks → trigger reads "+ Add bank", popover auto-opens add form
+                  1 bank  → trigger shows bank name, popover lists 1 + add
+                  2+      → trigger shows primary + "+N-1", popover lists all + add
+                Bank Status chip still renders separately as a quick edit of the
+                primary entry's status (only when at least one bank is set). */}
             <div className="flex items-center gap-1.5 text-xs text-foreground/80 min-w-0">
               <Landmark className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-              <DropdownMenu onOpenChange={(o) => o && ensureBanks()}>
-                <DropdownMenuTrigger
+              <Popover>
+                <PopoverTrigger
                   asChild
                   onClick={stopBubble}
                   onPointerDown={stopBubble}
                 >
                   <button
                     type="button"
-                    className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-muted/60 transition-colors"
+                    className="inline-flex items-center gap-1 px-1 py-0.5 rounded hover:bg-muted/60 transition-colors min-w-0"
+                    title={
+                      (lead.bank_count ?? 0) > 1
+                        ? `${lead.bank_count} banks — click to manage`
+                        : "Manage banks"
+                    }
                   >
-                    <span className="font-medium">
+                    <span className="font-medium truncate">
                       {bankNameTrimmed ?? (
                         <span className="italic text-muted-foreground font-normal">
-                          Add bank
+                          + Add bank
                         </span>
                       )}
                     </span>
-                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    {(lead.bank_count ?? 0) > 1 && (
+                      <span className="inline-flex items-center px-1 py-0.5 rounded-full text-[10px] leading-none bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+                        +{(lead.bank_count ?? 1) - 1}
+                      </span>
+                    )}
+                    <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
                   </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
+                </PopoverTrigger>
+                <PopoverContent
                   align="start"
+                  className="w-[340px] p-3"
                   onClick={stopBubble}
                   onPointerDown={stopBubble}
-                  className="max-h-[260px] overflow-y-auto"
                 >
-                  {banks.length === 0 ? (
-                    <DropdownMenuItem disabled className="text-xs">
-                      Loading banks…
-                    </DropdownMenuItem>
-                  ) : (
-                    banks.map((b) => (
-                      <DropdownMenuItem
-                        key={b}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (b === lead.bank_name) return;
-                          // When a bank is set for the first time, default
-                          // status to "applied" — that's the first step on
-                          // every lead anyway.
-                          const update: Partial<Lead> = { bank_name: b };
-                          if (!lead.bank_status) update.bank_status = "applied";
-                          onUpdateLead(lead.id, update);
-                        }}
-                      >
-                        {lead.bank_name === b ? (
-                          <Check className="mr-1.5 h-3.5 w-3.5" />
-                        ) : (
-                          <span className="mr-1.5 h-3.5 w-3.5" />
-                        )}
-                        {b}
-                      </DropdownMenuItem>
-                    ))
-                  )}
-                  {bankNameTrimmed && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUpdateLead(lead.id, { bank_name: null });
-                        }}
-                        className="text-muted-foreground"
-                      >
-                        <span className="mr-1.5 h-3.5 w-3.5" />— Remove bank
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  <p className="text-xs font-medium mb-2">Banks</p>
+                  <LeadBanksManager
+                    leadId={lead.id}
+                    autoOpenAddIfEmpty
+                    onChanged={() => onRefetchLead(lead.id)}
+                  />
+                </PopoverContent>
+              </Popover>
               {bankNameTrimmed && (
                 <>
                 <span className="text-muted-foreground shrink-0">·</span>
@@ -668,35 +641,6 @@ function FmcEnhancedCard({
                   </DropdownMenuContent>
                 </DropdownMenu>
                 </>
-              )}
-              {(lead.bank_count ?? 0) > 1 && (
-                <Popover>
-                  <PopoverTrigger
-                    asChild
-                    onClick={stopBubble}
-                    onPointerDown={stopBubble}
-                  >
-                    <button
-                      type="button"
-                      className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] leading-none bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 transition-colors shrink-0"
-                      title={`${lead.bank_count} banks total`}
-                    >
-                      +{(lead.bank_count ?? 1) - 1}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="start"
-                    className="w-[340px] p-3"
-                    onClick={stopBubble}
-                    onPointerDown={stopBubble}
-                  >
-                    <p className="text-xs font-medium mb-2">All banks</p>
-                    <LeadBanksManager
-                      leadId={lead.id}
-                      onChanged={() => onRefetchLead(lead.id)}
-                    />
-                  </PopoverContent>
-                </Popover>
               )}
             </div>
             {showDocs && (
