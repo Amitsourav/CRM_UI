@@ -58,6 +58,7 @@ import {
   MoreVertical,
   Mail,
   MessageCircle,
+  Copy,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -69,6 +70,7 @@ import { usePageTitleStore } from "@/stores/page-title-store";
 import { useUsersStore } from "@/stores/users-store";
 import { leadBanksService } from "@/services/lead-banks-service";
 import { BANK_STATUS_PRIORITY } from "@/lib/constants";
+import { copyLeadToClipboard } from "@/lib/lead-copy";
 import type { BankStatus, Lead, LeadStage } from "@/types";
 
 export default function LeadDetailPage() {
@@ -356,6 +358,17 @@ export default function LeadDetailPage() {
               >
                 <MessageCircle className="h-4 w-4" />
               </a>
+              {isFmc && (
+                <button
+                  type="button"
+                  aria-label="Copy lead details"
+                  title="Copy name, phone, email, university"
+                  onClick={() => void copyLeadToClipboard(lead)}
+                  className="p-1.5 rounded hover:bg-muted text-slate-500"
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">

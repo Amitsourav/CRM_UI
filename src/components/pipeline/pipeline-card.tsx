@@ -26,6 +26,7 @@ import {
   Star,
   Mail,
   MessageCircle,
+  Copy,
   GraduationCap,
   IndianRupee,
   Landmark,
@@ -59,6 +60,7 @@ import {
   followUpIconClass,
   followUpToneClass,
 } from "@/lib/follow-up";
+import { copyLeadToClipboard } from "@/lib/lead-copy";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
 import { LeadBanksManager } from "@/components/leads/lead-banks-manager";
 import { leadBanksService } from "@/services/lead-banks-service";
@@ -303,6 +305,11 @@ function FmcEnhancedCard({
     window.open(`https://wa.me/${digits}`, "_blank", "noopener,noreferrer");
   };
 
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    void copyLeadToClipboard(lead);
+  };
+
   // Prefer the backend-provided top_banks list. If it's not in the
   // by-stage payload. Structured BankEntry rows are the source of
   // truth; we no longer synthesize a chip from legacy
@@ -479,6 +486,16 @@ function FmcEnhancedCard({
               className="-m-1 p-1 rounded hover:bg-muted text-green-600"
             >
               <MessageCircle className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Copy lead details"
+              title="Copy name, phone, email, university"
+              onClick={handleCopy}
+              onPointerDown={stopBubble}
+              className="-m-1 p-1 rounded hover:bg-muted text-slate-500"
+            >
+              <Copy className="h-3.5 w-3.5" />
             </button>
             {stageDropdown}
           </div>
