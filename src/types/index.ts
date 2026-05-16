@@ -93,6 +93,10 @@ export interface User {
   is_active: boolean;
   vertical?: string;
   avatar_url?: string;
+  // Number of leads where this user is the Counsellor or the Pre
+  // Counsellor (deduped). Returned by GET /users so admins can sort
+  // by who's busiest.
+  lead_count?: number;
   created_at: string;
   updated_at: string;
 }

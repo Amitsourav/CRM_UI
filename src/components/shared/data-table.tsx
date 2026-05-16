@@ -21,6 +21,9 @@ export interface Column<T> {
   header: string;
   cell: (row: T) => React.ReactNode;
   sortable?: boolean;
+  // Accessor used when the column is sortable. Required for sortable
+  // columns; ignored otherwise.
+  sortValue?: (row: T) => number | string | null | undefined;
 }
 
 interface DataTableProps<T> {
@@ -74,6 +77,32 @@ export function DataTable<T>({
     }
   };
 
+  // Apply active sort using the sortable column's sortValue accessor.
+  // Falls back to the source order when no column is selected or the
+  // selected column isn't sortable. Stable sort: equal values keep their
+  // relative order from `data`.
+  const sortedData = (() => {
+    if (!sortKey) return data;
+    const col = columns.find((c) => c.key === sortKey);
+    if (!col?.sortable || !col.sortValue) return data;
+    const indexed = data.map((row, i) => ({ row, i }));
+    indexed.sort((a, b) => {
+      const av = col.sortValue!(a.row);
+      const bv = col.sortValue!(b.row);
+      const aNull = av === null || av === undefined;
+      const bNull = bv === null || bv === undefined;
+      if (aNull && bNull) return a.i - b.i;
+      if (aNull) return 1; // nulls last regardless of direction
+      if (bNull) return -1;
+      let cmp: number;
+      if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
+      else cmp = String(av).localeCompare(String(bv));
+      if (cmp === 0) return a.i - b.i;
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return indexed.map((x) => x.row);
+  })();
+
   const allSelected = data.length > 0 && selectedIds.length === data.length;
 
   const toggleAll = () => {
@@ -125,7 +154,7 @@ export function DataTable<T>({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((row) => {
+          {sortedData.map((row) => {
             const id = getRowId(row);
             return (
               <TableRow

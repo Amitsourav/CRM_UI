@@ -49,6 +49,17 @@ export function UserTable({ users, isLoading, onEdit, onDeactivate }: UserTableP
       cell: (user) => user.vertical || "—",
     },
     {
+      key: "lead_count",
+      header: "Leads",
+      sortable: true,
+      sortValue: (user) => user.lead_count ?? 0,
+      cell: (user) => (
+        <span className="font-medium tabular-nums">
+          {user.lead_count ?? 0}
+        </span>
+      ),
+    },
+    {
       key: "active",
       header: "Status",
       cell: (user) => (
