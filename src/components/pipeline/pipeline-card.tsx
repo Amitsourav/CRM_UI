@@ -376,6 +376,7 @@ function FmcEnhancedCard({
     typeof docsTotal === "number" && docsTotal > 0;
 
   const agentName = lead.assigned_agent_name || lead.assigned_agent?.full_name;
+  const followUp = formatFollowUp(lead.due_date);
 
   const tags = lead.tags ?? [];
 
@@ -807,6 +808,19 @@ function FmcEnhancedCard({
         {/* Agent + counts — always render so admins can spot unassigned
             leads and so 0-count badges still appear. */}
         <div className="border-t pt-2 space-y-1">
+          <div className="flex items-center gap-1.5 text-xs">
+            <CalendarClock
+              className={`h-3.5 w-3.5 shrink-0 ${followUpIconClass(followUp?.tone)}`}
+            />
+            <span className="text-muted-foreground">Follow up:</span>
+            {followUp ? (
+              <span className={followUpToneClass(followUp.tone)}>
+                {followUp.label}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </div>
           <p className="text-xs font-medium leading-snug break-words">
             <span className="text-muted-foreground font-normal">Counsellor:</span>{" "}
             {agentName ? (
@@ -944,31 +958,67 @@ function formatRelative(iso?: string): string | null {
   }
 }
 
-// Returns "in 2 days", "today", "1 day overdue", etc.
-function formatFollowUp(iso?: string): { label: string; overdue: boolean } | null {
+type FollowUpTone = "overdue" | "today" | "tomorrow" | "future";
+
+interface FollowUpDisplay {
+  label: string;
+  tone: FollowUpTone;
+  isOverdue: boolean; // convenience: tone === "overdue" || tone === "today"
+}
+
+// Returns a label + tone for the lead's follow-up date.
+//   overdue: "{N} day(s) overdue"  → red + bold
+//   today:   "Today"               → red + bold
+//   tomorrow: "Tomorrow"            → orange
+//   future:  "d MMM yyyy"          → muted
+function formatFollowUp(iso?: string | null): FollowUpDisplay | null {
   if (!iso) return null;
   try {
     const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
     const today = startOfDay(new Date());
     const target = startOfDay(date);
     const diffDays = differenceInCalendarDays(target, today);
     if (diffDays === 0) {
-      return { label: `${format(date, "MMM d")} (today)`, overdue: false };
+      return { label: "Today", tone: "today", isOverdue: true };
     }
-    if (diffDays > 0) {
+    if (diffDays === 1) {
+      return { label: "Tomorrow", tone: "tomorrow", isOverdue: false };
+    }
+    if (diffDays < 0) {
+      const n = Math.abs(diffDays);
       return {
-        label: `${format(date, "MMM d")} (in ${diffDays}d)`,
-        overdue: false,
+        label: `${n} day${n === 1 ? "" : "s"} overdue`,
+        tone: "overdue",
+        isOverdue: true,
       };
     }
-    const overdueDays = Math.abs(diffDays);
     return {
-      label: `${format(date, "MMM d")} (${overdueDays}d overdue)`,
-      overdue: true,
+      label: format(date, "d MMM yyyy"),
+      tone: "future",
+      isOverdue: false,
     };
   } catch {
     return null;
   }
+}
+
+function followUpToneClass(tone: FollowUpTone): string {
+  switch (tone) {
+    case "overdue":
+    case "today":
+      return "text-red-600 font-semibold";
+    case "tomorrow":
+      return "text-orange-600";
+    case "future":
+      return "text-muted-foreground";
+  }
+}
+
+function followUpIconClass(tone: FollowUpTone | undefined): string {
+  if (tone === "overdue" || tone === "today") return "text-red-600";
+  if (tone === "tomorrow") return "text-orange-500";
+  return "text-blue-500";
 }
 
 interface InlineRowProps {
@@ -1394,11 +1444,17 @@ function AdmitverseEnhancedCard({
 
           <InlineRow
             Icon={CalendarClock}
-            iconClass={followUp?.overdue ? "text-red-600" : "text-blue-500"}
+            iconClass={followUpIconClass(followUp?.tone)}
             label="Follow up"
-            display={followUp?.label}
+            display={
+              followUp ? (
+                <span className={followUpToneClass(followUp.tone)}>
+                  {followUp.label}
+                </span>
+              ) : null
+            }
             isEmpty={!followUp}
-            isOverdue={followUp?.overdue}
+            isOverdue={followUp?.isOverdue}
             editing={editing === "due_date"}
             onStartEdit={(e) => {
               e.stopPropagation();
