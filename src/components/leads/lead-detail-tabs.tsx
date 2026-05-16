@@ -5,19 +5,45 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { LeadTimeline } from "./lead-timeline";
 import { LeadRemarks } from "./lead-remarks";
 import { LeadBanksManager } from "./lead-banks-manager";
+import { DocsChecklist } from "./docs-checklist";
 import { CallHistory } from "@/components/calls/call-history";
 import { CallLogForm } from "@/components/calls/call-log-form";
 import { TaskForm } from "@/components/tasks/task-form";
 import { TaskTable } from "@/components/tasks/task-table";
 import { TaskCompleteDialog } from "@/components/tasks/task-complete-dialog";
-import { Phone, Plus } from "lucide-react";
+import {
+  CalendarClock,
+  ChevronDown,
+  IndianRupee,
+  Landmark,
+  Phone,
+  Plus,
+} from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import api from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { formatLakhs } from "@/lib/utils";
+import {
+  formatFollowUp,
+  followUpIconClass,
+  followUpToneClass,
+} from "@/lib/follow-up";
+import {
+  BANK_STATUS_BADGE_CLASSES,
+  BANK_STATUS_LABELS,
+} from "@/lib/constants";
 import { useStageConfig } from "@/hooks/use-stage-config";
-import type { Lead, Task } from "@/types";
+import type { BankStatus, Lead, Task } from "@/types";
 
 interface LeadDetailTabsProps {
   lead: Lead;
@@ -58,15 +84,6 @@ export function LeadDetailTabs({
     fetchTasks();
   }, [lead.id]);
 
-  const InfoRow = ({ label, value }: { label: string; value?: string | number | null }) => (
-    <div className="flex justify-between py-1.5 border-b border-border/50 last:border-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium text-right max-w-[200px] truncate">
-        {value || "—"}
-      </span>
-    </div>
-  );
-
   return (
     <>
       <Tabs defaultValue="profile" className="mt-6">
@@ -80,90 +97,11 @@ export function LeadDetailTabs({
         </TabsList>
 
         <TabsContent value="profile" className="mt-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader><CardTitle className="text-base">Personal</CardTitle></CardHeader>
-              <CardContent>
-                <InfoRow label="Email" value={lead.email} />
-                <InfoRow label="Phone" value={lead.phone} />
-                <InfoRow label="Alternate Phone" value={lead.alternate_phone} />
-                <InfoRow label="Date of Birth" value={lead.date_of_birth} />
-                <InfoRow label="Gender" value={lead.gender} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base">Location</CardTitle></CardHeader>
-              <CardContent>
-                <InfoRow label="City" value={lead.city} />
-                <InfoRow label="State" value={lead.state} />
-                <InfoRow label="Country" value={lead.country} />
-                <InfoRow label="Pincode" value={lead.pincode} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base">Education</CardTitle></CardHeader>
-              <CardContent>
-                <InfoRow label="Qualification" value={lead.highest_qualification} />
-                <InfoRow label="Stream" value={lead.stream} />
-                <InfoRow label="Passing Year" value={lead.passing_year} />
-                <InfoRow label="College" value={lead.college_name} />
-                <InfoRow label="University" value={lead.university} />
-                <InfoRow label="Percentage" value={lead.percentage ? `${lead.percentage}%` : undefined} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base">Preferences</CardTitle></CardHeader>
-              <CardContent>
-                <InfoRow label="Target Degree" value={lead.target_degree} />
-                <InfoRow label="Target Intake" value={lead.target_intake} />
-                <div className="py-1.5 border-b border-border/50">
-                  <span className="text-sm text-muted-foreground">Preferred Countries</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {lead.preferred_countries?.map((c) => (
-                      <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
-                    )) || <span className="text-sm">—</span>}
-                  </div>
-                </div>
-                <div className="py-1.5">
-                  <span className="text-sm text-muted-foreground">Preferred Universities</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {lead.preferred_universities?.map((u) => (
-                      <Badge key={u} variant="secondary" className="text-xs">{u}</Badge>
-                    )) || <span className="text-sm">—</span>}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="md:col-span-2">
-              <CardHeader><CardTitle className="text-base">Additional Info</CardTitle></CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-x-8">
-                  <InfoRow label="Source" value={lead.lead_source?.name} />
-                  <InfoRow label="Call Attempts" value={lead.call_attempt_count} />
-                  <InfoRow label="Due Date" value={lead.due_date ? format(new Date(lead.due_date), "MMM d, yyyy") : undefined} />
-                  <InfoRow label="Created" value={format(new Date(lead.created_at), "MMM d, yyyy")} />
-                </div>
-                {lead.tags && lead.tags.length > 0 && (
-                  <div className="mt-3">
-                    <span className="text-sm text-muted-foreground">Tags: </span>
-                    {lead.tags.map((t) => (
-                      <Badge key={t} variant="outline" className="mr-1 text-xs">{t}</Badge>
-                    ))}
-                  </div>
-                )}
-                {lead.notes && (
-                  <div className="mt-3">
-                    <span className="text-sm text-muted-foreground">Notes:</span>
-                    <p className="text-sm mt-1">{lead.notes}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <ProfileSection
+            lead={lead}
+            isFmc={isFmc}
+            onRefetchLead={onRefetchLead}
+          />
         </TabsContent>
 
         <TabsContent value="remarks" className="mt-4">
@@ -260,3 +198,392 @@ export function LeadDetailTabs({
     </>
   );
 }
+
+function InfoRow({
+  label,
+  value,
+}: {
+  label: string;
+  value?: React.ReactNode;
+}) {
+  return (
+    <div className="flex justify-between gap-3 py-1.5 border-b border-border/50 last:border-0">
+      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
+      <span className="text-sm font-medium text-right break-words min-w-0">
+        {value !== undefined && value !== null && value !== "" ? value : "—"}
+      </span>
+    </div>
+  );
+}
+
+function ProfileSection({
+  lead,
+  isFmc,
+  onRefetchLead,
+}: {
+  lead: Lead;
+  isFmc: boolean;
+  onRefetchLead?: () => void;
+}) {
+  const followUp = formatFollowUp(lead.due_date);
+  const primaryBank =
+    lead.top_banks?.[0] ??
+    (lead.bank_name
+      ? {
+          bank_name: lead.bank_name,
+          bank_status: (lead.bank_status as BankStatus) ?? "applied",
+        }
+      : null);
+  const cf = (lead.custom_fields ?? {}) as Record<string, unknown>;
+  const leadScore = cf.lead_score;
+  const quickLenderUpdate = cf.quick_lender_update;
+  const bankHistory = cf.bank_history;
+
+  const updateLead = async (update: Partial<Lead>) => {
+    try {
+      await api.put(`/leads/${lead.id}`, update);
+      onRefetchLead?.();
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string } };
+      };
+      if (err.response?.status === 403) {
+        toast.error("You don't have permission to modify this lead");
+      } else {
+        toast.error(err.response?.data?.detail || "Couldn't update lead");
+      }
+    }
+  };
+
+  const handleDocToggle = (key: string) => {
+    const current = lead.submitted_docs ?? [];
+    const next = current.includes(key)
+      ? current.filter((k) => k !== key)
+      : [...current, key];
+    updateLead({ submitted_docs: next });
+  };
+
+  const docsTotal = lead.docs_required ?? 0;
+  const docsDone = lead.docs_submitted ?? 0;
+
+  const { display: loanDisplay, crore: loanCrore } = formatLakhs(
+    lead.loan_amount
+  );
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Personal</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InfoRow label="Email" value={lead.email} />
+          <InfoRow label="Phone" value={lead.phone} />
+          <InfoRow label="Alternate Phone" value={lead.alternate_phone} />
+          <InfoRow label="Date of Birth" value={lead.date_of_birth} />
+          <InfoRow label="Gender" value={lead.gender} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Location</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InfoRow label="City" value={lead.city} />
+          <InfoRow label="State" value={lead.state} />
+          <InfoRow label="Country" value={lead.country} />
+          <InfoRow label="Pincode" value={lead.pincode} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Education</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InfoRow label="Qualification" value={lead.highest_qualification} />
+          <InfoRow label="Stream" value={lead.stream} />
+          <InfoRow label="Passing Year" value={lead.passing_year} />
+          <InfoRow label="College" value={lead.college_name} />
+          <InfoRow label="University" value={lead.university} />
+          <InfoRow
+            label="Percentage"
+            value={lead.percentage ? `${lead.percentage}%` : undefined}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Preferences</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InfoRow label="Target Degree" value={lead.target_degree} />
+          <InfoRow label="Target Intake" value={lead.target_intake} />
+          {!isFmc && <InfoRow label="Budget" value={lead.budget} />}
+          <div className="py-1.5 border-b border-border/50">
+            <span className="text-sm text-muted-foreground">
+              Preferred Countries
+            </span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {lead.preferred_countries && lead.preferred_countries.length > 0 ? (
+                lead.preferred_countries.map((c) => (
+                  <Badge key={c} variant="secondary" className="text-xs">
+                    {c}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm">—</span>
+              )}
+            </div>
+          </div>
+          <div className="py-1.5">
+            <span className="text-sm text-muted-foreground">
+              Preferred Universities
+            </span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {lead.preferred_universities &&
+              lead.preferred_universities.length > 0 ? (
+                lead.preferred_universities.map((u) => (
+                  <Badge key={u} variant="secondary" className="text-xs">
+                    {u}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm">—</span>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pipeline & Assignment — everything the Kanban tile shows about who
+          owns this lead and when to follow up. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Pipeline & Assignment</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InfoRow
+            label="Counsellor"
+            value={
+              lead.assigned_agent_name ||
+              lead.assigned_agent?.full_name ||
+              undefined
+            }
+          />
+          {isFmc && (
+            <InfoRow
+              label="Pre Counsellor"
+              value={lead.pre_counsellor_name}
+            />
+          )}
+          <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
+            <span className="text-sm text-muted-foreground">Follow up</span>
+            <span className="flex items-center gap-1.5 text-sm">
+              <CalendarClock
+                className={cn(
+                  "h-4 w-4 shrink-0",
+                  followUpIconClass(followUp?.tone)
+                )}
+              />
+              {followUp ? (
+                <span className={followUpToneClass(followUp.tone)}>
+                  {followUp.label}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </span>
+          </div>
+          {isFmc && lead.current_stage === "dnp" && (
+            <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
+              <span className="text-sm text-muted-foreground">DNP attempts</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs">
+                    DNP-{lead.dnp_count ?? 0}
+                    <ChevronDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
+                    <DropdownMenuItem
+                      key={n}
+                      onClick={() => {
+                        if (lead.dnp_count === n) return;
+                        updateLead({ dnp_count: n });
+                      }}
+                    >
+                      DNP-{n}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+          <InfoRow label="Source" value={lead.lead_source?.name} />
+          <InfoRow label="Call Attempts" value={lead.call_attempt_count} />
+          <InfoRow
+            label="Last contacted"
+            value={
+              lead.connected_time
+                ? format(new Date(lead.connected_time), "MMM d, yyyy 'at' h:mm a")
+                : undefined
+            }
+          />
+          <InfoRow
+            label="Created"
+            value={format(new Date(lead.created_at), "MMM d, yyyy")}
+          />
+          {lead.won_time && (
+            <InfoRow
+              label="Won on"
+              value={format(new Date(lead.won_time), "MMM d, yyyy")}
+            />
+          )}
+          {lead.lost_time && (
+            <InfoRow
+              label="Lost on"
+              value={format(new Date(lead.lost_time), "MMM d, yyyy")}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {isFmc && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Finance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
+              <span className="text-sm text-muted-foreground">Loan amount</span>
+              <span className="flex items-center gap-1 text-sm font-medium">
+                <IndianRupee className="h-3.5 w-3.5 text-amber-600" />
+                {lead.loan_amount ? (
+                  <>
+                    {loanDisplay} Lakhs
+                    {loanCrore && (
+                      <span className="ml-1 text-muted-foreground font-normal">
+                        ({loanCrore} Cr)
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </span>
+            </div>
+            <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
+              <span className="text-sm text-muted-foreground">Primary bank</span>
+              {primaryBank ? (
+                <span className="flex items-center gap-2 text-sm">
+                  <Landmark className="h-3.5 w-3.5 text-blue-500" />
+                  <span className="font-medium">{primaryBank.bank_name}</span>
+                  <span
+                    className={cn(
+                      "inline-flex items-center px-1.5 py-0.5 rounded-full border text-[11px] leading-none",
+                      primaryBank.bank_status in BANK_STATUS_BADGE_CLASSES
+                        ? BANK_STATUS_BADGE_CLASSES[primaryBank.bank_status]
+                        : "bg-muted text-muted-foreground border-transparent"
+                    )}
+                  >
+                    {BANK_STATUS_LABELS[primaryBank.bank_status] ??
+                      primaryBank.bank_status}
+                  </span>
+                  {(lead.bank_count ?? 0) > 1 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{(lead.bank_count ?? 1) - 1} more
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              )}
+            </div>
+            <div className="py-1.5 border-b border-border/50">
+              <div className="flex justify-between items-center gap-3">
+                <span className="text-sm text-muted-foreground">
+                  Docs progress
+                </span>
+                <span className="text-sm font-medium">
+                  {docsDone} / {docsTotal || "—"} docs
+                </span>
+              </div>
+              {docsTotal > 0 && (
+                <DocsChecklist
+                  selected={lead.submitted_docs ?? []}
+                  onToggle={handleDocToggle}
+                  className="mt-2"
+                />
+              )}
+            </div>
+            {typeof quickLenderUpdate === "string" && quickLenderUpdate && (
+              <div className="py-1.5 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">
+                  Quick lender update
+                </span>
+                <p className="text-sm mt-1 whitespace-pre-wrap">
+                  {quickLenderUpdate}
+                </p>
+              </div>
+            )}
+            {typeof bankHistory === "string" && bankHistory && (
+              <div className="py-1.5">
+                <span className="text-sm text-muted-foreground">
+                  Bank history
+                </span>
+                <p className="text-sm mt-1 whitespace-pre-wrap">
+                  {bankHistory}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="md:col-span-2">
+        <CardHeader>
+          <CardTitle className="text-base">Tags, Score & Notes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {leadScore !== undefined &&
+            leadScore !== null &&
+            (typeof leadScore === "string" || typeof leadScore === "number") && (
+              <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Lead score</span>
+                <Badge variant="secondary" className="text-xs">
+                  {leadScore}
+                </Badge>
+              </div>
+            )}
+          <div className="py-1.5 border-b border-border/50">
+            <span className="text-sm text-muted-foreground">Tags</span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {lead.tags && lead.tags.length > 0 ? (
+                lead.tags.map((t) => (
+                  <Badge key={t} variant="outline" className="text-xs">
+                    {t}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              )}
+            </div>
+          </div>
+          <div className="py-1.5">
+            <span className="text-sm text-muted-foreground">Notes</span>
+            {lead.notes ? (
+              <p className="text-sm mt-1 whitespace-pre-wrap">{lead.notes}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-1">—</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+

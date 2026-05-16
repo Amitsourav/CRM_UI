@@ -52,6 +52,7 @@ import {
   Trash2,
   CalendarIcon,
   Loader2,
+  Star,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -185,21 +186,67 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleToggleImportant = async () => {
+    if (!lead) return;
+    const next = !lead.is_important;
+    // Optimistic
+    setLead({ ...lead, is_important: next });
+    try {
+      await api.patch(`/leads/${leadId}/important`, { is_important: next });
+    } catch (error: unknown) {
+      setLead({ ...lead, is_important: !next });
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string } };
+      };
+      if (err.response?.status === 403) {
+        toast.error("You don't have permission to modify this lead");
+      } else {
+        toast.error(err.response?.data?.detail || "Couldn't update");
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold">{lead.full_name}</h1>
+            <button
+              type="button"
+              onClick={handleToggleImportant}
+              aria-label={
+                lead.is_important ? "Unmark important" : "Mark important"
+              }
+              className="-m-1 p-1 rounded hover:bg-muted"
+            >
+              <Star
+                className={
+                  lead.is_important
+                    ? "h-5 w-5 fill-yellow-400 text-yellow-500"
+                    : "h-5 w-5 text-muted-foreground"
+                }
+              />
+            </button>
             <LeadStageBadge stage={lead.current_stage} />
           </div>
-          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
             {lead.assigned_agent && (
               <Badge variant="outline">Agent: {lead.assigned_agent.full_name}</Badge>
+            )}
+            {lead.pre_counsellor_name && (
+              <Badge variant="outline">
+                Pre Counsellor: {lead.pre_counsellor_name}
+              </Badge>
             )}
             {lead.lead_source && (
               <Badge variant="outline">Source: {lead.lead_source.name}</Badge>
             )}
+            {lead.tags?.map((t) => (
+              <Badge key={t} variant="secondary" className="text-xs">
+                {t}
+              </Badge>
+            ))}
           </div>
           {lead.current_stage === "lost" && (lead.lost_reason || lead.lost_time) && (
             <div className="mt-2 space-y-0.5 text-sm text-red-700">

@@ -45,11 +45,6 @@ import {
   Sparkles,
   School,
 } from "lucide-react";
-import {
-  format,
-  differenceInCalendarDays,
-  startOfDay,
-} from "date-fns";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useStageConfig } from "@/hooks/use-stage-config";
@@ -59,6 +54,11 @@ import {
   getStageHex,
 } from "@/lib/constants";
 import { formatLakhs } from "@/lib/utils";
+import {
+  formatFollowUp,
+  followUpIconClass,
+  followUpToneClass,
+} from "@/lib/follow-up";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
 import { LeadBanksManager } from "@/components/leads/lead-banks-manager";
 import { leadBanksService } from "@/services/lead-banks-service";
@@ -934,69 +934,6 @@ function formatRelative(iso?: string): string | null {
   } catch {
     return null;
   }
-}
-
-type FollowUpTone = "overdue" | "today" | "tomorrow" | "future";
-
-interface FollowUpDisplay {
-  label: string;
-  tone: FollowUpTone;
-  isOverdue: boolean; // convenience: tone === "overdue" || tone === "today"
-}
-
-// Returns a label + tone for the lead's follow-up date.
-//   overdue: "{N} day(s) overdue"  → red + bold
-//   today:   "Today"               → red + bold
-//   tomorrow: "Tomorrow"            → orange
-//   future:  "d MMM yyyy"          → muted
-function formatFollowUp(iso?: string | null): FollowUpDisplay | null {
-  if (!iso) return null;
-  try {
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return null;
-    const today = startOfDay(new Date());
-    const target = startOfDay(date);
-    const diffDays = differenceInCalendarDays(target, today);
-    if (diffDays === 0) {
-      return { label: "Today", tone: "today", isOverdue: true };
-    }
-    if (diffDays === 1) {
-      return { label: "Tomorrow", tone: "tomorrow", isOverdue: false };
-    }
-    if (diffDays < 0) {
-      const n = Math.abs(diffDays);
-      return {
-        label: `${n} day${n === 1 ? "" : "s"} overdue`,
-        tone: "overdue",
-        isOverdue: true,
-      };
-    }
-    return {
-      label: format(date, "d MMM yyyy"),
-      tone: "future",
-      isOverdue: false,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function followUpToneClass(tone: FollowUpTone): string {
-  switch (tone) {
-    case "overdue":
-    case "today":
-      return "text-red-600 font-semibold";
-    case "tomorrow":
-      return "text-orange-600";
-    case "future":
-      return "text-muted-foreground";
-  }
-}
-
-function followUpIconClass(tone: FollowUpTone | undefined): string {
-  if (tone === "overdue" || tone === "today") return "text-red-600";
-  if (tone === "tomorrow") return "text-orange-500";
-  return "text-blue-500";
 }
 
 interface InlineRowProps {
