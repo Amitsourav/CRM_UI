@@ -304,24 +304,15 @@ function FmcEnhancedCard({
   };
 
   // Prefer the backend-provided top_banks list. If it's not in the
-  // by-stage payload yet (older backend), fall back to the legacy
-  // bank_name/bank_status pair as a single synthetic entry so the card
-  // still shows the bank.
+  // by-stage payload. Structured BankEntry rows are the source of
+  // truth; we no longer synthesize a chip from legacy
+  // bank_name/bank_status because doing so contradicts the Banks tab
+  // on the detail page (which only reads /leads/{id}/banks).
   const topBanks: {
     id: string;
     bank_name: string;
     bank_status: BankStatus;
-  }[] = lead.top_banks?.length
-    ? lead.top_banks
-    : lead.bank_name?.trim()
-      ? [
-          {
-            id: "",
-            bank_name: lead.bank_name.trim(),
-            bank_status: (lead.bank_status as BankStatus) ?? "applied",
-          },
-        ]
-      : [];
+  }[] = lead.top_banks ?? [];
   const extraBanksCount = Math.max(
     0,
     (lead.bank_count ?? 0) - topBanks.length
@@ -553,12 +544,13 @@ function FmcEnhancedCard({
               <IndianRupee className="h-3.5 w-3.5 shrink-0 text-amber-600" />
               {(() => {
                 const { display, crore } = formatLakhs(lead.loan_amount);
+                const unit = display === "1" ? "Lakh" : "Lakhs";
                 return (
                   <InlineText
                     value={lead.loan_amount ?? ""}
                     displayNode={
                       <span className="font-medium">
-                        {display} Lakhs
+                        {display} {unit}
                         {crore && (
                           <span className="ml-1 text-muted-foreground font-normal">
                             ({crore} Cr)

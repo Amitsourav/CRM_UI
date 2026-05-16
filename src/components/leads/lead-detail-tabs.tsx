@@ -268,14 +268,10 @@ function ProfileSection({
       : undefined);
 
   const followUp = formatFollowUp(lead.due_date);
-  const primaryBank =
-    lead.top_banks?.[0] ??
-    (lead.bank_name
-      ? {
-          bank_name: lead.bank_name,
-          bank_status: (lead.bank_status as BankStatus) ?? "applied",
-        }
-      : null);
+  // Structured BankEntry rows from /leads/{id}/banks are the source
+  // of truth. We intentionally don't synthesize a chip from legacy
+  // bank_name/bank_status — that disagrees with the Banks tab.
+  const primaryBank = lead.top_banks?.[0] ?? null;
   const cf = (lead.custom_fields ?? {}) as Record<string, unknown>;
   const leadScore = cf.lead_score;
   const quickLenderUpdate = cf.quick_lender_update;
@@ -322,6 +318,7 @@ function ProfileSection({
   const { display: loanDisplay, crore: loanCrore } = formatLakhs(
     lead.loan_amount
   );
+  const loanUnit = loanDisplay === "1" ? "Lakh" : "Lakhs";
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -546,7 +543,7 @@ function ProfileSection({
                 <IndianRupee className="h-3.5 w-3.5 text-amber-600" />
                 {lead.loan_amount ? (
                   <>
-                    {loanDisplay} Lakhs
+                    {loanDisplay} {loanUnit}
                     {loanCrore && (
                       <span className="ml-1 text-muted-foreground font-normal">
                         ({loanCrore} Cr)

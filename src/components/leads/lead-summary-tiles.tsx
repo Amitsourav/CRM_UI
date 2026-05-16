@@ -24,7 +24,7 @@ import {
   BANK_STATUS_BADGE_CLASSES,
   BANK_STATUS_LABELS,
 } from "@/lib/constants";
-import type { BankStatus, Lead } from "@/types";
+import type { Lead } from "@/types";
 
 interface LeadSummaryTilesProps {
   lead: Lead;
@@ -46,15 +46,13 @@ export function LeadSummaryTiles({
   const isFmc = slug !== "admitverse";
   const stageEntry = getEntry(lead.current_stage);
   const followUp = formatFollowUp(lead.due_date);
-  const primaryBank =
-    lead.top_banks?.[0] ??
-    (lead.bank_name
-      ? {
-          bank_name: lead.bank_name,
-          bank_status: (lead.bank_status as BankStatus) ?? "applied",
-        }
-      : null);
+  // Structured BankEntry list is the source of truth. Legacy
+  // bank_name/bank_status on the lead is intentionally ignored —
+  // otherwise this tile contradicts the Banks tab when only the
+  // legacy fields are populated.
+  const primaryBank = lead.top_banks?.[0] ?? null;
   const { display: loanDisplay } = formatLakhs(lead.loan_amount);
+  const loanUnit = loanDisplay === "1" ? "Lakh" : "Lakhs";
   const docsTotal = lead.docs_required ?? 0;
   const docsDone = lead.docs_submitted ?? 0;
 
@@ -122,7 +120,9 @@ export function LeadSummaryTiles({
           label="Loan amount"
         >
           {lead.loan_amount ? (
-            <span className="text-sm font-medium">{loanDisplay} Lakhs</span>
+            <span className="text-sm font-medium">
+              {loanDisplay} {loanUnit}
+            </span>
           ) : (
             <span className="text-sm text-muted-foreground">—</span>
           )}
