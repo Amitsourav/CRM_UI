@@ -268,7 +268,11 @@ export default function LeadDetailPage() {
         </div>
       </div>
 
-      <LeadDetailTabs lead={lead} callRefreshKey={callRefreshKey} />
+      <LeadDetailTabs
+        lead={lead}
+        callRefreshKey={callRefreshKey}
+        onRefetchLead={fetchLead}
+      />
 
       {/* Stage Change Dialog */}
       <Dialog open={stageDialogOpen} onOpenChange={setStageDialogOpen}>

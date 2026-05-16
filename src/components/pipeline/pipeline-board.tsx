@@ -267,6 +267,33 @@ export function PipelineBoard() {
   };
 
   // Optimistic patch for inline-editable card fields (bank_status, submitted_docs).
+  // Refetch a single lead from the server and merge into stageData. Used
+  // by surfaces that mutate via a non-PUT path (e.g. lead_banks endpoints)
+  // where the server auto-syncs derived fields on the lead.
+  const refetchLead = async (leadId: string) => {
+    try {
+      const { data } = await api.get<Lead>(`/leads/${leadId}`);
+      setStageData((prev) => {
+        const next = { ...prev };
+        for (const stage of Object.keys(next)) {
+          const idx = next[stage].leads.findIndex((l) => l.id === leadId);
+          if (idx >= 0) {
+            next[stage] = {
+              ...next[stage],
+              leads: next[stage].leads.map((l) =>
+                l.id === leadId ? { ...l, ...data } : l
+              ),
+            };
+            return next;
+          }
+        }
+        return prev;
+      });
+    } catch {
+      // Silent — failed refresh isn't worth a toast.
+    }
+  };
+
   // Captures the original lead, applies the optimistic update, syncs from
   // server response on success, reverts on error.
   const handleUpdateLead = async (
@@ -501,6 +528,7 @@ export function PipelineBoard() {
               onChangeStage={requestStageChange}
               onToggleImportant={handleToggleImportant}
               onUpdateLead={handleUpdateLead}
+              onRefetchLead={refetchLead}
             />
           ))}
         </div>

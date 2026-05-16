@@ -19,6 +19,7 @@ interface PipelineColumnProps {
   onChangeStage: (leadId: string, fromStage: LeadStage, toStage: LeadStage) => void;
   onToggleImportant: (leadId: string, currentValue: boolean) => void;
   onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
+  onRefetchLead: (leadId: string) => void;
 }
 
 export function PipelineColumn({
@@ -31,6 +32,7 @@ export function PipelineColumn({
   onChangeStage,
   onToggleImportant,
   onUpdateLead,
+  onRefetchLead,
 }: PipelineColumnProps) {
   const { getEntry } = useStageConfig();
   const config = getEntry(stage);
@@ -79,6 +81,7 @@ export function PipelineColumn({
                         onChangeStage={onChangeStage}
                         onToggleImportant={onToggleImportant}
                         onUpdateLead={onUpdateLead}
+                        onRefetchLead={onRefetchLead}
                       />
                     </div>
                   )}

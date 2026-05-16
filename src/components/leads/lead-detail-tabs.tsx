@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LeadTimeline } from "./lead-timeline";
 import { LeadRemarks } from "./lead-remarks";
+import { LeadBanksManager } from "./lead-banks-manager";
 import { CallHistory } from "@/components/calls/call-history";
 import { CallLogForm } from "@/components/calls/call-log-form";
 import { TaskForm } from "@/components/tasks/task-form";
@@ -15,14 +16,22 @@ import { TaskCompleteDialog } from "@/components/tasks/task-complete-dialog";
 import { Phone, Plus } from "lucide-react";
 import { format } from "date-fns";
 import api from "@/lib/api";
+import { useStageConfig } from "@/hooks/use-stage-config";
 import type { Lead, Task } from "@/types";
 
 interface LeadDetailTabsProps {
   lead: Lead;
   callRefreshKey?: number;
+  onRefetchLead?: () => void;
 }
 
-export function LeadDetailTabs({ lead, callRefreshKey: externalRefreshKey }: LeadDetailTabsProps) {
+export function LeadDetailTabs({
+  lead,
+  callRefreshKey: externalRefreshKey,
+  onRefetchLead,
+}: LeadDetailTabsProps) {
+  const { slug } = useStageConfig();
+  const isFmc = slug !== "admitverse";
   const [callLogOpen, setCallLogOpen] = useState(false);
   const [internalRefreshKey, setInternalRefreshKey] = useState(0);
   const callRefreshKey = (externalRefreshKey || 0) + internalRefreshKey;
@@ -64,6 +73,7 @@ export function LeadDetailTabs({ lead, callRefreshKey: externalRefreshKey }: Lea
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="remarks">Remarks</TabsTrigger>
+          {isFmc && <TabsTrigger value="banks">Banks</TabsTrigger>}
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="calls">Calls</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
@@ -163,6 +173,23 @@ export function LeadDetailTabs({ lead, callRefreshKey: externalRefreshKey }: Lea
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isFmc && (
+          <TabsContent value="banks" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Banks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LeadBanksManager
+                  leadId={lead.id}
+                  showNotes
+                  onChanged={onRefetchLead}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         <TabsContent value="timeline" className="mt-4">
           <Card>

@@ -62,6 +62,12 @@ import {
 import { formatLakhs } from "@/lib/utils";
 import { useBanksStore } from "@/stores/banks-store";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
+import { LeadBanksManager } from "@/components/leads/lead-banks-manager";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import type { BankStatus, Lead, LeadStage, Task, User } from "@/types";
 
 interface PipelineCardProps {
@@ -73,6 +79,7 @@ interface PipelineCardProps {
   ) => void;
   onToggleImportant: (leadId: string, currentValue: boolean) => void;
   onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
+  onRefetchLead: (leadId: string) => void;
 }
 
 export function PipelineCard({
@@ -80,6 +87,7 @@ export function PipelineCard({
   onChangeStage,
   onToggleImportant,
   onUpdateLead,
+  onRefetchLead,
 }: PipelineCardProps) {
   const { slug, getEntry, getValidTransitions } = useStageConfig();
   const isFmc = slug !== "admitverse";
@@ -199,6 +207,7 @@ export function PipelineCard({
       stopBubble={stopBubble}
       leadHref={leadHref}
       onUpdateLead={onUpdateLead}
+      onRefetchLead={onRefetchLead}
       stageHex={getStageHex(slug, lead.current_stage)}
     />
   );
@@ -213,6 +222,7 @@ function FmcEnhancedCard({
   stopBubble,
   leadHref,
   onUpdateLead,
+  onRefetchLead,
   stageHex,
 }: {
   lead: Lead;
@@ -221,6 +231,7 @@ function FmcEnhancedCard({
   stopBubble: (e: React.SyntheticEvent) => void;
   leadHref: string;
   onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
+  onRefetchLead: (leadId: string) => void;
   stageHex: string;
 }) {
   const [tasksOpen, setTasksOpen] = useState(false);
@@ -657,6 +668,35 @@ function FmcEnhancedCard({
                   </DropdownMenuContent>
                 </DropdownMenu>
                 </>
+              )}
+              {(lead.bank_count ?? 0) > 1 && (
+                <Popover>
+                  <PopoverTrigger
+                    asChild
+                    onClick={stopBubble}
+                    onPointerDown={stopBubble}
+                  >
+                    <button
+                      type="button"
+                      className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] leading-none bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 transition-colors shrink-0"
+                      title={`${lead.bank_count} banks total`}
+                    >
+                      +{(lead.bank_count ?? 1) - 1}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    className="w-[340px] p-3"
+                    onClick={stopBubble}
+                    onPointerDown={stopBubble}
+                  >
+                    <p className="text-xs font-medium mb-2">All banks</p>
+                    <LeadBanksManager
+                      leadId={lead.id}
+                      onChanged={() => onRefetchLead(lead.id)}
+                    />
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
             {showDocs && (

@@ -138,6 +138,8 @@ export interface Lead {
   is_important?: boolean;
   // FMC-only: count of times this lead has been moved into the DNP stage.
   dnp_count?: number;
+  // FMC-only: number of bank entries in the lead_banks child table.
+  bank_count?: number;
   // Loan/bank fields (FMC). Optional — Admitverse leads don't populate them.
   loan_amount?: string;
   bank_name?: string | null;
@@ -258,6 +260,16 @@ export interface CallFilters {
   date_to?: string;
   skip?: number;
   limit?: number;
+}
+
+export interface BankEntry {
+  id: string;
+  lead_id: string;
+  bank_name: string;
+  bank_status: BankStatus;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Remark {
