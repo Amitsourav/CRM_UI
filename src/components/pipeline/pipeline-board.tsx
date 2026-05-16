@@ -185,9 +185,9 @@ export function PipelineBoard() {
     fromStage: LeadStage,
     toStage: LeadStage,
     extraData?: Record<string, unknown>
-  ) => {
+  ): Promise<boolean> => {
     const lead = stageData[fromStage].leads.find((l) => l.id === leadId);
-    if (!lead) return;
+    if (!lead) return false;
 
     // Optimistic update
     setStageData((prev) => ({
@@ -208,6 +208,7 @@ export function PipelineBoard() {
       await api.post(`/leads/${leadId}/stage`, { to_stage: toStage, ...extraData });
       toast.success(`Lead moved to ${getEntry(toStage).label}`);
       refreshTaskCount();
+      return true;
     } catch (error: unknown) {
       // Revert optimistic update
       setStageData((prev) => ({
@@ -231,6 +232,7 @@ export function PipelineBoard() {
       } else {
         toast.error(err.response?.data?.detail || "Failed to change stage");
       }
+      return false;
     }
   };
 
@@ -399,9 +401,12 @@ export function PipelineBoard() {
       }
     }
 
-    await performStageChange(leadId, fromStage, toStage, extraData);
+    const ok = await performStageChange(leadId, fromStage, toStage, extraData);
     setIsSubmitting(false);
-    closeStageDialog();
+    // Keep the modal open on failure so the user can fix the input (e.g.,
+    // backend rejected a non-canonical lost_reason) without re-dragging
+    // the card. The red toast from performStageChange shows the detail.
+    if (ok) closeStageDialog();
   };
 
   const closeStageDialog = () => {
