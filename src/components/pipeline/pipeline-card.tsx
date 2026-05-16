@@ -239,6 +239,15 @@ function FmcEnhancedCard({
   const [tasksLoading, setTasksLoading] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
 
+  // Buttons inside the card's <a target="_blank"> wrapper need preventDefault
+  // on click to stop the anchor's activation behavior — stopPropagation alone
+  // doesn't help because the anchor activates as an ancestor of the click
+  // target, not via bubbling.
+  const swallowClick = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   // Inline-edit state for Country / College / Loan.
   // Bank name and Bank Status both use their own dropdown patterns.
   type FmcEditField = "country" | "university" | "loan_amount";
@@ -551,7 +560,7 @@ function FmcEnhancedCard({
                 <Popover>
                   <PopoverTrigger
                     asChild
-                    onClick={stopBubble}
+                    onClick={swallowClick}
                     onPointerDown={stopBubble}
                   >
                     <button
@@ -594,7 +603,7 @@ function FmcEnhancedCard({
                       <Popover>
                         <PopoverTrigger
                           asChild
-                          onClick={stopBubble}
+                          onClick={swallowClick}
                           onPointerDown={stopBubble}
                         >
                           <button
@@ -624,7 +633,7 @@ function FmcEnhancedCard({
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           asChild
-                          onClick={stopBubble}
+                          onClick={swallowClick}
                           onPointerDown={stopBubble}
                         >
                           <button
@@ -671,7 +680,7 @@ function FmcEnhancedCard({
                 <Popover>
                   <PopoverTrigger
                     asChild
-                    onClick={stopBubble}
+                    onClick={swallowClick}
                     onPointerDown={stopBubble}
                   >
                     <button
