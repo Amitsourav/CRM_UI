@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { PageHeader } from "@/components/shared/page-header";
 import { LeadStageBadge } from "@/components/leads/lead-stage-badge";
 import { LeadDetailTabs } from "@/components/leads/lead-detail-tabs";
+import { LeadSummaryTiles } from "@/components/leads/lead-summary-tiles";
 import { LeadForm } from "@/components/leads/lead-form";
 import { LeadAssignDialog } from "@/components/leads/lead-assign-dialog";
 import { CallLogForm } from "@/components/calls/call-log-form";
@@ -91,6 +92,7 @@ export default function LeadDetailPage() {
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
 
   const [callRefreshKey, setCallRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<string>("profile");
 
   // Stage change
   const [targetStage, setTargetStage] = useState<LeadStage | "">("");
@@ -431,10 +433,19 @@ export default function LeadDetailPage() {
         </div>
       </div>
 
+      <LeadSummaryTiles
+        lead={lead}
+        counsellorName={headerAgentName}
+        preCounsellorName={headerPreCounsellorName}
+        onOpenBanksTab={() => setActiveTab("banks")}
+      />
+
       <LeadDetailTabs
         lead={lead}
         callRefreshKey={callRefreshKey}
         onRefetchLead={fetchLead}
+        activeTab={activeTab}
+        onActiveTabChange={setActiveTab}
       />
 
       {/* Stage Change Dialog */}

@@ -54,16 +54,27 @@ interface LeadDetailTabsProps {
   lead: Lead;
   callRefreshKey?: number;
   onRefetchLead?: () => void;
+  // Optional controlled tab — if provided, the parent owns the active
+  // tab and we just call back when the user switches.
+  activeTab?: string;
+  onActiveTabChange?: (tab: string) => void;
 }
 
 export function LeadDetailTabs({
   lead,
   callRefreshKey: externalRefreshKey,
   onRefetchLead,
+  activeTab: externalActiveTab,
+  onActiveTabChange,
 }: LeadDetailTabsProps) {
   const { slug } = useStageConfig();
   const isFmc = slug !== "admitverse";
-  const [activeTab, setActiveTab] = useState<string>("profile");
+  const [internalActiveTab, setInternalActiveTab] = useState<string>("profile");
+  const activeTab = externalActiveTab ?? internalActiveTab;
+  const setActiveTab = (tab: string) => {
+    if (externalActiveTab === undefined) setInternalActiveTab(tab);
+    onActiveTabChange?.(tab);
+  };
   const [callLogOpen, setCallLogOpen] = useState(false);
   const [internalRefreshKey, setInternalRefreshKey] = useState(0);
   const callRefreshKey = (externalRefreshKey || 0) + internalRefreshKey;
