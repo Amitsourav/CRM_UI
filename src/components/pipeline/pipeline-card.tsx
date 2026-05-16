@@ -517,77 +517,84 @@ function FmcEnhancedCard({
                 );
               })()}
             </div>
-            {(bankNameTrimmed || bankStatusLabel) && (
-              <div className="flex items-center gap-1.5 text-xs text-foreground/80 min-w-0">
-                <Landmark className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-                <DropdownMenu onOpenChange={(o) => o && ensureBanks()}>
-                  <DropdownMenuTrigger
-                    asChild
-                    onClick={stopBubble}
-                    onPointerDown={stopBubble}
+            {/* Bank row — always rendered on FMC so users can set a bank
+                directly from the card. Bank Status dropdown only appears
+                after a bank is picked. */}
+            <div className="flex items-center gap-1.5 text-xs text-foreground/80 min-w-0">
+              <Landmark className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+              <DropdownMenu onOpenChange={(o) => o && ensureBanks()}>
+                <DropdownMenuTrigger
+                  asChild
+                  onClick={stopBubble}
+                  onPointerDown={stopBubble}
+                >
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-muted/60 transition-colors"
                   >
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-muted/60 transition-colors"
-                    >
-                      <span className="font-medium">
-                        {bankNameTrimmed ?? (
-                          <span className="italic text-muted-foreground font-normal">
-                            Add bank
-                          </span>
+                    <span className="font-medium">
+                      {bankNameTrimmed ?? (
+                        <span className="italic text-muted-foreground font-normal">
+                          Add bank
+                        </span>
+                      )}
+                    </span>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  onClick={stopBubble}
+                  onPointerDown={stopBubble}
+                  className="max-h-[260px] overflow-y-auto"
+                >
+                  {banks.length === 0 ? (
+                    <DropdownMenuItem disabled className="text-xs">
+                      Loading banks…
+                    </DropdownMenuItem>
+                  ) : (
+                    banks.map((b) => (
+                      <DropdownMenuItem
+                        key={b}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (b === lead.bank_name) return;
+                          // When a bank is set for the first time, default
+                          // status to "applied" — that's the first step on
+                          // every lead anyway.
+                          const update: Partial<Lead> = { bank_name: b };
+                          if (!lead.bank_status) update.bank_status = "applied";
+                          onUpdateLead(lead.id, update);
+                        }}
+                      >
+                        {lead.bank_name === b ? (
+                          <Check className="mr-1.5 h-3.5 w-3.5" />
+                        ) : (
+                          <span className="mr-1.5 h-3.5 w-3.5" />
                         )}
-                      </span>
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="start"
-                    onClick={stopBubble}
-                    onPointerDown={stopBubble}
-                    className="max-h-[260px] overflow-y-auto"
-                  >
-                    {banks.length === 0 ? (
-                      <DropdownMenuItem disabled className="text-xs">
-                        Loading banks…
+                        {b}
                       </DropdownMenuItem>
-                    ) : (
-                      banks.map((b) => (
-                        <DropdownMenuItem
-                          key={b}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (b === lead.bank_name) return;
-                            onUpdateLead(lead.id, { bank_name: b });
-                          }}
-                        >
-                          {lead.bank_name === b ? (
-                            <Check className="mr-1.5 h-3.5 w-3.5" />
-                          ) : (
-                            <span className="mr-1.5 h-3.5 w-3.5" />
-                          )}
-                          {b}
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    {bankNameTrimmed && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onUpdateLead(lead.id, { bank_name: null });
-                          }}
-                          className="text-muted-foreground"
-                        >
-                          <span className="mr-1.5 h-3.5 w-3.5" />— Clear
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                {bankNameTrimmed && (
-                  <span className="text-muted-foreground shrink-0">·</span>
-                )}
+                    ))
+                  )}
+                  {bankNameTrimmed && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUpdateLead(lead.id, { bank_name: null });
+                        }}
+                        className="text-muted-foreground"
+                      >
+                        <span className="mr-1.5 h-3.5 w-3.5" />— Remove bank
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {bankNameTrimmed && (
+                <>
+                <span className="text-muted-foreground shrink-0">·</span>
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     asChild
@@ -649,8 +656,9 @@ function FmcEnhancedCard({
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-            )}
+                </>
+              )}
+            </div>
             {showDocs && (
               <div>
                 <button
