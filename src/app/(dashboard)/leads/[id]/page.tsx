@@ -55,6 +55,8 @@ import {
   Star,
   Bot,
   MoreVertical,
+  Mail,
+  MessageCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -249,6 +251,60 @@ export default function LeadDetailPage() {
                 AI campaign active
               </Badge>
             )}
+            {/* Quick contact actions — parity with the Kanban tile. */}
+            <div className="flex items-center gap-0.5 ml-1">
+              <a
+                href={lead.email ? `mailto:${lead.email}` : undefined}
+                aria-label="Email"
+                onClick={(e) => {
+                  if (!lead.email) {
+                    e.preventDefault();
+                    toast.error("Email not available");
+                  }
+                }}
+                className={`p-1.5 rounded hover:bg-muted text-slate-500 ${
+                  !lead.email ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <Mail className="h-4 w-4" />
+              </a>
+              <a
+                href={lead.phone ? `tel:${lead.phone}` : undefined}
+                aria-label="Call"
+                onClick={(e) => {
+                  if (!lead.phone) {
+                    e.preventDefault();
+                    toast.error("Phone not available");
+                  }
+                }}
+                className={`p-1.5 rounded hover:bg-muted text-blue-500 ${
+                  !lead.phone ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <Phone className="h-4 w-4" />
+              </a>
+              <a
+                href={
+                  lead.phone
+                    ? `https://wa.me/${lead.phone.replace(/\D/g, "")}`
+                    : undefined
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="WhatsApp"
+                onClick={(e) => {
+                  if (!lead.phone) {
+                    e.preventDefault();
+                    toast.error("Phone not available");
+                  }
+                }}
+                className={`p-1.5 rounded hover:bg-muted text-green-600 ${
+                  !lead.phone ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <MessageCircle className="h-4 w-4" />
+              </a>
+            </div>
           </div>
           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
             {lead.assigned_agent && (

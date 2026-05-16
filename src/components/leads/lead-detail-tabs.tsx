@@ -24,10 +24,13 @@ import { TaskCompleteDialog } from "@/components/tasks/task-complete-dialog";
 import {
   CalendarClock,
   ChevronDown,
+  ClipboardList,
   IndianRupee,
   Landmark,
   Phone,
+  PhoneCall,
   Plus,
+  StickyNote,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -464,6 +467,45 @@ function ProfileSection({
               label="Lost on"
               value={format(new Date(lead.lost_time), "MMM d, yyyy")}
             />
+          )}
+          {/* Activity strip — same counts as the Kanban tile. */}
+          <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 mt-1 border-t border-border/50">
+            <span className="flex items-center gap-1">
+              <PhoneCall className="h-3.5 w-3.5 text-blue-500" />
+              {lead.call_count ?? 0}{" "}
+              {lead.call_count === 1 ? "Call" : "Calls"}
+            </span>
+            <span className="flex items-center gap-1">
+              <ClipboardList className="h-3.5 w-3.5 text-orange-500" />
+              {lead.task_count ?? 0}{" "}
+              {lead.task_count === 1 ? "Task" : "Tasks"}
+            </span>
+            <span className="flex items-center gap-1">
+              <StickyNote className="h-3.5 w-3.5 text-violet-500" />
+              {lead.notes_count ?? 0}{" "}
+              {lead.notes_count === 1 ? "Note" : "Notes"}
+            </span>
+          </div>
+          {/* Latest note preview — full feed lives in the Remarks tab. */}
+          {lead.latest_note && (
+            <div className="pt-2 mt-2 border-t border-border/50 space-y-1">
+              <span className="text-xs text-muted-foreground">Latest note</span>
+              <p className="flex items-start gap-1.5 text-sm">
+                <StickyNote className="h-4 w-4 shrink-0 text-violet-500 mt-0.5" />
+                <span className="break-words">
+                  {lead.latest_note.body.length > 160
+                    ? `${lead.latest_note.body.slice(0, 160).trimEnd()}…`
+                    : lead.latest_note.body}
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground ml-6">
+                — {lead.latest_note.author_name || "Unknown"} ·{" "}
+                {format(
+                  new Date(lead.latest_note.created_at),
+                  "MMM d, yyyy 'at' h:mm a"
+                )}
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
