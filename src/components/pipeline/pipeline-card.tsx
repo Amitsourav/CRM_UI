@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,7 @@ import {
 import { formatLakhs } from "@/lib/utils";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
 import { LeadBanksManager } from "@/components/leads/lead-banks-manager";
+import { leadBanksService } from "@/services/lead-banks-service";
 import {
   Popover,
   PopoverContent,
@@ -304,11 +305,26 @@ function FmcEnhancedCard({
     }
   };
 
-  const bankStatusLabel =
-    lead.bank_status && lead.bank_status in BANK_STATUS_LABELS
-      ? BANK_STATUS_LABELS[lead.bank_status as BankStatus]
-      : null;
-  const bankNameTrimmed = lead.bank_name?.trim() || null;
+  const topBanks = lead.top_banks ?? [];
+  const extraBanksCount = Math.max(
+    0,
+    (lead.bank_count ?? 0) - topBanks.length
+  );
+  const handleEntryStatusChange = async (
+    entry: { id: string; bank_status: BankStatus },
+    status: BankStatus
+  ) => {
+    if (status === entry.bank_status) return;
+    try {
+      await leadBanksService.update(lead.id, entry.id, {
+        bank_status: status,
+      });
+      onRefetchLead(lead.id);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "Couldn't update bank status");
+    }
+  };
   const docsTotal = lead.docs_required;
   const docsDone = lead.docs_submitted;
   const showDocs =
@@ -524,123 +540,161 @@ function FmcEnhancedCard({
                 );
               })()}
             </div>
-            {/* Bank row — single Popover serves all states:
-                  0 banks → trigger reads "+ Add bank", popover auto-opens add form
-                  1 bank  → trigger shows bank name, popover lists 1 + add
-                  2+      → trigger shows primary + "+N-1", popover lists all + add
-                Bank Status chip still renders separately as a quick edit of the
-                primary entry's status (only when at least one bank is set). */}
-            <div className="flex items-center gap-1.5 text-xs text-foreground/80 min-w-0">
+            {/* Bank row — driven by lead.top_banks (up to 2 entries, ordered
+                best-status-first, stable). Each chip is a bank_name button
+                that opens the manager popover plus a status dropdown that
+                PATCHes that specific entry. Tail badge "+N more" links to
+                the same manager when bank_count > 2. */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-foreground/80 min-w-0">
               <Landmark className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-              <Popover>
-                <PopoverTrigger
-                  asChild
-                  onClick={stopBubble}
-                  onPointerDown={stopBubble}
-                >
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 px-1 py-0.5 rounded hover:bg-muted/60 transition-colors min-w-0"
-                    title={
-                      (lead.bank_count ?? 0) > 1
-                        ? `${lead.bank_count} banks — click to manage`
-                        : "Manage banks"
-                    }
-                  >
-                    <span className="font-medium truncate">
-                      {bankNameTrimmed ?? (
-                        <span className="italic text-muted-foreground font-normal">
-                          + Add bank
-                        </span>
-                      )}
-                    </span>
-                    {(lead.bank_count ?? 0) > 1 && (
-                      <span className="inline-flex items-center px-1 py-0.5 rounded-full text-[10px] leading-none bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                        +{(lead.bank_count ?? 1) - 1}
-                      </span>
-                    )}
-                    <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="start"
-                  className="w-[340px] p-3"
-                  onClick={stopBubble}
-                  onPointerDown={stopBubble}
-                >
-                  <p className="text-xs font-medium mb-2">Banks</p>
-                  <LeadBanksManager
-                    leadId={lead.id}
-                    autoOpenAddIfEmpty
-                    onChanged={() => onRefetchLead(lead.id)}
-                  />
-                </PopoverContent>
-              </Popover>
-              {bankNameTrimmed && (
-                <>
-                <span className="text-muted-foreground shrink-0">·</span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
+              {topBanks.length === 0 ? (
+                <Popover>
+                  <PopoverTrigger
                     asChild
                     onClick={stopBubble}
                     onPointerDown={stopBubble}
                   >
                     <button
                       type="button"
-                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[11px] leading-none transition-colors ${
-                        lead.bank_status &&
-                        lead.bank_status in BANK_STATUS_BADGE_CLASSES
-                          ? BANK_STATUS_BADGE_CLASSES[
-                              lead.bank_status as BankStatus
-                            ]
-                          : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
-                      }`}
+                      className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-muted/60 transition-colors"
                     >
-                      <span>{bankStatusLabel ?? "Set status"}</span>
-                      <ChevronDown className="h-3 w-3" />
+                      <span className="italic text-muted-foreground font-normal">
+                        + Add bank
+                      </span>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
                     </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
+                  </PopoverTrigger>
+                  <PopoverContent
                     align="start"
+                    className="w-[340px] p-3"
                     onClick={stopBubble}
                     onPointerDown={stopBubble}
                   >
-                    {(Object.keys(BANK_STATUS_LABELS) as BankStatus[]).map(
-                      (status) => (
-                        <DropdownMenuItem
-                          key={status}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (lead.bank_status === status) return;
-                            onUpdateLead(lead.id, { bank_status: status });
-                          }}
+                    <p className="text-xs font-medium mb-2">Banks</p>
+                    <LeadBanksManager
+                      leadId={lead.id}
+                      autoOpenAddIfEmpty
+                      onChanged={() => onRefetchLead(lead.id)}
+                    />
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                topBanks.map((entry, i) => {
+                  const statusClass =
+                    entry.bank_status in BANK_STATUS_BADGE_CLASSES
+                      ? BANK_STATUS_BADGE_CLASSES[entry.bank_status]
+                      : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80";
+                  return (
+                    <Fragment key={entry.id}>
+                      {i > 0 && (
+                        <span className="text-muted-foreground/40 shrink-0">
+                          |
+                        </span>
+                      )}
+                      <Popover>
+                        <PopoverTrigger
+                          asChild
+                          onClick={stopBubble}
+                          onPointerDown={stopBubble}
                         >
-                          {lead.bank_status === status ? (
-                            <Check className="mr-1.5 h-3.5 w-3.5" />
-                          ) : (
-                            <span className="mr-1.5 h-3.5 w-3.5" />
-                          )}
-                          {BANK_STATUS_LABELS[status]}
-                        </DropdownMenuItem>
-                      )
-                    )}
-                    {lead.bank_status && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onUpdateLead(lead.id, { bank_status: null });
-                          }}
-                          className="text-muted-foreground"
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-muted/60 transition-colors min-w-0"
+                            title="Manage banks"
+                          >
+                            <span className="font-medium truncate">
+                              {entry.bank_name}
+                            </span>
+                            <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="start"
+                          className="w-[340px] p-3"
+                          onClick={stopBubble}
+                          onPointerDown={stopBubble}
                         >
-                          <span className="mr-1.5 h-3.5 w-3.5" />— Clear
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                </>
+                          <p className="text-xs font-medium mb-2">Banks</p>
+                          <LeadBanksManager
+                            leadId={lead.id}
+                            onChanged={() => onRefetchLead(lead.id)}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          asChild
+                          onClick={stopBubble}
+                          onPointerDown={stopBubble}
+                        >
+                          <button
+                            type="button"
+                            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[11px] leading-none transition-colors ${statusClass}`}
+                          >
+                            <span>
+                              {BANK_STATUS_LABELS[entry.bank_status] ??
+                                entry.bank_status}
+                            </span>
+                            <ChevronDown className="h-3 w-3" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="start"
+                          onClick={stopBubble}
+                          onPointerDown={stopBubble}
+                        >
+                          {(
+                            Object.keys(BANK_STATUS_LABELS) as BankStatus[]
+                          ).map((status) => (
+                            <DropdownMenuItem
+                              key={status}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEntryStatusChange(entry, status);
+                              }}
+                            >
+                              {entry.bank_status === status ? (
+                                <Check className="mr-1.5 h-3.5 w-3.5" />
+                              ) : (
+                                <span className="mr-1.5 h-3.5 w-3.5" />
+                              )}
+                              {BANK_STATUS_LABELS[status]}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Fragment>
+                  );
+                })
+              )}
+              {extraBanksCount > 0 && (
+                <Popover>
+                  <PopoverTrigger
+                    asChild
+                    onClick={stopBubble}
+                    onPointerDown={stopBubble}
+                  >
+                    <button
+                      type="button"
+                      className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] leading-none bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 transition-colors shrink-0"
+                      title={`${lead.bank_count} banks total — click to manage`}
+                    >
+                      +{extraBanksCount} more
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    className="w-[340px] p-3"
+                    onClick={stopBubble}
+                    onPointerDown={stopBubble}
+                  >
+                    <p className="text-xs font-medium mb-2">All banks</p>
+                    <LeadBanksManager
+                      leadId={lead.id}
+                      onChanged={() => onRefetchLead(lead.id)}
+                    />
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
             {showDocs && (

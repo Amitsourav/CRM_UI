@@ -140,6 +140,10 @@ export interface Lead {
   dnp_count?: number;
   // FMC-only: number of bank entries in the lead_banks child table.
   bank_count?: number;
+  // FMC-only: up to 2 highest-priority bank entries for card rendering.
+  // Ordered best-status-first, stable across status changes (tie-break:
+  // oldest first). PATCH each via /leads/{leadId}/banks/{entry.id}.
+  top_banks?: Array<{ id: string; bank_name: string; bank_status: BankStatus }>;
   // Loan/bank fields (FMC). Optional — Admitverse leads don't populate them.
   loan_amount?: string;
   bank_name?: string | null;
