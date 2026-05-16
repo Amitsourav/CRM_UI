@@ -240,14 +240,14 @@ function FmcEnhancedCard({
   const [docsOpen, setDocsOpen] = useState(false);
 
   // The card is wrapped in <a target="_blank"> for new-tab navigation on
-  // background clicks. Children buttons / Radix triggers can't reliably stop
-  // the anchor's activation with stopPropagation alone — the browser activates
-  // the link based on ancestry, not via bubbling. We catch the click in the
-  // anchor's capture phase (which fires before children's stopPropagation has
-  // any effect) and preventDefault when the user clicked an interactive
-  // descendant. Radix's open-popover click handler still runs because we do
-  // NOT call preventDefault on the child button's click (preventDefault on
-  // composed Radix handlers cancels the open).
+  // background clicks. We let clicks bubble up to the anchor and then
+  // preventDefault when the user clicked an interactive descendant. This
+  // runs in the bubble phase, AFTER Radix's trigger onClick (target phase),
+  // so the popover/menu still opens. The anchor's activation behavior runs
+  // after dispatch and respects defaultPrevented set in bubble phase, so
+  // navigation is suppressed.
+  // Important: bank-row triggers MUST NOT call stopPropagation on click —
+  // otherwise this handler never sees the event.
   const suppressNavOnInteractive = (e: React.MouseEvent<HTMLElement>) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
@@ -379,7 +379,7 @@ function FmcEnhancedCard({
       target="_blank"
       rel="noopener noreferrer"
       className="block text-inherit no-underline"
-      onClickCapture={suppressNavOnInteractive}
+      onClick={suppressNavOnInteractive}
     >
     <Card
       className={`w-full max-w-full overflow-hidden p-3 cursor-pointer hover:shadow-md transition-shadow relative ${
@@ -573,7 +573,6 @@ function FmcEnhancedCard({
                 <Popover>
                   <PopoverTrigger
                     asChild
-                    onClick={stopBubble}
                     onPointerDown={stopBubble}
                   >
                     <button
@@ -616,7 +615,6 @@ function FmcEnhancedCard({
                       <Popover>
                         <PopoverTrigger
                           asChild
-                          onClick={stopBubble}
                           onPointerDown={stopBubble}
                         >
                           <button
@@ -646,7 +644,6 @@ function FmcEnhancedCard({
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           asChild
-                          onClick={stopBubble}
                           onPointerDown={stopBubble}
                         >
                           <button
@@ -693,7 +690,6 @@ function FmcEnhancedCard({
                 <Popover>
                   <PopoverTrigger
                     asChild
-                    onClick={stopBubble}
                     onPointerDown={stopBubble}
                   >
                     <button
