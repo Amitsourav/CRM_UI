@@ -130,7 +130,7 @@ export interface Lead {
   lead_source_id?: string;
   lead_source?: LeadSource;
   call_attempt_count: number;
-  due_date?: string;
+  due_date?: string | null;
   connected_time?: string;
   won_time?: string;
   lost_time?: string;

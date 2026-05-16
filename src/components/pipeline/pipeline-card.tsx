@@ -1204,7 +1204,7 @@ function AdmitverseEnhancedCard({
   const created = formatRelative(lead.created_at);
 
   // For <input type="date"> binding: trim ISO to YYYY-MM-DD.
-  const toDateInput = (iso?: string): string =>
+  const toDateInput = (iso?: string | null): string =>
     iso ? iso.slice(0, 10) : "";
 
   return (
