@@ -158,6 +158,13 @@ export interface Lead {
   call_count?: number;
   notes_count?: number;
   has_active_ai_campaign?: boolean;
+  // Most recent remark for the lead — rendered on the Kanban tile.
+  latest_note?: {
+    body: string;
+    author_name: string | null;
+    author_role: string;
+    created_at: string;
+  } | null;
   custom_fields?: Record<string, unknown>;
   tags?: string[];
   notes?: string;

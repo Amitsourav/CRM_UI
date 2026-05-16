@@ -36,7 +36,6 @@ import {
   ChevronDown,
   ChevronRight,
   Bot,
-  Loader2,
   Pencil,
   X as IconX,
   Globe,
@@ -68,7 +67,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { BankStatus, Lead, LeadStage, Task, User } from "@/types";
+import type { BankStatus, Lead, LeadStage, User } from "@/types";
 
 interface PipelineCardProps {
   lead: Lead;
@@ -234,9 +233,6 @@ function FmcEnhancedCard({
   onRefetchLead: (leadId: string) => void;
   stageHex: string;
 }) {
-  const [tasksOpen, setTasksOpen] = useState(false);
-  const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [tasksLoading, setTasksLoading] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
 
   // Card-level click → open lead in new tab. Implemented as a div click
@@ -305,25 +301,6 @@ function FmcEnhancedCard({
     }
     const digits = lead.phone.replace(/\D/g, "");
     window.open(`https://wa.me/${digits}`, "_blank", "noopener,noreferrer");
-  };
-
-  const toggleTasks = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const willOpen = !tasksOpen;
-    setTasksOpen(willOpen);
-    if (willOpen && tasks === null) {
-      setTasksLoading(true);
-      try {
-        const { data } = await api.get(
-          `/leads/${lead.id}/tasks?status=pending&limit=3`
-        );
-        setTasks((data.items as Task[]) ?? (data as Task[]) ?? []);
-      } catch {
-        setTasks([]);
-      } finally {
-        setTasksLoading(false);
-      }
-    }
   };
 
   // Prefer the backend-provided top_banks list. If it's not in the
@@ -854,46 +831,8 @@ function FmcEnhancedCard({
           </div>
         </div>
 
-        {/* Top 3 pending tasks (expandable) */}
-        <div className="border-t pt-2">
-          <button
-            type="button"
-            onClick={toggleTasks}
-            onPointerDown={stopBubble}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            {tasksOpen ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-            Top 3 pending tasks
-          </button>
-          {tasksOpen && (
-            <div className="mt-1.5 ml-4 space-y-1">
-              {tasksLoading ? (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" /> Loading…
-                </div>
-              ) : tasks && tasks.length > 0 ? (
-                tasks.map((t) => (
-                  <div key={t.id} className="text-xs">
-                    <p className="truncate">{t.title}</p>
-                    {t.due_date && (
-                      <p className="text-[10px] text-muted-foreground">
-                        Due {format(new Date(t.due_date), "MMM d")}
-                      </p>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  No pending tasks
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Latest note */}
+        <LatestNoteSection note={lead.latest_note ?? null} />
 
         {/* Tags */}
         {tags.length > 0 && (
@@ -934,6 +873,45 @@ function formatIntake(raw?: string): string | null {
   if (!m) return trimmed;
   const [, month, year] = m;
   return `${month.charAt(0).toUpperCase()}${month.slice(1).toLowerCase()} ${year}`;
+}
+
+// Renders the lead's most recent remark on the Kanban tile. Empty
+// state shows "No notes yet" so the section keeps a consistent slot
+// even on leads with no remarks.
+function LatestNoteSection({
+  note,
+}: {
+  note: {
+    body: string;
+    author_name: string | null;
+    author_role: string;
+    created_at: string;
+  } | null;
+}) {
+  if (!note) {
+    return (
+      <div className="border-t pt-2">
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <StickyNote className="h-3.5 w-3.5 shrink-0" />
+          No notes yet
+        </p>
+      </div>
+    );
+  }
+  const body = note.body.length > 80 ? `${note.body.slice(0, 80).trimEnd()}…` : note.body;
+  const author = note.author_name?.trim() || "Unknown";
+  const ago = formatRelative(note.created_at) ?? "just now";
+  return (
+    <div className="border-t pt-2 space-y-0.5">
+      <p className="flex items-start gap-1.5 text-xs">
+        <StickyNote className="h-3.5 w-3.5 shrink-0 text-violet-500 mt-0.5" />
+        <span className="break-words">{body}</span>
+      </p>
+      <p className="text-[10px] text-muted-foreground ml-5">
+        — {author} · {ago}
+      </p>
+    </div>
+  );
 }
 
 // "3d ago", "5h ago" — abbreviated relative format per spec.
@@ -1479,6 +1457,9 @@ function AdmitverseEnhancedCard({
             />
           </InlineRow>
         </div>
+
+        {/* Latest note */}
+        <LatestNoteSection note={lead.latest_note ?? null} />
       </div>
     </Card>
     </a>
