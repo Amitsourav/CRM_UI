@@ -395,17 +395,22 @@ function FmcEnhancedCard({
       className="block text-inherit no-underline"
     >
     <Card
-      className={`w-full max-w-full overflow-hidden p-3 cursor-pointer hover:shadow-md transition-shadow relative ${
+      className={`w-full max-w-full overflow-hidden p-2 cursor-pointer hover:shadow-md transition-shadow relative ${
         lead.is_important ? "ring-1 ring-yellow-300/70" : ""
       }`}
       style={{ borderLeftWidth: 4, borderLeftColor: stageHex }}
     >
-      <div className="space-y-2 min-w-0">
-        {/* Row 1: name + action icons + stage dropdown */}
+      <div className="space-y-1.5 min-w-0">
+        {/* Row 1: name + phone (stacked) + action icons + stage dropdown */}
         <div className="flex items-start justify-between gap-1 min-w-0">
-          <p className="font-medium text-sm truncate flex-1 min-w-0">
-            {lead.full_name}
-          </p>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm truncate">{lead.full_name}</p>
+            {lead.phone && (
+              <p className="text-[11px] text-muted-foreground truncate leading-tight">
+                {lead.phone}
+              </p>
+            )}
+          </div>
           {lead.current_stage === "dnp" && (() => {
             const n = lead.dnp_count ?? 0;
             const label = n > 0 ? `DNP-${n}` : "DNP";
@@ -497,26 +502,15 @@ function FmcEnhancedCard({
             >
               <Copy className="h-3.5 w-3.5" />
             </button>
+            {starButton}
             {stageDropdown}
           </div>
-        </div>
-
-        {/* Row 2: phone text + star */}
-        <div className="flex items-center justify-between gap-2">
-          {lead.phone ? (
-            <span className="text-xs text-muted-foreground truncate">
-              {lead.phone}
-            </span>
-          ) : (
-            <span />
-          )}
-          {starButton}
         </div>
 
         {/* Loan / education section — loan and docs always render so every
             FMC card has the same row structure. Country and College are also
             always rendered with "—" fallback so the layout is consistent. */}
-        <div className="border-t pt-2 space-y-1">
+        <div className="border-t pt-1.5 space-y-1">
             <div className="flex items-start gap-1.5 text-xs text-foreground/80 min-w-0">
               <Globe className="h-3.5 w-3.5 shrink-0 text-cyan-600 mt-0.5" />
               <span className="text-muted-foreground shrink-0">Country:</span>
@@ -781,7 +775,7 @@ function FmcEnhancedCard({
         {/* Lost reason (preserve from previous behavior) */}
         {lead.current_stage === "lost" && lead.lost_reason && (
           <p
-            className="text-xs text-red-700 line-clamp-2 border-t pt-2"
+            className="text-xs text-red-700 line-clamp-2 border-t pt-1.5"
             title={lead.lost_reason}
           >
             <span className="font-medium">Lost:</span>{" "}
@@ -793,19 +787,35 @@ function FmcEnhancedCard({
 
         {/* Agent + counts — always render so admins can spot unassigned
             leads and so 0-count badges still appear. */}
-        <div className="border-t pt-2 space-y-1">
-          <div className="flex items-center gap-1.5 text-xs">
-            <CalendarClock
-              className={`h-3.5 w-3.5 shrink-0 ${followUpIconClass(followUp?.tone)}`}
-            />
-            <span className="text-muted-foreground">Follow up:</span>
-            {followUp ? (
-              <span className={followUpToneClass(followUp.tone)}>
-                {followUp.label}
+        <div className="border-t pt-1.5 space-y-0.5">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <CalendarClock
+                className={`h-3.5 w-3.5 shrink-0 ${followUpIconClass(followUp?.tone)}`}
+              />
+              <span className="text-muted-foreground shrink-0">Follow up:</span>
+              {followUp ? (
+                <span className={`${followUpToneClass(followUp.tone)} truncate`}>
+                  {followUp.label}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground shrink-0">
+              <span className="flex items-center gap-0.5" title={`${callCount} ${callCount === 1 ? "Call" : "Calls"}`}>
+                <PhoneCall className="h-3 w-3 text-blue-500" />
+                {callCount}
               </span>
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
+              <span className="flex items-center gap-0.5" title={`${taskCount} ${taskCount === 1 ? "Task" : "Tasks"}`}>
+                <ClipboardList className="h-3 w-3 text-orange-500" />
+                {taskCount}
+              </span>
+              <span className="flex items-center gap-0.5" title={`${notesCount} ${notesCount === 1 ? "Note" : "Notes"}`}>
+                <StickyNote className="h-3 w-3 text-violet-500" />
+                {notesCount}
+              </span>
+            </div>
           </div>
           <p className="text-xs font-medium leading-snug break-words">
             <span className="text-muted-foreground font-normal">Counsellor:</span>{" "}
@@ -816,28 +826,13 @@ function FmcEnhancedCard({
                 Unassigned
               </span>
             )}
-            <span className="text-muted-foreground font-normal"> | </span>
-            <span className="text-muted-foreground font-normal">Pre Counsellor:</span>{" "}
+            <span className="text-muted-foreground font-normal"> · PC:</span>{" "}
             {lead.pre_counsellor_name ? (
               <span>{lead.pre_counsellor_name}</span>
             ) : (
               <span className="text-muted-foreground font-normal">—</span>
             )}
           </p>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <PhoneCall className="h-3 w-3 text-blue-500" />
-              {callCount} {callCount === 1 ? "Call" : "Calls"}
-            </span>
-            <span className="flex items-center gap-1">
-              <ClipboardList className="h-3 w-3 text-orange-500" />
-              {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
-            </span>
-            <span className="flex items-center gap-1">
-              <StickyNote className="h-3 w-3 text-violet-500" />
-              {notesCount} {notesCount === 1 ? "Note" : "Notes"}
-            </span>
-          </div>
         </div>
 
         {/* Latest note */}
@@ -845,7 +840,7 @@ function FmcEnhancedCard({
 
         {/* Tags */}
         {tags.length > 0 && (
-          <div className="border-t pt-2 flex flex-wrap gap-1">
+          <div className="border-t pt-1.5 flex flex-wrap gap-1">
             {tags.map((t) => (
               <span
                 key={t}
@@ -899,25 +894,31 @@ function LatestNoteSection({
 }) {
   if (!note) {
     return (
-      <div className="border-t pt-2">
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <StickyNote className="h-3.5 w-3.5 shrink-0" />
+      <div className="border-t pt-1.5">
+        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <StickyNote className="h-3 w-3 shrink-0" />
           No notes yet
         </p>
       </div>
     );
   }
-  const body = note.body.length > 80 ? `${note.body.slice(0, 80).trimEnd()}…` : note.body;
+  const body =
+    note.body.length > 70 ? `${note.body.slice(0, 70).trimEnd()}…` : note.body;
   const author = note.author_name?.trim() || "Unknown";
   const ago = formatRelative(note.created_at) ?? "just now";
   return (
-    <div className="border-t pt-2 space-y-0.5">
-      <p className="flex items-start gap-1.5 text-xs">
-        <StickyNote className="h-3.5 w-3.5 shrink-0 text-violet-500 mt-0.5" />
-        <span className="break-words">{body}</span>
-      </p>
-      <p className="text-[10px] text-muted-foreground ml-5">
-        — {author} · {ago}
+    <div className="border-t pt-1.5">
+      <p
+        className="flex items-start gap-1.5 text-[11px] leading-snug"
+        title={`${note.body}\n— ${author} · ${ago}`}
+      >
+        <StickyNote className="h-3 w-3 shrink-0 text-violet-500 mt-0.5" />
+        <span className="break-words min-w-0">
+          {body}
+          <span className="text-[10px] text-muted-foreground ml-1">
+            — {author} · {ago}
+          </span>
+        </span>
       </p>
     </div>
   );
