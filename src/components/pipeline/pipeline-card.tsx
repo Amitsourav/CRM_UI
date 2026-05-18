@@ -66,6 +66,7 @@ import { LeadBanksManager } from "@/components/leads/lead-banks-manager";
 import { leadBanksService } from "@/services/lead-banks-service";
 import {
   Popover,
+  PopoverClose,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
@@ -609,7 +610,15 @@ function FmcEnhancedCard({
                     onClick={stopBubble}
                     onPointerDown={stopBubble}
                   >
-                    <p className="text-xs font-medium mb-2">Banks</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium">Banks</p>
+                      <PopoverClose
+                        aria-label="Close"
+                        className="-m-1 p-1 rounded hover:bg-muted text-muted-foreground"
+                      >
+                        <IconX className="h-3.5 w-3.5" />
+                      </PopoverClose>
+                    </div>
                     <LeadBanksManager
                       leadId={lead.id}
                       autoOpenAddIfEmpty
@@ -652,7 +661,15 @@ function FmcEnhancedCard({
                           onClick={stopBubble}
                           onPointerDown={stopBubble}
                         >
-                          <p className="text-xs font-medium mb-2">Banks</p>
+                          <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium">Banks</p>
+                      <PopoverClose
+                        aria-label="Close"
+                        className="-m-1 p-1 rounded hover:bg-muted text-muted-foreground"
+                      >
+                        <IconX className="h-3.5 w-3.5" />
+                      </PopoverClose>
+                    </div>
                           <LeadBanksManager
                             leadId={lead.id}
                             onChanged={() => onRefetchLead(lead.id)}
@@ -724,7 +741,15 @@ function FmcEnhancedCard({
                     onClick={stopBubble}
                     onPointerDown={stopBubble}
                   >
-                    <p className="text-xs font-medium mb-2">All banks</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium">All banks</p>
+                      <PopoverClose
+                        aria-label="Close"
+                        className="-m-1 p-1 rounded hover:bg-muted text-muted-foreground"
+                      >
+                        <IconX className="h-3.5 w-3.5" />
+                      </PopoverClose>
+                    </div>
                     <LeadBanksManager
                       leadId={lead.id}
                       onChanged={() => onRefetchLead(lead.id)}
