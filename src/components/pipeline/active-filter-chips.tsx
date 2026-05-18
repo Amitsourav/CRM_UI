@@ -3,8 +3,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X as IconX } from "lucide-react";
-import type { PipelineFilters } from "@/lib/pipeline-filters";
+import { BANK_STATUS_LABELS } from "@/lib/constants";
 import type { LeadSource, User } from "@/types";
+import type { PipelineFilters } from "@/lib/pipeline-filters";
 
 interface ActiveFilterChipsProps {
   filters: PipelineFilters;
@@ -79,27 +80,37 @@ export function ActiveFilterChips({
     });
   }
 
-  if (filters.country) {
+  if (filters.bank_name) {
     chips.push({
-      key: "country",
-      label: `Country: ${filters.country}`,
-      clears: ["country"],
+      key: "bank_name",
+      label: `Bank: ${filters.bank_name}`,
+      clears: ["bank_name"],
     });
   }
 
-  if (filters.intake) {
+  if (filters.bank_status) {
+    const labels = BANK_STATUS_LABELS as Record<string, string>;
+    const display = labels[filters.bank_status] ?? filters.bank_status;
     chips.push({
-      key: "intake",
-      label: `Intake: ${filters.intake}`,
-      clears: ["intake"],
+      key: "bank_status",
+      label: `Bank status: ${display}`,
+      clears: ["bank_status"],
     });
   }
 
-  if (filters.bank) {
+  if (filters.target_country) {
     chips.push({
-      key: "bank",
-      label: `Bank: ${filters.bank}`,
-      clears: ["bank"],
+      key: "target_country",
+      label: `Country: ${filters.target_country}`,
+      clears: ["target_country"],
+    });
+  }
+
+  if (filters.target_intake) {
+    chips.push({
+      key: "target_intake",
+      label: `Intake: ${filters.target_intake}`,
+      clears: ["target_intake"],
     });
   }
 
@@ -111,31 +122,41 @@ export function ActiveFilterChips({
     });
   }
 
-  if (filters.created_after || filters.created_before) {
-    const a = filters.created_after ?? "…";
-    const b = filters.created_before ?? "…";
+  if (filters.created_from || filters.created_to) {
+    const a = filters.created_from ?? "…";
+    const b = filters.created_to ?? "…";
     chips.push({
       key: "created",
       label: `Created: ${a} → ${b}`,
-      clears: ["created_after", "created_before"],
+      clears: ["created_from", "created_to"],
     });
   }
 
-  if (filters.due_after || filters.due_before) {
-    const a = filters.due_after ?? "…";
-    const b = filters.due_before ?? "…";
+  if (filters.due_from || filters.due_to) {
+    const a = filters.due_from ?? "…";
+    const b = filters.due_to ?? "…";
     chips.push({
       key: "due",
       label: `Follow up: ${a} → ${b}`,
-      clears: ["due_after", "due_before"],
+      clears: ["due_from", "due_to"],
     });
   }
 
-  if (filters.is_important === "true") {
+  if (filters.dnp_min || filters.dnp_max) {
+    const lo = filters.dnp_min ?? "0";
+    const hi = filters.dnp_max ?? "∞";
     chips.push({
-      key: "is_important",
+      key: "dnp",
+      label: `DNP attempts: ${lo}–${hi}`,
+      clears: ["dnp_min", "dnp_max"],
+    });
+  }
+
+  if (filters.important_only === "true") {
+    chips.push({
+      key: "important_only",
       label: "Important only",
-      clears: ["is_important"],
+      clears: ["important_only"],
     });
   }
 

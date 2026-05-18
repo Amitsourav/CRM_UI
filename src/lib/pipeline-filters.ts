@@ -1,74 +1,112 @@
-// Filter state for the FMC pipeline Kanban. Each field corresponds
-// to a query-string param on /leads (currently) — backend accepts
-// these and returns the same paginated shape. URL is the source of
-// truth so deep links like /pipeline?loan_min=20&loan_max=50 work.
+// Filter state for the FMC pipeline Kanban. Field names match the
+// backend's GET /api/v1/leads/by-stage query params exactly — keep
+// them in sync.
+//
+// All filters are optional; the backend silently ignores unknown
+// params, so a typo here doesn't error — it just stops filtering.
 
 export interface PipelineFilters {
   q?: string;
   agent_id?: string;
   source_id?: string;
   campaign_id?: string;
-  loan_min?: string; // numeric, lakhs
+  // Numeric, in lakhs.
+  loan_min?: string;
   loan_max?: string;
-  country?: string;
-  intake?: string;
-  bank?: string;
-  // Comma-separated list of tag strings.
+  bank_name?: string;
+  bank_status?: string;
+  target_country?: string;
+  target_intake?: string;
+  // Comma-separated in state; serialized as repeated tags= params.
   tags?: string;
   // YYYY-MM-DD; backend handles parsing.
-  created_after?: string;
-  created_before?: string;
-  due_after?: string;
-  due_before?: string;
-  is_important?: "true" | "";
+  created_from?: string;
+  created_to?: string;
+  due_from?: string;
+  due_to?: string;
+  // Integer.
+  dnp_min?: string;
+  dnp_max?: string;
+  important_only?: "true" | "";
 }
 
-export const PIPELINE_FILTER_KEYS: (keyof PipelineFilters)[] = [
+// All keys that are simple single-value scalar params (i.e. not the
+// special-cased `tags` field).
+const SCALAR_FILTER_KEYS: (keyof PipelineFilters)[] = [
   "q",
   "agent_id",
   "source_id",
   "campaign_id",
   "loan_min",
   "loan_max",
-  "country",
-  "intake",
-  "bank",
-  "tags",
-  "created_after",
-  "created_before",
-  "due_after",
-  "due_before",
-  "is_important",
+  "bank_name",
+  "bank_status",
+  "target_country",
+  "target_intake",
+  "created_from",
+  "created_to",
+  "due_from",
+  "due_to",
+  "dnp_min",
+  "dnp_max",
+  "important_only",
 ];
 
+// All keys including `tags` — used for "any filter set?" checks.
+export const PIPELINE_FILTER_KEYS: (keyof PipelineFilters)[] = [
+  ...SCALAR_FILTER_KEYS,
+  "tags",
+];
+
+// Tags helper: state stores them as a single comma-separated string
+// (because the UI input is a text field), but the backend wants
+// repeated ?tags=foo&tags=bar params. These functions translate.
+function splitTagsState(tagsCsv: string | undefined): string[] {
+  if (!tagsCsv) return [];
+  return tagsCsv
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
 // Reads filter state from URL searchParams (or any string param
-// reader). Returns only fields that are present and non-empty.
+// reader). Special-cases `tags` to read all repeated values via
+// getAll so deep-links with ?tags=x&tags=y survive.
 export function parseFiltersFromParams(
-  get: (key: string) => string | null
+  get: (key: string) => string | null,
+  getAll?: (key: string) => string[]
 ): PipelineFilters {
   const f: PipelineFilters = {};
-  for (const key of PIPELINE_FILTER_KEYS) {
+  for (const key of SCALAR_FILTER_KEYS) {
     const v = get(key);
     if (v == null || v === "") continue;
-    if (key === "is_important") {
-      f.is_important = v === "true" ? "true" : "";
+    if (key === "important_only") {
+      f.important_only = v === "true" ? "true" : "";
     } else {
       (f as Record<string, string>)[key] = v;
     }
   }
+  const tagValues = getAll ? getAll("tags") : [];
+  if (tagValues.length > 0) {
+    f.tags = tagValues.join(",");
+  }
   return f;
 }
 
-// Builds a URLSearchParams from filter state — empty fields are
-// skipped so the URL doesn't carry noise.
+// Builds a URLSearchParams from filter state. Empty fields are
+// skipped so the URL stays tight. `tags` is split on commas and
+// appended once per value to match the backend's expected shape.
 export function buildFilterSearchParams(
   filters: PipelineFilters
 ): URLSearchParams {
   const params = new URLSearchParams();
-  for (const key of PIPELINE_FILTER_KEYS) {
+  for (const key of SCALAR_FILTER_KEYS) {
     const value = filters[key];
     if (value === undefined || value === null || value === "") continue;
     params.set(key, String(value));
+  }
+  for (const tag of splitTagsState(filters.tags)) {
+    params.append("tags", tag);
   }
   return params;
 }
@@ -81,18 +119,25 @@ export function hasActiveFilters(filters: PipelineFilters): boolean {
   });
 }
 
-// Count of active filters (used for the "Filters (N)" button badge).
+// Count of active filters — used for the "Filters (N)" button badge.
+// Range pairs (loan/created/due/dnp) count as one filter each.
 export function countActiveFilters(filters: PipelineFilters): number {
   let n = 0;
+  const counted = new Set<keyof PipelineFilters>();
+  const countOnce = (...keys: (keyof PipelineFilters)[]) => {
+    if (keys.some((k) => (filters[k] ?? "") !== "")) {
+      for (const k of keys) counted.add(k);
+      n += 1;
+    }
+  };
+  countOnce("loan_min", "loan_max");
+  countOnce("created_from", "created_to");
+  countOnce("due_from", "due_to");
+  countOnce("dnp_min", "dnp_max");
   for (const k of PIPELINE_FILTER_KEYS) {
+    if (counted.has(k)) continue;
     const v = filters[k];
-    if (v === undefined || v === null || v === "") continue;
-    // loan_min + loan_max count as one "Budget" filter.
-    if (k === "loan_max" && (filters.loan_min ?? "") !== "") continue;
-    // The created/due range pairs each count as one.
-    if (k === "created_before" && (filters.created_after ?? "") !== "") continue;
-    if (k === "due_before" && (filters.due_after ?? "") !== "") continue;
-    n += 1;
+    if (v !== undefined && v !== null && v !== "") n += 1;
   }
   return n;
 }

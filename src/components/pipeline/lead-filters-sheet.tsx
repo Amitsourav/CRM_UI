@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useBanksStore } from "@/stores/banks-store";
+import { BANK_STATUS_LABELS } from "@/lib/constants";
+import type { BankStatus } from "@/types";
 import type { PipelineFilters } from "@/lib/pipeline-filters";
 import type { LeadSource, User } from "@/types";
 
@@ -36,6 +38,7 @@ interface LeadFiltersSheetProps {
 }
 
 const EMPTY_FILTERS: PipelineFilters = {};
+const ALL_BANK_STATUSES = Object.keys(BANK_STATUS_LABELS) as BankStatus[];
 
 export function LeadFiltersSheet({
   open,
@@ -64,8 +67,7 @@ export function LeadFiltersSheet({
 
   // Select uses "__all" as the unset sentinel since "" trips the
   // Radix "empty string value" guard.
-  const fromSelectValue = (v: string): string =>
-    v === "__all" ? "" : v;
+  const fromSelectValue = (v: string): string => (v === "__all" ? "" : v);
   const toSelectValue = (v: string | undefined): string =>
     v && v !== "" ? v : "__all";
 
@@ -155,8 +157,8 @@ export function LeadFiltersSheet({
           <div className="space-y-1.5">
             <Label>Bank</Label>
             <Select
-              value={toSelectValue(draft.bank)}
-              onValueChange={(v) => update({ bank: fromSelectValue(v) })}
+              value={toSelectValue(draft.bank_name)}
+              onValueChange={(v) => update({ bank_name: fromSelectValue(v) })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Any bank" />
@@ -166,6 +168,28 @@ export function LeadFiltersSheet({
                 {banks.map((b) => (
                   <SelectItem key={b} value={b}>
                     {b}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Bank status</Label>
+            <Select
+              value={toSelectValue(draft.bank_status)}
+              onValueChange={(v) =>
+                update({ bank_status: fromSelectValue(v) })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Any status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">Any status</SelectItem>
+                {ALL_BANK_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {BANK_STATUS_LABELS[s]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -194,12 +218,12 @@ export function LeadFiltersSheet({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="filter-country">Country</Label>
+            <Label htmlFor="filter-country">Destination country</Label>
             <Input
               id="filter-country"
               placeholder="USA, UK, Canada…"
-              value={draft.country ?? ""}
-              onChange={(e) => update({ country: e.target.value })}
+              value={draft.target_country ?? ""}
+              onChange={(e) => update({ target_country: e.target.value })}
             />
           </div>
 
@@ -207,9 +231,9 @@ export function LeadFiltersSheet({
             <Label htmlFor="filter-intake">Intake</Label>
             <Input
               id="filter-intake"
-              placeholder="sep_2026"
-              value={draft.intake ?? ""}
-              onChange={(e) => update({ intake: e.target.value })}
+              placeholder="Sep-2026"
+              value={draft.target_intake ?? ""}
+              onChange={(e) => update({ target_intake: e.target.value })}
             />
           </div>
 
@@ -217,7 +241,7 @@ export function LeadFiltersSheet({
             <Label htmlFor="filter-tags">Tags</Label>
             <Input
               id="filter-tags"
-              placeholder="comma-separated"
+              placeholder="comma-separated, e.g. imported, hot"
               value={draft.tags ?? ""}
               onChange={(e) => update({ tags: e.target.value })}
             />
@@ -228,16 +252,16 @@ export function LeadFiltersSheet({
             <div className="flex items-center gap-2">
               <Input
                 type="date"
-                value={draft.created_after ?? ""}
-                onChange={(e) => update({ created_after: e.target.value })}
-                aria-label="Created after"
+                value={draft.created_from ?? ""}
+                onChange={(e) => update({ created_from: e.target.value })}
+                aria-label="Created from"
               />
               <span className="text-muted-foreground">–</span>
               <Input
                 type="date"
-                value={draft.created_before ?? ""}
-                onChange={(e) => update({ created_before: e.target.value })}
-                aria-label="Created before"
+                value={draft.created_to ?? ""}
+                onChange={(e) => update({ created_to: e.target.value })}
+                aria-label="Created to"
               />
             </div>
           </div>
@@ -247,16 +271,37 @@ export function LeadFiltersSheet({
             <div className="flex items-center gap-2">
               <Input
                 type="date"
-                value={draft.due_after ?? ""}
-                onChange={(e) => update({ due_after: e.target.value })}
-                aria-label="Follow up after"
+                value={draft.due_from ?? ""}
+                onChange={(e) => update({ due_from: e.target.value })}
+                aria-label="Follow up from"
               />
               <span className="text-muted-foreground">–</span>
               <Input
                 type="date"
-                value={draft.due_before ?? ""}
-                onChange={(e) => update({ due_before: e.target.value })}
-                aria-label="Follow up before"
+                value={draft.due_to ?? ""}
+                onChange={(e) => update({ due_to: e.target.value })}
+                aria-label="Follow up to"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>DNP attempts</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                inputMode="numeric"
+                placeholder="Min"
+                value={draft.dnp_min ?? ""}
+                onChange={(e) => update({ dnp_min: e.target.value })}
+              />
+              <span className="text-muted-foreground">–</span>
+              <Input
+                type="number"
+                inputMode="numeric"
+                placeholder="Max"
+                value={draft.dnp_max ?? ""}
+                onChange={(e) => update({ dnp_max: e.target.value })}
               />
             </div>
           </div>
@@ -264,9 +309,9 @@ export function LeadFiltersSheet({
           <div className="flex items-center gap-2 pt-1">
             <Checkbox
               id="filter-important"
-              checked={draft.is_important === "true"}
+              checked={draft.important_only === "true"}
               onCheckedChange={(checked) =>
-                update({ is_important: checked ? "true" : "" })
+                update({ important_only: checked ? "true" : "" })
               }
             />
             <Label htmlFor="filter-important" className="font-normal">

@@ -98,7 +98,11 @@ export function PipelineBoard() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const filters: PipelineFilters = useMemo(
-    () => parseFiltersFromParams((k) => searchParams.get(k)),
+    () =>
+      parseFiltersFromParams(
+        (k) => searchParams.get(k),
+        (k) => searchParams.getAll(k)
+      ),
     [searchParams]
   );
   const setFilters = useCallback(
@@ -166,7 +170,7 @@ export function PipelineBoard() {
     async (stage: LeadStage, page: number = 1, append: boolean = false) => {
       try {
         const { data } = await api.get<PaginatedResponse<Lead>>(
-          `/leads?${buildParams(stage, page)}`
+          `/leads/by-stage?${buildParams(stage, page)}`
         );
         const leads = data.items || [];
         setStageData((prev) => ({
