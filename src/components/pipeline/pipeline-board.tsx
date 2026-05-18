@@ -18,7 +18,7 @@ import {
   parseFiltersFromParams,
   type PipelineFilters,
 } from "@/lib/pipeline-filters";
-import type { Lead, LeadStage, User, LeadSource, PaginatedResponse } from "@/types";
+import type { Lead, LeadStage, User, LeadSource } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -40,7 +40,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, RefreshCw, SlidersHorizontal } from "lucide-react";
 
-const PER_STAGE_LIMIT = 30;
 
 interface StageData {
   leads: Lead[];
@@ -155,61 +154,55 @@ export function PipelineBoard() {
       .catch(() => {});
   }, [isManager]);
 
-  const buildParams = useCallback(
-    (stage: LeadStage, page: number) => {
-      const params = buildFilterSearchParams(filters);
-      params.set("current_stage", stage);
-      params.set("page", page.toString());
-      params.set("page_size", PER_STAGE_LIMIT.toString());
-      return params.toString();
-    },
-    [filters]
-  );
+  // /leads/by-stage returns a single response with two parallel
+  // dictionaries keyed by stage:
+  //   counts_by_stage[stage] → number of leads matching filters
+  //   items_by_stage[stage]  → leads for that stage (capped per stage
+  //                             by the backend; no FE pagination)
+  interface ByStageResponse {
+    total?: number;
+    counts_by_stage?: Record<string, number>;
+    items_by_stage?: Record<string, Lead[]>;
+  }
 
-  const fetchStage = useCallback(
-    async (stage: LeadStage, page: number = 1, append: boolean = false) => {
-      try {
-        const { data } = await api.get<PaginatedResponse<Lead>>(
-          `/leads/by-stage?${buildParams(stage, page)}`
-        );
-        const leads = data.items || [];
-        setStageData((prev) => ({
-          ...prev,
-          [stage]: {
-            leads: append ? [...prev[stage].leads, ...leads] : leads,
-            total: data.total || 0,
-            page,
-            isLoadingMore: false,
-          },
-        }));
-      } catch {
-        setStageData((prev) => ({
-          ...prev,
-          [stage]: { ...prev[stage], isLoadingMore: false },
-        }));
-      }
-    },
-    [buildParams]
-  );
-
-  // Initial load — fetch all stages in parallel
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
-    await Promise.all(STAGES.map((stage) => fetchStage(stage, 1, false)));
-    setIsLoading(false);
-  }, [fetchStage, STAGES]);
+    try {
+      const params = buildFilterSearchParams(filters).toString();
+      const { data } = await api.get<ByStageResponse>(
+        params ? `/leads/by-stage?${params}` : `/leads/by-stage`
+      );
+      const counts = data.counts_by_stage ?? {};
+      const items = data.items_by_stage ?? {};
+      setStageData(() => {
+        const next: Record<string, StageData> = {};
+        for (const stage of STAGES) {
+          next[stage] = {
+            leads: items[stage] ?? [],
+            total: counts[stage] ?? 0,
+            page: 1,
+            isLoadingMore: false,
+          };
+        }
+        return next;
+      });
+    } catch {
+      // Leave previous state in place on failure.
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters, STAGES]);
 
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
-  const handleLoadMore = (stage: LeadStage) => {
-    const nextPage = stageData[stage].page + 1;
-    setStageData((prev) => ({
-      ...prev,
-      [stage]: { ...prev[stage], isLoadingMore: true },
-    }));
-    fetchStage(stage, nextPage, true);
+  // /by-stage returns each stage's items in one shot — no per-stage
+  // pagination yet. Until BE exposes a "load more for this stage"
+  // contract, the column hides its Load more button by reporting no
+  // additional pages.
+  const handleLoadMore = (_stage: LeadStage) => {
+    void _stage;
   };
 
   const performStageChange = async (
@@ -559,7 +552,7 @@ export function PipelineBoard() {
               stage={stage}
               leads={stageData[stage].leads}
               totalCount={stageData[stage].total}
-              hasMore={stageData[stage].leads.length < stageData[stage].total}
+              hasMore={false}
               isLoadingMore={stageData[stage].isLoadingMore}
               onLoadMore={() => handleLoadMore(stage)}
               onChangeStage={requestStageChange}
