@@ -1,14 +1,23 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { PipelineColumn } from "./pipeline-column";
+import { LeadFiltersSheet } from "./lead-filters-sheet";
+import { ActiveFilterChips } from "./active-filter-chips";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTaskCountStore } from "@/stores/task-count-store";
 import { useLostReasonsStore } from "@/stores/lost-reasons-store";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import {
+  buildFilterSearchParams,
+  countActiveFilters,
+  parseFiltersFromParams,
+  type PipelineFilters,
+} from "@/lib/pipeline-filters";
 import type { Lead, LeadStage, User, LeadSource, PaginatedResponse } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -29,7 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, SlidersHorizontal } from "lucide-react";
 
 const PER_STAGE_LIMIT = 30;
 
@@ -81,10 +90,32 @@ export function PipelineBoard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stagesKey]);
 
-  // Filters
-  const [agentFilter, setAgentFilter] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [campaignFilter, setCampaignFilter] = useState("all");
+  // Filters — URL is the source of truth so deep links like
+  // /pipeline?loan_min=20&loan_max=50 preload state. parseFilters
+  // runs every render against searchParams so the rest of the
+  // component can treat `filters` as derived state.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const filters: PipelineFilters = useMemo(
+    () => parseFiltersFromParams((k) => searchParams.get(k)),
+    [searchParams]
+  );
+  const setFilters = useCallback(
+    (next: PipelineFilters) => {
+      const params = buildFilterSearchParams(next);
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname]
+  );
+  const patchFilters = useCallback(
+    (patch: Partial<PipelineFilters>) => {
+      setFilters({ ...filters, ...patch });
+    },
+    [filters, setFilters]
+  );
+  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [agents, setAgents] = useState<User[]>([]);
   const [sources, setSources] = useState<LeadSource[]>([]);
   const [campaigns, setCampaigns] = useState<{ id: string; name: string }[]>([]);
@@ -122,16 +153,13 @@ export function PipelineBoard() {
 
   const buildParams = useCallback(
     (stage: LeadStage, page: number) => {
-      const params = new URLSearchParams();
+      const params = buildFilterSearchParams(filters);
       params.set("current_stage", stage);
       params.set("page", page.toString());
       params.set("page_size", PER_STAGE_LIMIT.toString());
-      if (agentFilter !== "all") params.set("agent_id", agentFilter);
-      if (sourceFilter !== "all") params.set("source_id", sourceFilter);
-      if (campaignFilter !== "all") params.set("campaign_id", campaignFilter);
       return params.toString();
     },
-    [agentFilter, sourceFilter, campaignFilter]
+    [filters]
   );
 
   const fetchStage = useCallback(
@@ -474,56 +502,47 @@ export function PipelineBoard() {
     );
   }
 
+  const activeCount = countActiveFilters(filters);
+
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)]">
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-4 shrink-0">
-        {isManager && (
-          <Select value={agentFilter} onValueChange={(v) => setAgentFilter(v)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Pre Counsellors" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Pre Counsellors</SelectItem>
-              {agents.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v)}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="All Sources" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Sources</SelectItem>
-            {sources.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={campaignFilter} onValueChange={(v) => setCampaignFilter(v)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Campaigns" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Campaigns</SelectItem>
-            {campaigns.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button variant="outline" size="sm" onClick={fetchAll}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+      {/* Filters row — a Filters button + active chips. The full filter
+          form lives in a drawer so the page header stays light. */}
+      <div className="flex flex-col gap-2 mb-4 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFiltersSheetOpen(true)}
+          >
+            <SlidersHorizontal className="mr-2 h-4 w-4" />
+            Filters{activeCount > 0 ? ` (${activeCount})` : ""}
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchAll}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <ActiveFilterChips
+            filters={filters}
+            agents={agents}
+            sources={sources}
+            campaigns={campaigns}
+            onPatch={patchFilters}
+            onClearAll={() => setFilters({})}
+          />
+        </div>
       </div>
+
+      <LeadFiltersSheet
+        open={filtersSheetOpen}
+        onOpenChange={setFiltersSheetOpen}
+        value={filters}
+        onApply={setFilters}
+        showAgentFilter={isManager}
+        agents={agents}
+        sources={sources}
+        campaigns={campaigns}
+      />
 
       {/* Pipeline board — columns stretch to fill the available height so
           the kanban uses the full viewport. Internal ScrollArea scrolls
