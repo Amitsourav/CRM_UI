@@ -66,6 +66,7 @@ export function PipelineBoard() {
   const { slug, stages: STAGES, getEntry, canTransition } = useStageConfig();
   const isFmc = slug !== "admitverse";
   const lostReasons = useLostReasonsStore((s) => s.reasons);
+  const lostReasonsFetched = useLostReasonsStore((s) => s.fetched);
   const ensureLostReasons = useLostReasonsStore((s) => s.ensureFetched);
 
   const [stageData, setStageData] = useState<Record<string, StageData>>(() => {
@@ -285,7 +286,10 @@ export function PipelineBoard() {
       return;
     }
     setStageChangeData({ leadId, fromStage, toStage });
-    if (toStage === "lost" && isFmc) ensureLostReasons();
+    // Fetch reasons regardless of brand — backend returns the
+    // canonical list for FMC and [] for Admitverse, and the UI uses
+    // the response to decide dropdown vs textarea.
+    if (toStage === "lost") ensureLostReasons();
   };
 
   const handleDragEnd = (result: DropResult) => {
@@ -613,24 +617,26 @@ export function PipelineBoard() {
             {stageChangeData?.toStage === "lost" ? (
               <div className="space-y-2">
                 <Label>Reason for lost *</Label>
-                {isFmc ? (
+                {/* Backend's /leads/lost-reasons response shape drives
+                    the UI: a non-empty list → locked dropdown; an
+                    empty list → free-text input. Until the response
+                    arrives we show a loading placeholder. */}
+                {!lostReasonsFetched ? (
+                  <p className="text-xs text-muted-foreground">
+                    Loading reasons…
+                  </p>
+                ) : lostReasons.length > 0 ? (
                   <>
                     <Select value={lostReason} onValueChange={setLostReason}>
                       <SelectTrigger autoFocus>
                         <SelectValue placeholder="Select a reason..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {lostReasons.length === 0 ? (
-                          <SelectItem value="__loading" disabled>
-                            Loading reasons…
+                        {lostReasons.map((r) => (
+                          <SelectItem key={r} value={r}>
+                            {r}
                           </SelectItem>
-                        ) : (
-                          lostReasons.map((r) => (
-                            <SelectItem key={r} value={r}>
-                              {r}
-                            </SelectItem>
-                          ))
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                     {!lostReason.trim() && (

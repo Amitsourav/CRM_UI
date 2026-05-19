@@ -463,7 +463,10 @@ function ProfileSection({
               </DropdownMenu>
             </div>
           )}
-          <InfoRow label="Source" value={lead.lead_source?.name} />
+          <InfoRow
+            label="Source"
+            value={lead.source_name ?? lead.lead_source?.name ?? undefined}
+          />
           <InfoRow label="Call Attempts" value={lead.call_attempt_count} />
           <InfoRow
             label="Last contacted"

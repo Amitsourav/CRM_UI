@@ -858,6 +858,14 @@ function FmcEnhancedCard({
               <span className="text-muted-foreground font-normal">—</span>
             )}
           </p>
+          {(lead.source_name || lead.lead_source?.name) && (
+            <p className="text-[11px] text-muted-foreground leading-snug truncate">
+              Source:{" "}
+              <span className="text-foreground/80 font-medium">
+                {lead.source_name ?? lead.lead_source?.name}
+              </span>
+            </p>
+          )}
         </div>
 
         {/* Latest note */}
@@ -1188,9 +1196,9 @@ function AdmitverseEnhancedCard({
         )}
 
         {/* Source badge */}
-        {lead.lead_source && (
+        {(lead.source_name || lead.lead_source?.name) && (
           <Badge variant="outline" className="text-xs">
-            {lead.lead_source.name}
+            {lead.source_name ?? lead.lead_source?.name}
           </Badge>
         )}
 

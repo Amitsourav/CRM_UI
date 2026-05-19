@@ -17,8 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import type { User, LeadSource } from "@/types";
@@ -29,7 +30,16 @@ const TARGET_FIELDS = [
   "stream", "passing_year", "college_name", "university", "percentage",
   "target_degree", "target_intake", "preferred_countries", "preferred_universities",
   "notes", "tags",
+  // Per-row source override. When mapped, the row's value beats the
+  // dropdown source below for that lead; empty cells fall back to it.
+  // Backend auto-creates new lead_sources entries for unknown names.
+  "source",
 ];
+
+// Headers whose name strongly suggests a Source column. Used as a
+// client-side fallback when the backend's suggested_mapping doesn't
+// auto-detect — we never overwrite an already-set mapping.
+const SOURCE_HEADER_HINTS = /^(source|lead\s*source|channel)$/i;
 
 interface CsvColumnMapperProps {
   importId: string;
@@ -55,8 +65,18 @@ export function CsvColumnMapper({ importId, onProcess }: CsvColumnMapperProps) {
           api.get("/leads/sources/list").catch(() => ({ data: [] })),
         ]);
         const data = preview.data;
-        setRawHeaders(data.raw_headers || []);
-        setMapping(data.suggested_mapping || {});
+        const headers: string[] = data.raw_headers || [];
+        const suggested: Record<string, string> = data.suggested_mapping || {};
+        // FE fallback: if backend didn't auto-suggest "source" for a
+        // header whose name clearly is one, do it client-side so the
+        // user doesn't have to map it manually.
+        for (const h of headers) {
+          if (!suggested[h] && SOURCE_HEADER_HINTS.test(h)) {
+            suggested[h] = "source";
+          }
+        }
+        setRawHeaders(headers);
+        setMapping(suggested);
         setPreviewRows((data.preview_rows || []).slice(0, 5));
         setAgents(agentRes.data.items || agentRes.data || []);
         setSources(Array.isArray(sourceRes.data) ? sourceRes.data : sourceRes.data.items || []);
@@ -68,6 +88,30 @@ export function CsvColumnMapper({ importId, onProcess }: CsvColumnMapperProps) {
     };
     load();
   }, [importId]);
+
+  // Inline "+ New source" creator next to the source dropdown.
+  const [newSourceName, setNewSourceName] = useState("");
+  const [creatingSource, setCreatingSource] = useState(false);
+  const handleCreateSource = async () => {
+    const name = newSourceName.trim();
+    if (!name || creatingSource) return;
+    setCreatingSource(true);
+    try {
+      const { data } = await api.post<LeadSource>("/leads/sources", {
+        name,
+        source_type: "manual",
+      });
+      setSources((prev) => [...prev, data]);
+      setSelectedSource(data.id);
+      setNewSourceName("");
+      toast.success(`Source "${data.name}" created`);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "Failed to create source");
+    } finally {
+      setCreatingSource(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -168,6 +212,36 @@ export function CsvColumnMapper({ importId, onProcess }: CsvColumnMapperProps) {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Or type a new source…"
+              value={newSourceName}
+              onChange={(e) => setNewSourceName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleCreateSource();
+                }
+              }}
+              className="h-9 text-sm"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCreateSource}
+              disabled={!newSourceName.trim() || creatingSource}
+            >
+              {creatingSource ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Rows with a Source column override this dropdown for that lead.
+          </p>
         </div>
       </div>
 

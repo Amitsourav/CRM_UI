@@ -133,6 +133,9 @@ export interface Lead {
   pre_counsellor_name?: string;
   lead_source_id?: string;
   lead_source?: LeadSource;
+  // Flat human-readable source name on every payload (by-stage,
+  // detail, list). Set by backend; prefer over lead_source?.name.
+  source_name?: string | null;
   call_attempt_count: number;
   due_date?: string | null;
   connected_time?: string;

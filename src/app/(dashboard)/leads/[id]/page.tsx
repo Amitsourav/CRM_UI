@@ -81,6 +81,7 @@ export default function LeadDetailPage() {
   const isFmc = slug !== "admitverse";
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
   const lostReasons = useLostReasonsStore((s) => s.reasons);
+  const lostReasonsFetched = useLostReasonsStore((s) => s.fetched);
   const ensureLostReasons = useLostReasonsStore((s) => s.ensureFetched);
   const leadId = params.id as string;
 
@@ -188,7 +189,9 @@ export default function LeadDetailPage() {
     setLostReason("");
     setStageDueDate(undefined);
     setStageDialogOpen(true);
-    if (stage === "lost" && isFmc) ensureLostReasons();
+    // Always fetch — backend returns the canonical FMC list or [] on
+    // Admitverse; the response decides dropdown vs textarea.
+    if (stage === "lost") ensureLostReasons();
   };
 
   // Backend requires due_date on every non-terminal stage move. Terminal
@@ -380,8 +383,10 @@ export default function LeadDetailPage() {
                 Pre Counsellor: {headerPreCounsellorName}
               </Badge>
             )}
-            {lead.lead_source && (
-              <Badge variant="outline">Source: {lead.lead_source.name}</Badge>
+            {(lead.source_name || lead.lead_source?.name) && (
+              <Badge variant="outline">
+                Source: {lead.source_name ?? lead.lead_source?.name}
+              </Badge>
             )}
             {lead.tags?.map((t) => (
               <Badge key={t} variant="secondary" className="text-xs">
@@ -530,24 +535,25 @@ export default function LeadDetailPage() {
             {targetStage === "lost" && (
               <div className="space-y-2">
                 <Label>Lost Reason *</Label>
-                {isFmc ? (
+                {/* Response shape from /leads/lost-reasons drives the
+                    control: non-empty list → locked dropdown; [] →
+                    free text. */}
+                {!lostReasonsFetched ? (
+                  <p className="text-xs text-muted-foreground">
+                    Loading reasons…
+                  </p>
+                ) : lostReasons.length > 0 ? (
                   <>
                     <Select value={lostReason} onValueChange={setLostReason}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a reason..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {lostReasons.length === 0 ? (
-                          <SelectItem value="__loading" disabled>
-                            Loading reasons…
+                        {lostReasons.map((r) => (
+                          <SelectItem key={r} value={r}>
+                            {r}
                           </SelectItem>
-                        ) : (
-                          lostReasons.map((r) => (
-                            <SelectItem key={r} value={r}>
-                              {r}
-                            </SelectItem>
-                          ))
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                     {!lostReason.trim() && (
