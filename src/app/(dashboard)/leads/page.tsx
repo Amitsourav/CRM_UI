@@ -25,7 +25,7 @@ import type { Lead } from "@/types";
 function LeadsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAdmin, isManager } = useAuthStore();
+  const { isAdmin, isManager, isPreCounsellor } = useAuthStore();
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -95,19 +95,26 @@ function LeadsPageContent() {
             Distribute Leads
           </Button>
         )}
-        <Button variant="outline" onClick={() => router.push("/leads/import")}>
-          <Upload className="mr-2 h-4 w-4" />
-          Import CSV
-        </Button>
-        <Button
-          onClick={() => {
-            setEditingLead(undefined);
-            setFormOpen(true);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Lead
-        </Button>
+        {!isPreCounsellor && (
+          <>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/leads/import")}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Import CSV
+            </Button>
+            <Button
+              onClick={() => {
+                setEditingLead(undefined);
+                setFormOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Lead
+            </Button>
+          </>
+        )}
       </PageHeader>
 
       <div className="flex flex-col sm:flex-row gap-3">
