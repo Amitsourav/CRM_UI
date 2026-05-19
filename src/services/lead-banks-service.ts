@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import type { BankEntry, BankStatus } from "@/types";
+import type { BankEntry, BankStatus, PfStatus } from "@/types";
 
 export interface BankEntryCreate {
   bank_name: string;
@@ -10,6 +10,15 @@ export interface BankEntryCreate {
 export interface BankEntryUpdate {
   bank_status?: BankStatus;
   notes?: string | null;
+  application_id?: string | null;
+  sanction_date?: string | null;
+  loan_amount?: string | number | null;
+  roi?: string | number | null;
+  tenure_months?: number | null;
+  pf_amount?: string | number | null;
+  first_tranche_amount?: string | number | null;
+  no_of_tranches?: number | null;
+  pf_status?: PfStatus | null;
 }
 
 export const leadBanksService = {

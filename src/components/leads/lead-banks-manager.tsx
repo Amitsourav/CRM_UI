@@ -27,7 +27,9 @@ import {
 import {
   Check,
   ChevronsUpDown,
+  FileSignature,
   Loader2,
+  Pencil,
   Plus,
   Trash2,
   X as IconX,
@@ -40,7 +42,38 @@ import {
   leadBanksService,
   type BankEntryCreate,
 } from "@/services/lead-banks-service";
+import { SanctionDetailsDialog } from "./sanction-details-dialog";
 import type { BankEntry, BankStatus } from "@/types";
+
+// Bank statuses at which sanction-stage fields become editable +
+// visible. Before this point, backend rejects writes to those
+// fields and the section stays hidden.
+const SANCTIONED_OR_BEYOND = new Set<BankStatus>([
+  "sanctioned",
+  "pf_paid",
+  "disbursed",
+]);
+
+function showsSanctionDetails(status: BankStatus): boolean {
+  return SANCTIONED_OR_BEYOND.has(status);
+}
+
+// True when any of the 9 sanction-stage fields on the entry has a
+// non-empty value. Drives whether we show the read-only summary or
+// a "not yet filled" hint above the Edit button.
+function hasAnySanctionDetail(entry: BankEntry): boolean {
+  return (
+    !!entry.application_id ||
+    !!entry.sanction_date ||
+    entry.loan_amount != null ||
+    entry.roi != null ||
+    entry.tenure_months != null ||
+    entry.pf_amount != null ||
+    entry.first_tranche_amount != null ||
+    entry.no_of_tranches != null ||
+    !!entry.pf_status
+  );
+}
 
 interface LeadBanksManagerProps {
   leadId: string;
@@ -59,6 +92,9 @@ export function LeadBanksManager({
 }: LeadBanksManagerProps) {
   const [entries, setEntries] = useState<BankEntry[] | null>(null);
   const [adding, setAdding] = useState(false);
+  const [sanctionEditingId, setSanctionEditingId] = useState<string | null>(
+    null
+  );
   const banks = useBanksStore((s) => s.banks);
   const ensureBanks = useBanksStore((s) => s.ensureFetched);
 
@@ -243,10 +279,35 @@ export function LeadBanksManager({
                   onBlur={(e) => handleNotesBlur(entry, e.target.value)}
                 />
               )}
+              {showsSanctionDetails(entry.bank_status) && (
+                <SanctionDetailsPanel
+                  entry={entry}
+                  onEdit={() => setSanctionEditingId(entry.id)}
+                />
+              )}
             </li>
           ))}
         </ul>
       )}
+
+      {sanctionEditingId && entries && (() => {
+        const editing = entries.find((e) => e.id === sanctionEditingId);
+        if (!editing) return null;
+        return (
+          <SanctionDetailsDialog
+            open={true}
+            onOpenChange={(o) => !o && setSanctionEditingId(null)}
+            leadId={leadId}
+            entry={editing}
+            onSaved={(updated) => {
+              setEntries((prev) =>
+                (prev ?? []).map((e) => (e.id === updated.id ? updated : e))
+              );
+              onChanged?.();
+            }}
+          />
+        );
+      })()}
 
       {/* Add bank */}
       {addOpen ? (
@@ -357,6 +418,105 @@ export function LeadBanksManager({
           <Plus className="mr-1 h-3.5 w-3.5" />
           Add bank
         </Button>
+      )}
+    </div>
+  );
+}
+
+// Read-only summary of the 9 sanction-stage fields plus an Edit
+// button that opens the dialog. Rendered under each bank entry whose
+// status is sanctioned / pf_paid / disbursed.
+function SanctionDetailsPanel({
+  entry,
+  onEdit,
+}: {
+  entry: BankEntry;
+  onEdit: () => void;
+}) {
+  const filled = hasAnySanctionDetail(entry);
+  const Item = ({
+    label,
+    value,
+  }: {
+    label: string;
+    value: React.ReactNode;
+  }) => (
+    <div className="flex flex-col">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <span className="text-xs font-medium break-words">
+        {value !== undefined && value !== null && value !== "" ? value : "—"}
+      </span>
+    </div>
+  );
+
+  const pfStatusLabel =
+    entry.pf_status === "paid"
+      ? "Paid"
+      : entry.pf_status === "pending"
+        ? "Pending"
+        : null;
+
+  return (
+    <div className="mt-1.5 border-t pt-2 bg-muted/30 -mx-2 -mb-2 px-2 pb-2 rounded-b-md">
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="flex items-center gap-1.5 text-xs font-medium">
+          <FileSignature className="h-3.5 w-3.5 text-teal-600" />
+          Sanction details
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 text-xs"
+          onClick={onEdit}
+        >
+          <Pencil className="h-3 w-3 mr-1" />
+          {filled ? "Edit" : "Add"}
+        </Button>
+      </div>
+      {filled ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-2">
+          <Item label="Application ID" value={entry.application_id} />
+          <Item label="Sanction date" value={entry.sanction_date} />
+          <Item
+            label="Loan amount"
+            value={
+              entry.loan_amount != null ? `₹${entry.loan_amount}` : null
+            }
+          />
+          <Item
+            label="ROI"
+            value={entry.roi != null ? `${entry.roi}%` : null}
+          />
+          <Item
+            label="Tenure"
+            value={
+              entry.tenure_months != null
+                ? `${entry.tenure_months} months`
+                : null
+            }
+          />
+          <Item
+            label="PF amount"
+            value={entry.pf_amount != null ? `₹${entry.pf_amount}` : null}
+          />
+          <Item
+            label="First tranche"
+            value={
+              entry.first_tranche_amount != null
+                ? `₹${entry.first_tranche_amount}`
+                : null
+            }
+          />
+          <Item label="Tranches" value={entry.no_of_tranches} />
+          <Item label="PF status" value={pfStatusLabel} />
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground italic">
+          Not filled yet — click Add to enter the sanction info.
+        </p>
       )}
     </div>
   );

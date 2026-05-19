@@ -277,12 +277,26 @@ export interface CallFilters {
   limit?: number;
 }
 
+export type PfStatus = "paid" | "pending";
+
 export interface BankEntry {
   id: string;
   lead_id: string;
   bank_name: string;
   bank_status: BankStatus;
   notes?: string | null;
+  // Sanction-stage fields — backend populates once bank_status reaches
+  // sanctioned / pf_paid / disbursed. PATCH is rejected when status is
+  // applied / docs_reviewed / under_review / loan_login.
+  application_id?: string | null;
+  sanction_date?: string | null; // YYYY-MM-DD
+  loan_amount?: string | number | null; // backend may serialize as either
+  roi?: string | number | null;
+  tenure_months?: number | null;
+  pf_amount?: string | number | null;
+  first_tranche_amount?: string | number | null;
+  no_of_tranches?: number | null;
+  pf_status?: PfStatus | null;
   created_at: string;
   updated_at: string;
 }
