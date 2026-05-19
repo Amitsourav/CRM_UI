@@ -38,7 +38,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, RefreshCw, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowDownNarrowWide,
+  ArrowUpNarrowWide,
+  Loader2,
+  RefreshCw,
+  SlidersHorizontal,
+} from "lucide-react";
 
 
 interface StageData {
@@ -518,6 +524,36 @@ export function PipelineBoard() {
           <Button variant="outline" size="sm" onClick={fetchAll}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
+          </Button>
+          <Button
+            variant={filters.sort_by === "loan_asc" ? "default" : "outline"}
+            size="sm"
+            title="Sort by loan amount — low to high"
+            aria-pressed={filters.sort_by === "loan_asc"}
+            onClick={() =>
+              patchFilters({
+                sort_by:
+                  filters.sort_by === "loan_asc" ? undefined : "loan_asc",
+              })
+            }
+          >
+            <ArrowUpNarrowWide className="mr-2 h-4 w-4" />
+            Low → High
+          </Button>
+          <Button
+            variant={filters.sort_by === "loan_desc" ? "default" : "outline"}
+            size="sm"
+            title="Sort by loan amount — high to low"
+            aria-pressed={filters.sort_by === "loan_desc"}
+            onClick={() =>
+              patchFilters({
+                sort_by:
+                  filters.sort_by === "loan_desc" ? undefined : "loan_desc",
+              })
+            }
+          >
+            <ArrowDownNarrowWide className="mr-2 h-4 w-4" />
+            High → Low
           </Button>
           <ActiveFilterChips
             filters={filters}

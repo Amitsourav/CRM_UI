@@ -28,6 +28,10 @@ export interface PipelineFilters {
   dnp_min?: string;
   dnp_max?: string;
   important_only?: "true" | "";
+  // Sort: "loan_asc" (low → high) or "loan_desc" (high → low).
+  // Omitted = backend default (newest first). Leads with no loan
+  // amount go to the bottom regardless — backend handles it.
+  sort_by?: "loan_asc" | "loan_desc";
 }
 
 // All keys that are simple single-value scalar params (i.e. not the
@@ -50,6 +54,7 @@ const SCALAR_FILTER_KEYS: (keyof PipelineFilters)[] = [
   "dnp_min",
   "dnp_max",
   "important_only",
+  "sort_by",
 ];
 
 // All keys including `tags` — used for "any filter set?" checks.
@@ -82,6 +87,8 @@ export function parseFiltersFromParams(
     if (v == null || v === "") continue;
     if (key === "important_only") {
       f.important_only = v === "true" ? "true" : "";
+    } else if (key === "sort_by") {
+      if (v === "loan_asc" || v === "loan_desc") f.sort_by = v;
     } else {
       (f as Record<string, string>)[key] = v;
     }
@@ -136,6 +143,8 @@ export function countActiveFilters(filters: PipelineFilters): number {
   countOnce("dnp_min", "dnp_max");
   for (const k of PIPELINE_FILTER_KEYS) {
     if (counted.has(k)) continue;
+    // sort_by is a sort, not a filter — don't count it.
+    if (k === "sort_by") continue;
     const v = filters[k];
     if (v !== undefined && v !== null && v !== "") n += 1;
   }
