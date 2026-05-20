@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -37,6 +38,7 @@ import {
   ChevronDown,
   ChevronRight,
   Bot,
+  Loader2,
   Pencil,
   X as IconX,
   Globe,
@@ -70,6 +72,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import type { BankStatus, Lead, LeadStage, User } from "@/types";
 
 interface PipelineCardProps {
@@ -80,7 +92,10 @@ interface PipelineCardProps {
     toStage: LeadStage
   ) => void;
   onToggleImportant: (leadId: string, currentValue: boolean) => void;
-  onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
+  onUpdateLead: (
+    leadId: string,
+    update: Partial<Lead> & { conversation_notes?: string }
+  ) => void;
   onRefetchLead: (leadId: string) => void;
 }
 
@@ -232,11 +247,19 @@ function FmcEnhancedCard({
   starButton: React.ReactNode;
   stopBubble: (e: React.SyntheticEvent) => void;
   leadHref: string;
-  onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
+  onUpdateLead: (
+    leadId: string,
+    update: Partial<Lead> & { conversation_notes?: string }
+  ) => void;
   onRefetchLead: (leadId: string) => void;
   stageHex: string;
 }) {
   const [docsOpen, setDocsOpen] = useState(false);
+  // DNP-N changes require a note (backend rule). Track the pending
+  // value here while a confirmation modal collects the note.
+  const [pendingDnp, setPendingDnp] = useState<number | null>(null);
+  const [dnpNote, setDnpNote] = useState("");
+  const [dnpSubmitting, setDnpSubmitting] = useState(false);
 
   // Card-level click → open lead in new tab. Implemented as a div click
   // rather than an <a target="_blank"> wrapper because nested Radix triggers
@@ -450,7 +473,10 @@ function FmcEnhancedCard({
                       onClick={(e) => {
                         e.stopPropagation();
                         if (value === n) return;
-                        onUpdateLead(lead.id, { dnp_count: value });
+                        // Open the note-required modal — actual PUT
+                        // is fired from the modal's Confirm.
+                        setPendingDnp(value);
+                        setDnpNote("");
                       }}
                     >
                       {n === value ? (
@@ -897,6 +923,86 @@ function FmcEnhancedCard({
         </span>
       )}
     </Card>
+
+    {/* DNP-N change requires a note — backend rejects writes that
+        don't include conversation_notes for this field. */}
+    <Dialog
+      open={pendingDnp !== null}
+      onOpenChange={(o) => {
+        if (!o) {
+          setPendingDnp(null);
+          setDnpNote("");
+        }
+      }}
+    >
+      <DialogContent
+        onClick={stopBubble}
+        onPointerDown={stopBubble}
+      >
+        <DialogHeader>
+          <DialogTitle>
+            DNP-{lead.dnp_count ?? 0} → DNP-{pendingDnp ?? 0}
+          </DialogTitle>
+          <DialogDescription>
+            Add a short note about why this DNP attempt count is changing.
+            The note will appear in the lead&apos;s remarks timeline.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="dnp-note">Conversation notes *</Label>
+          <Textarea
+            id="dnp-note"
+            autoFocus
+            rows={3}
+            value={dnpNote}
+            onChange={(e) => setDnpNote(e.target.value)}
+            placeholder="e.g. user is busy, retry tomorrow"
+          />
+          {!dnpNote.trim() && (
+            <p className="text-xs text-red-600">A note is required.</p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            disabled={dnpSubmitting}
+            onClick={() => {
+              setPendingDnp(null);
+              setDnpNote("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            disabled={dnpSubmitting || !dnpNote.trim() || pendingDnp == null}
+            onClick={() => {
+              if (pendingDnp == null) return;
+              const note = dnpNote.trim();
+              if (!note) return;
+              setDnpSubmitting(true);
+              // onUpdateLead's promise isn't surfaced; close the
+              // dialog optimistically and let any backend error
+              // surface via the existing toast inside the parent.
+              try {
+                onUpdateLead(lead.id, {
+                  dnp_count: pendingDnp,
+                  conversation_notes: note,
+                });
+              } finally {
+                setDnpSubmitting(false);
+                setPendingDnp(null);
+                setDnpNote("");
+              }
+            }}
+          >
+            {dnpSubmitting && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            Confirm
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }
@@ -1097,7 +1203,10 @@ function AdmitverseEnhancedCard({
   starButton: React.ReactNode;
   stopBubble: (e: React.SyntheticEvent) => void;
   leadHref: string;
-  onUpdateLead: (leadId: string, update: Partial<Lead>) => void;
+  onUpdateLead: (
+    leadId: string,
+    update: Partial<Lead> & { conversation_notes?: string }
+  ) => void;
 }) {
   const [editing, setEditing] = useState<EditField | null>(null);
   const [draft, setDraft] = useState<string>("");

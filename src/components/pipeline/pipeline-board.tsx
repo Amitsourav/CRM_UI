@@ -333,7 +333,10 @@ export function PipelineBoard() {
   // server response on success, reverts on error.
   const handleUpdateLead = async (
     leadId: string,
-    update: Partial<Lead>
+    // conversation_notes is a transient field — backend creates a
+    // remark for the change but doesn't store it on the lead itself.
+    // Currently used by the DNP-N change flow which requires a note.
+    update: Partial<Lead> & { conversation_notes?: string }
   ) => {
     let original: Lead | null = null;
     setStageData((prev) => {
