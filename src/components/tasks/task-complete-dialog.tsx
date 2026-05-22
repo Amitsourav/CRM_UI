@@ -42,8 +42,16 @@ export function TaskCompleteDialog({
       onOpenChange(false);
       setNotes("");
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string } } };
-      toast.error(err.response?.data?.detail || "Failed to complete task");
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string } };
+      };
+      if (err.response?.status === 403) {
+        toast.error(
+          "You can only complete tasks assigned to you. Ask the assignee or a manager."
+        );
+      } else {
+        toast.error(err.response?.data?.detail || "Failed to complete task");
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -97,14 +97,21 @@ export function TaskForm({
 
     setIsSubmitting(true);
     try {
-      const payload = {
+      // assigned_to is a manager-only field. Non-managers can still
+      // edit/save tasks they own, but the payload must not echo
+      // assigned_to (some backends reject any presence of it from
+      // non-managers as a permissions check, even when the value
+      // matches the existing assignee).
+      const payload: Record<string, unknown> = {
         title,
         description: description || undefined,
         task_type: taskType,
         due_date: format(dueDate, "yyyy-MM-dd"),
         lead_id: leadId || task?.lead_id || undefined,
-        assigned_to: assignedTo || undefined,
       };
+      if (isManager) {
+        payload.assigned_to = assignedTo || undefined;
+      }
 
       if (isEdit) {
         await api.put(`/tasks/${task.id}`, payload);
@@ -116,8 +123,16 @@ export function TaskForm({
       onSuccess();
       onOpenChange(false);
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string } } };
-      toast.error(err.response?.data?.detail || "Failed to save task");
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string } };
+      };
+      if (err.response?.status === 403) {
+        toast.error(
+          "You can only edit tasks assigned to you. Ask a manager to reassign."
+        );
+      } else {
+        toast.error(err.response?.data?.detail || "Failed to save task");
+      }
     } finally {
       setIsSubmitting(false);
     }
