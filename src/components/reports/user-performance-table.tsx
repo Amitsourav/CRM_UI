@@ -28,14 +28,25 @@ interface UserPipelineRow {
   by_stage: Record<string, number>;
 }
 
+interface CompanyTotals {
+  total_leads: number;
+  by_stage: Record<string, number>;
+}
+
 interface UserPipelineStatsResponse {
   rows: UserPipelineRow[];
+  // Truthful company-wide rollup. Don't sum row totals — leads with
+  // both a Counsellor and a Pre-Counsellor get double-counted there.
+  company_totals?: CompanyTotals;
 }
 
 type SortKey = "total" | string;
 
 export function UserPerformanceTable() {
   const [rows, setRows] = useState<UserPipelineRow[] | null>(null);
+  const [companyTotals, setCompanyTotals] = useState<CompanyTotals | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("total");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -48,6 +59,7 @@ export function UserPerformanceTable() {
       .then(({ data }) => {
         if (cancelled) return;
         setRows(data.rows ?? []);
+        setCompanyTotals(data.company_totals ?? null);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -62,19 +74,25 @@ export function UserPerformanceTable() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Columns = the union of by_stage keys across all rows, ordered by
-  // the brand's canonical pipeline order. Unknown keys (legacy / new)
-  // get appended at the end so we don't drop data.
+  // Columns = the union of by_stage keys across all rows AND the
+  // company_totals breakdown, ordered by the brand's canonical
+  // pipeline order. Unknown keys (legacy / new) get appended at the
+  // end so we don't drop data. Pulling in company_totals.by_stage
+  // ensures stages that no user has work on (but exist on the
+  // company-level rollup) still get a column.
   const stageColumns = useMemo(() => {
-    if (!rows || rows.length === 0) return [] as string[];
     const present = new Set<string>();
-    for (const r of rows) {
+    for (const r of rows ?? []) {
       for (const k of Object.keys(r.by_stage ?? {})) present.add(k);
     }
+    for (const k of Object.keys(companyTotals?.by_stage ?? {})) {
+      present.add(k);
+    }
+    if (present.size === 0) return [] as string[];
     const known = stages.filter((s) => present.has(s));
     const unknown = [...present].filter((k) => !stages.includes(k as LeadStage));
     return [...known, ...unknown];
-  }, [rows, stages]);
+  }, [rows, companyTotals, stages]);
 
   // AI row always sinks to the bottom regardless of sort, so the
   // human leaderboard reads naturally.
@@ -144,12 +162,51 @@ export function UserPerformanceTable() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">User Performance</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
+    <div className="space-y-4">
+      {companyTotals && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
+              Total leads in CRM
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
+              <span className="text-3xl font-bold tabular-nums">
+                {companyTotals.total_leads.toLocaleString()}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Ground-truth count — deduped across counsellor /
+                pre-counsellor assignments.
+              </span>
+            </div>
+            {stageColumns.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {stageColumns.map((s) => (
+                  <div
+                    key={s}
+                    className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 bg-muted/30"
+                  >
+                    <span className="text-xs text-muted-foreground">
+                      {labelFor(s)}
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {(companyTotals.by_stage?.[s] ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">User Performance</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -260,7 +317,8 @@ export function UserPerformanceTable() {
             </TableBody>
           </Table>
         </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
