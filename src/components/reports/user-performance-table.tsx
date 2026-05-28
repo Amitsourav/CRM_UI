@@ -14,7 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowUpDown, Bot } from "lucide-react";
+import { ArrowUpDown, Bot, AlertTriangle } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { roleLabel } from "@/lib/constants";
@@ -26,6 +31,10 @@ interface UserPipelineRow {
   user_role: Role | "ai";
   total_leads: number;
   by_stage: Record<string, number>;
+  // Overdue tasks owned by this user. AI rows are 0 — they don't own
+  // tasks — so the column reads "—" there.
+  overdue_task_count?: number;
+  overdue_by_stage?: Record<string, number>;
 }
 
 interface CompanyTotals {
@@ -103,10 +112,13 @@ export function UserPerformanceTable() {
       const bIsAI = b.user_role === "ai";
       if (aIsAI && !bIsAI) return 1;
       if (bIsAI && !aIsAI) return -1;
-      const av =
-        sortKey === "total" ? a.total_leads : (a.by_stage?.[sortKey] ?? 0);
-      const bv =
-        sortKey === "total" ? b.total_leads : (b.by_stage?.[sortKey] ?? 0);
+      const fieldOf = (row: UserPipelineRow): number => {
+        if (sortKey === "total") return row.total_leads;
+        if (sortKey === "overdue") return row.overdue_task_count ?? 0;
+        return row.by_stage?.[sortKey] ?? 0;
+      };
+      const av = fieldOf(a);
+      const bv = fieldOf(b);
       const cmp = av - bv;
       if (cmp === 0) return a.user_name.localeCompare(b.user_name);
       return sortDir === "asc" ? cmp : -cmp;
@@ -233,6 +245,25 @@ export function UserPerformanceTable() {
                     />
                   </Button>
                 </TableHead>
+                <TableHead className="text-right whitespace-nowrap">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="-mr-2 h-8 font-medium"
+                    onClick={() => toggleSort("overdue")}
+                    title="Overdue tasks"
+                  >
+                    Overdue
+                    <ArrowUpDown
+                      className={cn(
+                        "ml-1 h-3 w-3",
+                        sortKey === "overdue"
+                          ? "text-foreground"
+                          : "text-muted-foreground"
+                      )}
+                    />
+                  </Button>
+                </TableHead>
                 {stageColumns.map((s) => (
                   <TableHead
                     key={s}
@@ -262,7 +293,7 @@ export function UserPerformanceTable() {
               {sortedRows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={2 + stageColumns.length}
+                    colSpan={3 + stageColumns.length}
                     className="text-center text-sm text-muted-foreground py-6"
                   >
                     No user stats available.
@@ -302,6 +333,9 @@ export function UserPerformanceTable() {
                       <TableCell className="text-right font-semibold tabular-nums">
                         {row.total_leads}
                       </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <OverdueCell row={row} labelFor={labelFor} />
+                      </TableCell>
                       {stageColumns.map((s) => (
                         <TableCell
                           key={s}
@@ -320,5 +354,67 @@ export function UserPerformanceTable() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// Overdue tasks badge for a single user row.
+//   AI row              → "—" (no tasks attached to AI)
+//   count = 0           → quiet "0"
+//   count > 0           → red badge that opens a popover with the
+//                          per-stage breakdown so admins can spot
+//                          where the backlog is concentrated
+function OverdueCell({
+  row,
+  labelFor,
+}: {
+  row: UserPipelineRow;
+  labelFor: (s: string) => string;
+}) {
+  if (row.user_role === "ai") {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  const count = row.overdue_task_count ?? 0;
+  if (count === 0) {
+    return <span className="text-muted-foreground">0</span>;
+  }
+  const breakdown = row.overdue_by_stage ?? {};
+  const entries = Object.entries(breakdown)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1]);
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 text-red-700 px-2 py-0.5 text-xs font-semibold tabular-nums hover:bg-red-100 transition-colors"
+          aria-label={`${count} overdue tasks — click for breakdown`}
+        >
+          <AlertTriangle className="h-3 w-3" />
+          {count}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-3">
+        <p className="text-xs font-medium mb-2">
+          Overdue by stage — {row.user_name}
+        </p>
+        {entries.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No per-stage breakdown available.
+          </p>
+        ) : (
+          <ul className="space-y-1">
+            {entries.map(([stage, n]) => (
+              <li
+                key={stage}
+                className="flex items-center justify-between text-xs"
+              >
+                <span className="text-muted-foreground">{labelFor(stage)}</span>
+                <span className="font-semibold tabular-nums">{n}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
