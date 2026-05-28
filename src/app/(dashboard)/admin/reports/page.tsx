@@ -10,6 +10,7 @@ import { SourcePerformanceChart } from "@/components/reports/source-performance-
 import { TrendsChart } from "@/components/reports/trends-chart";
 import { TaskComplianceChart } from "@/components/reports/task-compliance-chart";
 import { DailyReportView } from "@/components/reports/daily-report-view";
+import { UserPerformanceTable } from "@/components/reports/user-performance-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,11 +63,16 @@ export default function AdminReportsPage() {
         <Tabs defaultValue="team">
           <TabsList>
             <TabsTrigger value="team">Team Overview</TabsTrigger>
+            <TabsTrigger value="users">User Performance</TabsTrigger>
             <TabsTrigger value="daily">My Daily Activity</TabsTrigger>
           </TabsList>
 
           <TabsContent value="daily" className="mt-6">
             <DailyReportView />
+          </TabsContent>
+
+          <TabsContent value="users" className="mt-6">
+            <UserPerformanceTable />
           </TabsContent>
 
           <TabsContent value="team" className="mt-6 space-y-6">
