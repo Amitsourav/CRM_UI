@@ -131,6 +131,9 @@ export interface Lead {
   // FMC second-line owner ("Pre Counsellor") — Admitverse doesn't use it.
   pre_counsellor_id?: string | null;
   pre_counsellor_name?: string;
+  // Per-tenant serial number stamped by backend. Stable across sort
+  // changes and starts at #1 per company.
+  serial_no?: number | null;
   lead_source_id?: string;
   lead_source?: LeadSource;
   // Flat human-readable source name on every payload (by-stage,

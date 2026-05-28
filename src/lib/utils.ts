@@ -12,6 +12,14 @@ export function cn(...inputs: ClassValue[]) {
  * - "300"   → { display: "300", crore: "3" } (≥100 → also crore equivalent)
  * - null / non-numeric → { display: "—" } (or raw string if non-empty)
  */
+// Per-tenant lead serial — "#6,313" when set, null when missing.
+export function formatLeadSerial(
+  serial: number | null | undefined
+): string | null {
+  if (serial == null || !Number.isFinite(serial)) return null;
+  return `#${serial.toLocaleString()}`;
+}
+
 export function formatLakhs(
   raw?: string | null
 ): { display: string; crore?: string } {

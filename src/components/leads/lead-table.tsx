@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Eye, Edit, UserPlus, Trash2, Users, Phone } from "lucide-react";
 import { format, isBefore, startOfDay } from "date-fns";
+import { formatLeadSerial } from "@/lib/utils";
 import type { Lead } from "@/types";
 
 interface LeadTableProps {
@@ -43,6 +44,17 @@ export function LeadTable({
   const router = useRouter();
 
   const columns: Column<Lead>[] = [
+    {
+      key: "serial_no",
+      header: "#",
+      sortable: true,
+      sortValue: (lead) => lead.serial_no ?? 0,
+      cell: (lead) => (
+        <span className="font-mono text-xs text-muted-foreground tabular-nums">
+          {formatLeadSerial(lead.serial_no) ?? "—"}
+        </span>
+      ),
+    },
     {
       key: "name",
       header: "Name",

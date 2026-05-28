@@ -56,7 +56,7 @@ import {
   BANK_STATUS_LABELS,
   getStageHex,
 } from "@/lib/constants";
-import { formatLakhs } from "@/lib/utils";
+import { formatLakhs, formatLeadSerial } from "@/lib/utils";
 import {
   formatFollowUp,
   followUpIconClass,
@@ -428,7 +428,14 @@ function FmcEnhancedCard({
         {/* Row 1: name + phone (stacked) + action icons + stage dropdown */}
         <div className="flex items-start justify-between gap-1 min-w-0">
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm truncate">{lead.full_name}</p>
+            <p className="font-medium text-sm truncate">
+              {lead.full_name}
+              {formatLeadSerial(lead.serial_no) && (
+                <span className="ml-1 text-[11px] text-muted-foreground font-normal tabular-nums">
+                  {formatLeadSerial(lead.serial_no)}
+                </span>
+              )}
+            </p>
             {lead.phone && (
               <p className="text-[11px] text-muted-foreground truncate leading-tight">
                 {lead.phone}
@@ -1291,6 +1298,11 @@ function AdmitverseEnhancedCard({
         <div className="flex items-start justify-between gap-1 min-w-0">
           <p className="font-medium text-sm truncate flex-1 min-w-0">
             {lead.full_name}
+            {formatLeadSerial(lead.serial_no) && (
+              <span className="ml-1 text-[11px] text-muted-foreground font-normal tabular-nums">
+                {formatLeadSerial(lead.serial_no)}
+              </span>
+            )}
           </p>
           {starButton}
           {stageDropdown}

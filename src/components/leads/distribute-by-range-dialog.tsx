@@ -178,7 +178,7 @@ export function DistributeByRangeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Distribute Leads by Range</DialogTitle>
+          <DialogTitle>Distribute Leads by Serial Range</DialogTitle>
         </DialogHeader>
 
         {result ? (
@@ -196,8 +196,9 @@ export function DistributeByRangeDialog({
                 return (
                   <div key={i} className="border rounded-md p-3 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm">
-                        Rows {r.from}–{r.to} → {r.agent_name}
+                      <span className="font-medium text-sm tabular-nums">
+                        Leads #{r.from.toLocaleString()}–#
+                        {r.to.toLocaleString()} → {r.agent_name}
                       </span>
                       <Badge variant="secondary">
                         {r.assigned_count} assigned
@@ -281,11 +282,16 @@ export function DistributeByRangeDialog({
 
               <div className="space-y-2">
                 <Label className="text-xs">Ranges</Label>
+                <p className="text-[11px] text-muted-foreground -mt-1">
+                  Use lead serial numbers (the <span className="font-mono">#</span>
+                  shown on each tile / detail page). Serials are stable
+                  across sort changes.
+                </p>
                 {ranges.map((r, idx) => (
                   <div key={idx} className="flex items-center gap-2">
                     <Input
                       type="number"
-                      placeholder="From"
+                      placeholder="From #"
                       value={r.from}
                       onChange={(e) => updateRange(idx, "from", e.target.value)}
                       className="w-24"
@@ -294,7 +300,7 @@ export function DistributeByRangeDialog({
                     <span className="text-muted-foreground">–</span>
                     <Input
                       type="number"
-                      placeholder="To"
+                      placeholder="To #"
                       value={r.to}
                       onChange={(e) => updateRange(idx, "to", e.target.value)}
                       className="w-24"

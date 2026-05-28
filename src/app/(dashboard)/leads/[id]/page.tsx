@@ -71,6 +71,7 @@ import { useUsersStore } from "@/stores/users-store";
 import { leadBanksService } from "@/services/lead-banks-service";
 import { BANK_STATUS_PRIORITY } from "@/lib/constants";
 import { copyLeadToClipboard } from "@/lib/lead-copy";
+import { formatLeadSerial } from "@/lib/utils";
 import type { BankStatus, Lead, LeadStage } from "@/types";
 
 export default function LeadDetailPage() {
@@ -282,6 +283,15 @@ export default function LeadDetailPage() {
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold">{lead.full_name}</h1>
+            {formatLeadSerial(lead.serial_no) && (
+              <Badge
+                variant="outline"
+                className="font-mono tabular-nums text-sm bg-slate-50 text-slate-700 border-slate-200"
+                title="Per-company serial — stable across sorts"
+              >
+                {formatLeadSerial(lead.serial_no)}
+              </Badge>
+            )}
             <button
               type="button"
               onClick={handleToggleImportant}
