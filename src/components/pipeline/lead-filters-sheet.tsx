@@ -23,7 +23,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useBanksStore } from "@/stores/banks-store";
 import { BANK_STATUS_LABELS } from "@/lib/constants";
 import type { BankStatus } from "@/types";
-import type { PipelineFilters } from "@/lib/pipeline-filters";
+import {
+  LEAD_SEGMENT_LABELS,
+  type PipelineFilters,
+} from "@/lib/pipeline-filters";
 import type { LeadSource, User } from "@/types";
 
 interface LeadFiltersSheetProps {
@@ -32,6 +35,9 @@ interface LeadFiltersSheetProps {
   value: PipelineFilters;
   onApply: (next: PipelineFilters) => void;
   showAgentFilter: boolean;
+  // Lead-segment filter is admin-only — non-admin users only ever
+  // see their own leads, so the filter is meaningless for them.
+  showLeadSegmentFilter: boolean;
   agents: User[];
   sources: LeadSource[];
   campaigns: { id: string; name: string }[];
@@ -46,6 +52,7 @@ export function LeadFiltersSheet({
   value,
   onApply,
   showAgentFilter,
+  showLeadSegmentFilter,
   agents,
   sources,
   campaigns,
@@ -107,6 +114,43 @@ export function LeadFiltersSheet({
                   {agents.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {showLeadSegmentFilter && (
+            <div className="space-y-1.5">
+              <Label>Lead segment</Label>
+              <Select
+                value={toSelectValue(draft.lead_segment)}
+                onValueChange={(v) => {
+                  const next = fromSelectValue(v);
+                  update({
+                    lead_segment:
+                      next === "unassigned" ||
+                      next === "counsellor" ||
+                      next === "pre_counsellor" ||
+                      next === "campaign"
+                        ? next
+                        : undefined,
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All leads" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">All leads</SelectItem>
+                  {(
+                    Object.keys(LEAD_SEGMENT_LABELS) as Array<
+                      keyof typeof LEAD_SEGMENT_LABELS
+                    >
+                  ).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {LEAD_SEGMENT_LABELS[k]}
                     </SelectItem>
                   ))}
                 </SelectContent>

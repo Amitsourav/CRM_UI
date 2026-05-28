@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { X as IconX } from "lucide-react";
 import { BANK_STATUS_LABELS } from "@/lib/constants";
 import type { LeadSource, User } from "@/types";
-import type { PipelineFilters } from "@/lib/pipeline-filters";
+import {
+  LEAD_SEGMENT_LABELS,
+  type PipelineFilters,
+} from "@/lib/pipeline-filters";
 
 interface ActiveFilterChipsProps {
   filters: PipelineFilters;
@@ -157,6 +160,14 @@ export function ActiveFilterChips({
       key: "important_only",
       label: "Important only",
       clears: ["important_only"],
+    });
+  }
+
+  if (filters.lead_segment) {
+    chips.push({
+      key: "lead_segment",
+      label: `Segment: ${LEAD_SEGMENT_LABELS[filters.lead_segment]}`,
+      clears: ["lead_segment"],
     });
   }
 

@@ -32,7 +32,24 @@ export interface PipelineFilters {
   // Omitted = backend default (newest first). Leads with no loan
   // amount go to the bottom regardless — backend handles it.
   sort_by?: "loan_asc" | "loan_desc";
+  // Admin-only segmentation filter — restricted-view roles only see
+  // their own leads, so this filter is meaningless for them.
+  lead_segment?:
+    | "unassigned"
+    | "counsellor"
+    | "pre_counsellor"
+    | "campaign";
 }
+
+export const LEAD_SEGMENT_LABELS: Record<
+  NonNullable<PipelineFilters["lead_segment"]>,
+  string
+> = {
+  unassigned: "Unassigned",
+  counsellor: "Has Counsellor",
+  pre_counsellor: "Has Pre-Counsellor",
+  campaign: "In Campaign",
+};
 
 // All keys that are simple single-value scalar params (i.e. not the
 // special-cased `tags` field).
@@ -55,6 +72,7 @@ const SCALAR_FILTER_KEYS: (keyof PipelineFilters)[] = [
   "dnp_max",
   "important_only",
   "sort_by",
+  "lead_segment",
 ];
 
 // All keys including `tags` — used for "any filter set?" checks.
@@ -89,6 +107,15 @@ export function parseFiltersFromParams(
       f.important_only = v === "true" ? "true" : "";
     } else if (key === "sort_by") {
       if (v === "loan_asc" || v === "loan_desc") f.sort_by = v;
+    } else if (key === "lead_segment") {
+      if (
+        v === "unassigned" ||
+        v === "counsellor" ||
+        v === "pre_counsellor" ||
+        v === "campaign"
+      ) {
+        f.lead_segment = v;
+      }
     } else {
       (f as Record<string, string>)[key] = v;
     }

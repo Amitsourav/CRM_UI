@@ -61,7 +61,7 @@ interface StageChangeData {
 }
 
 export function PipelineBoard() {
-  const { isManager } = useAuthStore();
+  const { isAdmin, isManager } = useAuthStore();
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
   const { slug, stages: STAGES, getEntry, canTransition } = useStageConfig();
   const isFmc = slug !== "admitverse";
@@ -579,6 +579,7 @@ export function PipelineBoard() {
         value={filters}
         onApply={setFilters}
         showAgentFilter={isManager}
+        showLeadSegmentFilter={isAdmin}
         agents={agents}
         sources={sources}
         campaigns={campaigns}
