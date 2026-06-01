@@ -18,6 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
 import { useStageConfig } from "@/hooks/use-stage-config";
+import { LEAD_SEGMENT_LABELS } from "@/lib/pipeline-filters";
 import api from "@/lib/api";
 import type { User, LeadSource } from "@/types";
 
@@ -27,18 +28,28 @@ export interface LeadFiltersState {
   sourceId: string;
   dateFrom?: Date;
   dateTo?: Date;
+  // Admin-only. "" = no filter (default). Other values match the
+  // pipeline filter's lead_segment param verbatim.
+  leadSegment?: string;
 }
 
 interface LeadFiltersProps {
   filters: LeadFiltersState;
   onFiltersChange: (filters: LeadFiltersState) => void;
+  // Existing prop — actually means "manager-or-above" historically.
+  // Gates the agent Select.
   isAdmin: boolean;
+  // Strict admin — gates the lead-segment Select per the spec.
+  // Non-admin managers don't see it. Defaults to false so existing
+  // call sites without the prop keep working unchanged.
+  showLeadSegmentFilter?: boolean;
 }
 
 export function LeadFilters({
   filters,
   onFiltersChange,
   isAdmin,
+  showLeadSegmentFilter,
 }: LeadFiltersProps) {
   const [agents, setAgents] = useState<User[]>([]);
   const [sources, setSources] = useState<LeadSource[]>([]);
@@ -65,7 +76,8 @@ export function LeadFilters({
     filters.agentId !== "all" ||
     filters.sourceId !== "all" ||
     filters.dateFrom ||
-    filters.dateTo;
+    filters.dateTo ||
+    (filters.leadSegment && filters.leadSegment !== "all");
 
   const clearFilters = () => {
     onFiltersChange({
@@ -74,6 +86,7 @@ export function LeadFilters({
       sourceId: "all",
       dateFrom: undefined,
       dateTo: undefined,
+      leadSegment: "all",
     });
   };
 
@@ -109,6 +122,31 @@ export function LeadFilters({
             {agents.map((agent) => (
               <SelectItem key={agent.id} value={agent.id}>
                 {agent.full_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {showLeadSegmentFilter && (
+        <Select
+          value={filters.leadSegment || "all"}
+          onValueChange={(v) =>
+            onFiltersChange({ ...filters, leadSegment: v })
+          }
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All leads" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All leads</SelectItem>
+            {(
+              Object.keys(LEAD_SEGMENT_LABELS) as Array<
+                keyof typeof LEAD_SEGMENT_LABELS
+              >
+            ).map((k) => (
+              <SelectItem key={k} value={k}>
+                {LEAD_SEGMENT_LABELS[k]}
               </SelectItem>
             ))}
           </SelectContent>

@@ -35,6 +35,7 @@ function LeadsPageContent() {
     sourceId: searchParams.get("source_id") || "all",
     dateFrom: undefined,
     dateTo: undefined,
+    leadSegment: searchParams.get("lead_segment") || "all",
   });
 
   const { leads, totalPages, isLoading, refetch } = useLeads({
@@ -45,6 +46,7 @@ function LeadsPageContent() {
     sourceId: filters.sourceId,
     dateFrom: filters.dateFrom ? format(filters.dateFrom, "yyyy-MM-dd") : undefined,
     dateTo: filters.dateTo ? format(filters.dateTo, "yyyy-MM-dd") : undefined,
+    leadSegment: filters.leadSegment,
     search,
   });
 
@@ -127,6 +129,7 @@ function LeadsPageContent() {
         filters={filters}
         onFiltersChange={handleFiltersChange}
         isAdmin={isManager}
+        showLeadSegmentFilter={isAdmin}
       />
 
       <LeadTable

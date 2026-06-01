@@ -13,6 +13,9 @@ interface UseLeadsParams {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  // Admin-only segmentation filter, same contract as the pipeline
+  // page: unassigned / counsellor / pre_counsellor / campaign.
+  leadSegment?: string;
 }
 
 export function useLeads(params: UseLeadsParams = {}) {
@@ -35,6 +38,8 @@ export function useLeads(params: UseLeadsParams = {}) {
         searchParams.set("source_id", params.sourceId);
       if (params.dateFrom) searchParams.set("date_from", params.dateFrom);
       if (params.dateTo) searchParams.set("date_to", params.dateTo);
+      if (params.leadSegment && params.leadSegment !== "all")
+        searchParams.set("lead_segment", params.leadSegment);
 
       let endpoint = `/leads?${searchParams.toString()}`;
       if (params.search && params.search.length >= 2) {
@@ -59,6 +64,7 @@ export function useLeads(params: UseLeadsParams = {}) {
     params.dateFrom,
     params.dateTo,
     params.search,
+    params.leadSegment,
   ]);
 
   useEffect(() => {
