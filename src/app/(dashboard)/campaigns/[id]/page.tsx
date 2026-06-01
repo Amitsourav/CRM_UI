@@ -808,6 +808,19 @@ export default function CampaignDetailPage() {
                           <span>Existing leads added</span>
                           <span className="font-medium">{uploadResult.existing_leads_added}</span>
                         </div>
+                        {(uploadResult.existing_in_crm_skipped ?? 0) > 0 && (
+                          <div className="flex justify-between text-slate-700">
+                            <span>
+                              ⏭️ Already in CRM — skipped
+                              <span className="block text-xs text-muted-foreground">
+                                Counsellors continue working these leads.
+                              </span>
+                            </span>
+                            <span className="font-medium">
+                              {uploadResult.existing_in_crm_skipped}
+                            </span>
+                          </div>
+                        )}
                         {uploadResult.duplicates_skipped > 0 && (
                           <div className="flex justify-between text-yellow-700">
                             <span>Duplicates skipped</span>

@@ -151,9 +151,17 @@ export default function NewCampaignPage() {
       if (leadMode === "upload" && csvFile && campaignId) {
         try {
           const result = await campaignService.uploadCsv(campaignId, csvFile);
-          toast.success(
-            `Campaign created! ${result.new_leads_created} new leads created, ${result.existing_leads_added} existing leads added.`
-          );
+          const skipped = result.existing_in_crm_skipped ?? 0;
+          const summary = [
+            `${result.new_leads_created} new leads created`,
+            `${result.existing_leads_added} existing leads added`,
+            skipped > 0
+              ? `${skipped} already in CRM — skipped`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(", ");
+          toast.success(`Campaign created! ${summary}.`);
         } catch (err: unknown) {
           const e = err as { response?: { data?: { detail?: string } } };
           toast.error("Campaign created but CSV upload failed: " + (e.response?.data?.detail || "Unknown error"));

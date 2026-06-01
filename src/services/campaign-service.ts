@@ -58,6 +58,9 @@ export interface CsvUploadResult {
   total_rows: number;
   new_leads_created: number;
   existing_leads_added: number;
+  // Phones in the CSV that already exist in CRM and were therefore
+  // NOT enrolled in the campaign (counsellors continue working them).
+  existing_in_crm_skipped?: number;
   duplicates_skipped: number;
   invalid_rows: number;
   errors: Array<{ row: number; error: string }>;
