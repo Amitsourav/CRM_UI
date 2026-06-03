@@ -8,7 +8,7 @@ import { LeadStageBadge } from "@/components/leads/lead-stage-badge";
 import { LeadDetailTabs } from "@/components/leads/lead-detail-tabs";
 import { LeadSummaryTiles } from "@/components/leads/lead-summary-tiles";
 import { LeadForm } from "@/components/leads/lead-form";
-import { LeadAssignDialog } from "@/components/leads/lead-assign-dialog";
+import { LeadReassignDialog } from "@/components/leads/lead-reassign-dialog";
 import { CallLogForm } from "@/components/calls/call-log-form";
 import { StartCallButton } from "@/components/calls/start-call-button";
 import { TaskForm } from "@/components/tasks/task-form";
@@ -642,10 +642,10 @@ export default function LeadDetailPage() {
         onSuccess={fetchLead}
       />
 
-      <LeadAssignDialog
+      <LeadReassignDialog
         open={assignOpen}
         onOpenChange={setAssignOpen}
-        leadId={leadId}
+        lead={lead}
         onSuccess={fetchLead}
       />
 
