@@ -47,9 +47,10 @@ interface AdminNavItem {
   label: string;
   icon: typeof UserCog;
   adminOnly?: boolean;
-  // Optional company slug whitelist. When set the item only renders
-  // for users whose company.company_slug appears in the list.
-  brandSlugs?: string[];
+  // When true the item is hidden on Admitverse. Convention matches
+  // the rest of the codebase (`slug !== "admitverse"` ⇒ FMC),
+  // because FMC's slug isn't necessarily a fixed string.
+  fmcOnly?: boolean;
 }
 
 const adminNav: AdminNavItem[] = [
@@ -66,7 +67,7 @@ const adminNav: AdminNavItem[] = [
     label: "Invoices",
     icon: FileText,
     adminOnly: true,
-    brandSlugs: ["fundmycampus"],
+    fmcOnly: true,
   },
 ];
 
@@ -149,9 +150,8 @@ export function Sidebar() {
                   .filter((item) => !item.adminOnly || isAdmin)
                   .filter(
                     (item) =>
-                      !item.brandSlugs ||
-                      (company?.company_slug != null &&
-                        item.brandSlugs.includes(company.company_slug))
+                      !item.fmcOnly ||
+                      company?.company_slug !== "admitverse"
                   )
                   .map((item) => (
                   <Link

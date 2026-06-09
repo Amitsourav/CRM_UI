@@ -79,7 +79,8 @@ export default function LeadDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { isAdmin, isManager, company } = useAuthStore();
-  const isFmcBrand = company?.company_slug === "fundmycampus";
+  // Codebase convention: FMC is "anything not Admitverse".
+  const isFmcBrand = company?.company_slug !== "admitverse";
   const { slug, getEntry, getValidTransitions, stageRequiresNotes } = useStageConfig();
   const isFmc = slug !== "admitverse";
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
