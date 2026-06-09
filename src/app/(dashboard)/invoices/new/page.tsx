@@ -91,10 +91,6 @@ function CreateInvoiceInner() {
   // the URL flow.
   const [linkedLeadDetails, setLinkedLeadDetails] =
     useState<LinkedLeadDetails | null>(null);
-  // Plain-text "paste a UUID" fallback for admins who already have a
-  // lead id handy and don't want to use the search picker. Only used
-  // when the search picker hasn't linked a lead.
-  const [manualLeadId, setManualLeadId] = useState("");
 
   const [settings, setSettings] = useState<InvoiceSettings | null | undefined>(
     undefined
@@ -230,9 +226,7 @@ function CreateInvoiceInner() {
         due_date: dueDate || null,
         line_items: cleanLines,
         notes: notes.trim() || undefined,
-        // Picker wins over the manual paste-a-UUID input. Either one
-        // unset → omit lead_id entirely.
-        lead_id: linkedLeadId || manualLeadId.trim() || undefined,
+        lead_id: linkedLeadId,
       });
       toast.success(`Invoice ${created.invoice_no} created`);
       router.push(`/invoices/${created.id}`);
@@ -447,33 +441,12 @@ function CreateInvoiceInner() {
         </div>
 
         <Card>
-          <CardHeader className="space-y-3">
-            <div className="flex flex-row items-center justify-between gap-3">
-              <CardTitle className="text-base">Line items</CardTitle>
-              <Button variant="outline" size="sm" onClick={addLine}>
-                <Plus className="mr-1 h-4 w-4" />
-                Add row
-              </Button>
-            </div>
-            <div className="grid gap-1.5 sm:grid-cols-[160px_1fr] sm:items-center">
-              <Label htmlFor="lead-id" className="text-xs">
-                Lead ID (optional)
-              </Label>
-              <Input
-                id="lead-id"
-                value={linkedLeadId ?? manualLeadId}
-                onChange={(e) => setManualLeadId(e.target.value)}
-                placeholder="Paste a lead UUID to link this invoice"
-                disabled={Boolean(linkedLeadId)}
-                className="font-mono text-xs"
-              />
-              <span className="hidden sm:block" />
-              <p className="text-[11px] text-muted-foreground">
-                {linkedLeadId
-                  ? "Linked via the search picker above. Unlink there to edit."
-                  : "Or use the search picker in the Bill to card. Backend rejects with a 400 if the UUID doesn't belong to this tenant."}
-              </p>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <CardTitle className="text-base">Line items</CardTitle>
+            <Button variant="outline" size="sm" onClick={addLine}>
+              <Plus className="mr-1 h-4 w-4" />
+              Add row
+            </Button>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
