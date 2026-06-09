@@ -86,7 +86,11 @@ function CreateInvoiceInner() {
   const [linkedLeadId, setLinkedLeadId] = useState<string | undefined>(
     initialLeadIdFromUrl
   );
-  const [linkedLeadLabel, setLinkedLeadLabel] = useState<string | null>(null);
+  // Light view of the linked lead used by the chip. Filled either
+  // from the picker (search result) or from the prefill response on
+  // the URL flow.
+  const [linkedLeadDetails, setLinkedLeadDetails] =
+    useState<LinkedLeadDetails | null>(null);
 
   const [settings, setSettings] = useState<InvoiceSettings | null | undefined>(
     undefined
@@ -129,10 +133,17 @@ function CreateInvoiceInner() {
           customer_phone: p.customer_phone ?? "",
           customer_address: p.customer_address ?? "",
         });
-        if (!linkedLeadLabel) {
-          // Fallback when only the URL supplied an id — show the
-          // name we just received so the chip isn't blank.
-          setLinkedLeadLabel(p.customer_name ?? "Linked lead");
+        // Seed chip details when the picker didn't populate them
+        // (i.e. when the URL drove the link). Phone/serial come back
+        // only from the search-result Lead object, so the URL-flow
+        // chip just shows name.
+        if (!linkedLeadDetails) {
+          setLinkedLeadDetails({
+            id: linkedLeadId,
+            full_name: p.customer_name ?? "Linked lead",
+            phone: p.customer_phone ?? null,
+            serial_no: null,
+          });
         }
       })
       .catch(() => toast.error("Couldn't prefill from lead"))
@@ -315,7 +326,7 @@ function CreateInvoiceInner() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <CardHeader>
               <CardTitle className="text-base">
                 Bill to
                 {prefillLoading && (
@@ -324,20 +335,6 @@ function CreateInvoiceInner() {
                   </span>
                 )}
               </CardTitle>
-              <LeadPicker
-                linkedLeadId={linkedLeadId}
-                linkedLabel={linkedLeadLabel}
-                onPick={(lead) => {
-                  setLinkedLeadId(lead.id);
-                  setLinkedLeadLabel(
-                    `${lead.full_name}${formatLeadSerial(lead.serial_no) ? ` ${formatLeadSerial(lead.serial_no)}` : ""}`
-                  );
-                }}
-                onClear={() => {
-                  setLinkedLeadId(undefined);
-                  setLinkedLeadLabel(null);
-                }}
-              />
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1.5">
@@ -416,6 +413,26 @@ function CreateInvoiceInner() {
                   onChange={(e) =>
                     updateCust({ customer_address: e.target.value })
                   }
+                />
+              </div>
+              <div className="border-t pt-3 space-y-1.5">
+                <Label>Linked lead (optional)</Label>
+                <LeadPicker
+                  linkedLeadId={linkedLeadId}
+                  linkedLeadDetails={linkedLeadDetails}
+                  // The lead-detail "Create Invoice" flow preselects
+                  // via ?lead_id=. In that case the chip is read-only —
+                  // admins can't accidentally unlink and end up with a
+                  // detached invoice.
+                  readOnly={Boolean(initialLeadIdFromUrl)}
+                  onPick={(lead) => {
+                    setLinkedLeadId(lead.id);
+                    setLinkedLeadDetails(lead);
+                  }}
+                  onClear={() => {
+                    setLinkedLeadId(undefined);
+                    setLinkedLeadDetails(null);
+                  }}
                 />
               </div>
             </CardContent>
@@ -622,20 +639,33 @@ function Row({ label, value }: { label: string; value: number }) {
   );
 }
 
+// Minimal slice of a Lead used by the chip — name + serial + phone.
+interface LinkedLeadDetails {
+  id: string;
+  full_name: string;
+  phone?: string | null;
+  serial_no?: number | null;
+}
+
 // Lead picker for the Create Invoice form. When the admin types in
-// the search box, hits GET /leads/search?q=... and lists matches.
-// Picking a lead lifts {id, full_name, serial_no} to the parent so
-// it can call /invoices/prefill/lead/{id} and stamp lead_id on the
-// POST body. A clear button next to the chip drops the link.
+// the search box, hits GET /leads?q=... and lists matches. Picking a
+// lead lifts the selection up so the parent can call
+// /invoices/prefill/lead/{id} and stamp lead_id on the POST body.
+//
+// readOnly is true when the link came from the URL (?lead_id=, used
+// by the lead-detail → Create Invoice flow). In that mode the chip
+// renders without an X so admins can't accidentally detach.
 function LeadPicker({
   linkedLeadId,
-  linkedLabel,
+  linkedLeadDetails,
+  readOnly,
   onPick,
   onClear,
 }: {
   linkedLeadId: string | undefined;
-  linkedLabel: string | null;
-  onPick: (lead: Lead) => void;
+  linkedLeadDetails: LinkedLeadDetails | null;
+  readOnly?: boolean;
+  onPick: (lead: LinkedLeadDetails) => void;
   onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -655,7 +685,7 @@ function LeadPicker({
     const timer = setTimeout(async () => {
       try {
         const { data } = await api.get(
-          `/leads/search?q=${encodeURIComponent(q)}`
+          `/leads?q=${encodeURIComponent(q)}&page=1&page_size=20`
         );
         if (cancelled) return;
         const items: Lead[] = Array.isArray(data) ? data : data?.items ?? [];
@@ -673,20 +703,36 @@ function LeadPicker({
   }, [query, open]);
 
   if (linkedLeadId) {
+    const d = linkedLeadDetails;
+    const serial = d ? formatLeadSerial(d.serial_no) : null;
     return (
-      <div className="flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs">
-        <span className="font-medium">Linked:</span>
-        <span className="truncate max-w-[180px]">
-          {linkedLabel ?? "Selected lead"}
+      <div className="inline-flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs max-w-full">
+        {serial && (
+          <span className="font-mono text-muted-foreground tabular-nums shrink-0">
+            {serial}
+          </span>
+        )}
+        <span className="font-medium truncate">
+          {d?.full_name ?? "Linked lead"}
         </span>
-        <button
-          type="button"
-          onClick={onClear}
-          className="-mr-1 p-0.5 rounded hover:bg-muted"
-          aria-label="Unlink lead"
-        >
-          <IconX className="h-3.5 w-3.5 text-muted-foreground" />
-        </button>
+        {d?.phone && (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground tabular-nums truncate">
+              📞 {d.phone}
+            </span>
+          </>
+        )}
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="-mr-1 p-0.5 rounded hover:bg-muted shrink-0"
+            aria-label="Unlink lead"
+          >
+            <IconX className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        )}
       </div>
     );
   }
@@ -694,12 +740,12 @@ function LeadPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className="w-full justify-start">
           <Search className="mr-1 h-3.5 w-3.5" />
-          Pick from leads
+          Search lead by name / phone / email…
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[320px] p-0">
+      <PopoverContent align="start" className="w-[360px] p-0">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search by name, phone, email…"
@@ -723,7 +769,12 @@ function LeadPicker({
                   key={lead.id}
                   value={lead.id}
                   onSelect={() => {
-                    onPick(lead);
+                    onPick({
+                      id: lead.id,
+                      full_name: lead.full_name,
+                      phone: lead.phone ?? null,
+                      serial_no: lead.serial_no ?? null,
+                    });
                     setOpen(false);
                     setQuery("");
                   }}
