@@ -59,6 +59,7 @@ import {
   Mail,
   MessageCircle,
   Copy,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -465,6 +466,19 @@ export default function LeadDetailPage() {
             <Edit className="mr-2 h-4 w-4" />
             Edit Lead
           </Button>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                router.push(`/invoices/new?lead_id=${leadId}`)
+              }
+              title="Pre-fills customer block from this lead"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Create Invoice
+            </Button>
+          )}
           {isManager && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

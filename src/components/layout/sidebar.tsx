@@ -21,6 +21,7 @@ import {
   Globe,
   BarChart3,
   FileSpreadsheet,
+  FileText,
   PhoneCall,
   Megaphone,
   LogOut,
@@ -41,13 +42,22 @@ const preCounsellorNav = [
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
-const adminNav = [
+interface AdminNavItem {
+  href: string;
+  label: string;
+  icon: typeof UserCog;
+  adminOnly?: boolean;
+}
+
+const adminNav: AdminNavItem[] = [
   { href: "/admin/users", label: "Users", icon: UserCog },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/admin/agents", label: "AI Agents", icon: Bot },
   { href: "/admin/sources", label: "Sources", icon: Globe },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/csv-history", label: "CSV History", icon: FileSpreadsheet },
+  // Invoices is strictly admin-only — managers don't see it.
+  { href: "/invoices", label: "Invoices", icon: FileText, adminOnly: true },
 ];
 
 export function Sidebar() {
@@ -125,7 +135,7 @@ export function Sidebar() {
                 <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   {isAdmin ? "Admin" : "Management"}
                 </p>
-                {adminNav.map((item) => (
+                {adminNav.filter((item) => !item.adminOnly || isAdmin).map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
