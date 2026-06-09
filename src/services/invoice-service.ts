@@ -33,6 +33,9 @@ export interface InvoiceLineItem {
   hsn_sac?: string;
   qty: number;
   rate: number;
+  // Per-row lead reference (FMC commission invoices link each row to
+  // a specific student lead). Optional — sent only when set.
+  lead_id?: string;
   // Server returns this on read; create body omits it.
   amount?: number;
 }

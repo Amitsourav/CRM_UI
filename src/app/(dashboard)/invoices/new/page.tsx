@@ -73,7 +73,7 @@ function emptyCustomer(): CustomerForm {
 }
 
 function emptyLineItem(): InvoiceLineItem {
-  return { description: "", hsn_sac: "", qty: 1, rate: 0 };
+  return { description: "", hsn_sac: "", qty: 1, rate: 0, lead_id: "" };
 }
 
 function CreateInvoiceInner() {
@@ -210,6 +210,7 @@ function CreateInvoiceInner() {
         hsn_sac: l.hsn_sac?.trim() || undefined,
         qty: Number(l.qty) || 0,
         rate: Number(l.rate) || 0,
+        lead_id: l.lead_id?.trim() || undefined,
       }));
     if (cleanLines.length === 0) {
       toast.error("Add at least one line item");
@@ -479,7 +480,13 @@ function CreateInvoiceInner() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-b">
                   <tr className="text-left">
-                    <th className="px-3 py-2 font-medium w-[45%]">Description *</th>
+                    <th className="px-3 py-2 font-medium w-[35%]">Description *</th>
+                    <th className="px-3 py-2 font-medium">
+                      Lead ID
+                      <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+                        (optional)
+                      </span>
+                    </th>
                     <th className="px-3 py-2 font-medium">
                       HSN/SAC
                       <span className="ml-1 text-[10px] font-normal text-muted-foreground">
@@ -487,8 +494,8 @@ function CreateInvoiceInner() {
                       </span>
                     </th>
                     <th className="px-3 py-2 font-medium w-[80px] text-right">Qty</th>
-                    <th className="px-3 py-2 font-medium w-[140px] text-right">Rate</th>
-                    <th className="px-3 py-2 font-medium w-[150px] text-right">Amount</th>
+                    <th className="px-3 py-2 font-medium w-[120px] text-right">Rate</th>
+                    <th className="px-3 py-2 font-medium w-[140px] text-right">Amount</th>
                     <th className="px-2 py-2"></th>
                   </tr>
                 </thead>
@@ -505,6 +512,16 @@ function CreateInvoiceInner() {
                             onChange={(e) =>
                               updateLine(idx, { description: e.target.value })
                             }
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Input
+                            value={row.lead_id ?? ""}
+                            onChange={(e) =>
+                              updateLine(idx, { lead_id: e.target.value })
+                            }
+                            placeholder="Lead UUID"
+                            className="font-mono text-xs"
                           />
                         </td>
                         <td className="px-2 py-1.5">
@@ -559,7 +576,7 @@ function CreateInvoiceInner() {
                     );
                   })}
                   <tr className="bg-muted/30">
-                    <td className="px-3 py-2" colSpan={4}>
+                    <td className="px-3 py-2" colSpan={5}>
                       <span className="text-sm font-medium">Subtotal</span>
                     </td>
                     <td className="px-3 py-2 text-right font-semibold tabular-nums">

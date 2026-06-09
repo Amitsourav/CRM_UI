@@ -304,6 +304,7 @@ export default function InvoiceDetailPage() {
                 <thead className="border-b bg-muted/40">
                   <tr className="text-left">
                     <th className="px-3 py-2 font-medium">Description</th>
+                    <th className="px-3 py-2 font-medium">Lead ID</th>
                     <th className="px-3 py-2 font-medium">HSN/SAC</th>
                     <th className="px-3 py-2 font-medium text-right">Qty</th>
                     <th className="px-3 py-2 font-medium text-right">Rate</th>
@@ -314,6 +315,9 @@ export default function InvoiceDetailPage() {
                   {(invoice.line_items ?? []).map((item, idx) => (
                     <tr key={idx} className="border-b last:border-0">
                       <td className="px-3 py-2">{item.description}</td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {item.lead_id ?? "—"}
+                      </td>
                       <td className="px-3 py-2 font-mono text-xs">
                         {item.hsn_sac ?? "—"}
                       </td>
