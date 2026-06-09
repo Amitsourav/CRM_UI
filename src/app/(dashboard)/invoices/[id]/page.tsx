@@ -7,8 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { CheckCircle, Download, Loader2, XCircle } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  CheckCircle,
+  Download,
+  Loader2,
+  RefreshCw,
+  XCircle,
+} from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -28,46 +43,100 @@ export default function InvoiceDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [voidOpen, setVoidOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
 
   useEffect(() => {
     invoiceService
       .get(id)
       .then(setInvoice)
-      .catch(() => {
-        toast.error("Invoice not found");
+      .catch((err: unknown) => {
+        const e = err as { response?: { status?: number } };
+        if (e.response?.status === 404) toast.error("Invoice not found");
+        else toast.error("Couldn't load invoice");
         router.push("/invoices");
       })
       .finally(() => setIsLoading(false));
   }, [id, router]);
 
-  const handleMarkPaid = async () => {
+  const handleDownload = async () => {
     if (!invoice) return;
     setBusy(true);
     try {
-      const updated = await invoiceService.markPaid(invoice.id);
-      setInvoice(updated);
-      toast.success("Invoice marked paid");
+      const url = await invoiceService.downloadUrl(invoice.id);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      else toast.error("Download URL not available");
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string } } };
-      toast.error(err.response?.data?.detail || "Couldn't mark paid");
+      const e = error as { response?: { data?: { detail?: string } } };
+      toast.error(e.response?.data?.detail || "Download failed");
     } finally {
       setBusy(false);
     }
   };
 
-  const handleVoid = async () => {
+  const handleRegenerate = async () => {
     if (!invoice) return;
     setBusy(true);
     try {
-      const updated = await invoiceService.voidInvoice(invoice.id);
+      const updated = await invoiceService.regeneratePdf(invoice.id);
       setInvoice(updated);
-      toast.success("Invoice voided");
+      toast.success("PDF regenerated");
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string } } };
-      toast.error(err.response?.data?.detail || "Couldn't void invoice");
+      const e = error as { response?: { data?: { detail?: string } } };
+      toast.error(e.response?.data?.detail || "Couldn't regenerate PDF");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    if (!invoice) return;
+    setBusy(true);
+    try {
+      const updated = await invoiceService.setStatus(invoice.id, "paid");
+      setInvoice(updated);
+      toast.success("Marked paid");
+    } catch (error: unknown) {
+      const e = error as {
+        response?: { status?: number; data?: { detail?: string } };
+      };
+      if (e.response?.status === 403) {
+        toast.error("You don't have permission");
+      } else {
+        toast.error(e.response?.data?.detail || "Couldn't mark paid");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleVoidConfirm = async () => {
+    if (!invoice) return;
+    if (!voidReason.trim()) {
+      toast.error("Please add a void reason");
+      return;
+    }
+    setBusy(true);
+    try {
+      const updated = await invoiceService.setStatus(
+        invoice.id,
+        "void",
+        voidReason.trim()
+      );
+      setInvoice(updated);
       setVoidOpen(false);
+      setVoidReason("");
+      toast.success("Invoice voided");
+    } catch (error: unknown) {
+      const e = error as {
+        response?: { status?: number; data?: { detail?: string } };
+      };
+      if (e.response?.status === 403) {
+        toast.error("You don't have permission");
+      } else {
+        toast.error(e.response?.data?.detail || "Couldn't void invoice");
+      }
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -82,8 +151,13 @@ export default function InvoiceDetailPage() {
     );
   }
 
-  const canMarkPaid = invoice.status === "draft" || invoice.status === "sent";
+  const canMarkPaid = invoice.status === "issued";
   const canVoid = invoice.status !== "void";
+
+  const cgst = invoice.cgst_amount ?? 0;
+  const sgst = invoice.sgst_amount ?? 0;
+  const igst = invoice.igst_amount ?? 0;
+  const intraState = cgst > 0 || sgst > 0;
 
   return (
     <AdminGuard>
@@ -91,8 +165,8 @@ export default function InvoiceDetailPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold">
-                Invoice {invoice.invoice_no}
+              <h1 className="text-2xl font-bold tabular-nums">
+                {invoice.invoice_no}
               </h1>
               <Badge
                 variant="outline"
@@ -108,22 +182,40 @@ export default function InvoiceDetailPage() {
               {invoice.invoice_date
                 ? format(new Date(invoice.invoice_date), "d MMM yyyy")
                 : ""}
-              {invoice.fy ? ` · FY ${invoice.fy}` : ""}
+              {invoice.financial_year ? ` · FY ${invoice.financial_year}` : ""}
+              {invoice.due_date
+                ? ` · Due ${format(new Date(invoice.due_date), "d MMM yyyy")}`
+                : ""}
             </p>
+            {invoice.status === "void" && invoice.void_reason && (
+              <p className="text-xs text-red-700">
+                Voided: {invoice.void_reason}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              onClick={() => void invoiceService.download(invoice.id)}
+              disabled={busy}
+              onClick={handleDownload}
             >
               <Download className="mr-2 h-4 w-4" />
-              Download
+              Download PDF
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={handleRegenerate}
+              title="Use after updating logo or signature"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Regenerate PDF
             </Button>
             {canMarkPaid && (
               <Button onClick={handleMarkPaid} disabled={busy}>
                 {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Mark Paid
+                Mark as Paid
               </Button>
             )}
             {canVoid && (
@@ -146,26 +238,33 @@ export default function InvoiceDetailPage() {
               <CardTitle className="text-base">Billed to</CardTitle>
             </CardHeader>
             <CardContent className="text-sm space-y-1">
-              <p className="font-medium">{invoice.customer?.name}</p>
-              {invoice.customer?.gstin && (
-                <p className="font-mono text-xs">{invoice.customer.gstin}</p>
+              <p className="font-medium">{invoice.customer_name}</p>
+              {invoice.customer_gstin && (
+                <p className="font-mono text-xs">
+                  GSTIN {invoice.customer_gstin}
+                </p>
               )}
-              <p className="text-muted-foreground">
-                {invoice.customer?.state}
-              </p>
-              {invoice.customer?.address && (
+              {invoice.customer_state_name && (
+                <p className="text-muted-foreground">
+                  {invoice.customer_state_name}
+                  {invoice.customer_state_code
+                    ? ` (${invoice.customer_state_code})`
+                    : ""}
+                </p>
+              )}
+              {invoice.customer_address && (
                 <p className="text-muted-foreground whitespace-pre-wrap">
-                  {invoice.customer.address}
+                  {invoice.customer_address}
                 </p>
               )}
-              {invoice.customer?.email && (
+              {invoice.customer_email && (
                 <p className="text-muted-foreground">
-                  {invoice.customer.email}
+                  {invoice.customer_email}
                 </p>
               )}
-              {invoice.customer?.phone && (
+              {invoice.customer_phone && (
                 <p className="text-muted-foreground">
-                  {invoice.customer.phone}
+                  {invoice.customer_phone}
                 </p>
               )}
             </CardContent>
@@ -177,19 +276,18 @@ export default function InvoiceDetailPage() {
             </CardHeader>
             <CardContent>
               <SummaryRow label="Subtotal" value={invoice.subtotal} />
-              {invoice.cgst > 0 && (
-                <SummaryRow label="CGST" value={invoice.cgst} />
-              )}
-              {invoice.sgst > 0 && (
-                <SummaryRow label="SGST" value={invoice.sgst} />
-              )}
-              {invoice.igst > 0 && (
-                <SummaryRow label="IGST" value={invoice.igst} />
+              {intraState ? (
+                <>
+                  <SummaryRow label="CGST" value={cgst} />
+                  <SummaryRow label="SGST" value={sgst} />
+                </>
+              ) : (
+                <SummaryRow label="IGST" value={igst} />
               )}
               <div className="flex items-center justify-between mt-2 pt-2 border-t font-semibold">
-                <span>Total</span>
+                <span>Grand total</span>
                 <span className="tabular-nums">
-                  {formatRupees(invoice.total)}
+                  {formatRupees(invoice.grand_total)}
                 </span>
               </div>
             </CardContent>
@@ -220,15 +318,13 @@ export default function InvoiceDetailPage() {
                         {item.hsn_sac ?? "—"}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
-                        {item.quantity}
+                        {item.qty}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {formatRupees(item.rate)}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
-                        {formatRupees(
-                          item.amount ?? item.quantity * item.rate
-                        )}
+                        {formatRupees(item.amount ?? item.qty * item.rate)}
                       </td>
                     </tr>
                   ))}
@@ -250,15 +346,44 @@ export default function InvoiceDetailPage() {
         )}
       </div>
 
-      <ConfirmDialog
-        open={voidOpen}
-        onOpenChange={setVoidOpen}
-        title="Void this invoice?"
-        description="Voiding is irreversible. The invoice will remain in the audit log but can no longer be edited, paid, or used."
-        confirmLabel="Void"
-        destructive
-        onConfirm={handleVoid}
-      />
+      <Dialog open={voidOpen} onOpenChange={(o) => !busy && setVoidOpen(o)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Void this invoice?</DialogTitle>
+            <DialogDescription>
+              Voiding is irreversible. The invoice remains in the audit log
+              but can no longer be edited, paid, or used.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="void-reason">Reason *</Label>
+            <Textarea
+              id="void-reason"
+              rows={3}
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              placeholder="Why is this invoice being voided?"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setVoidOpen(false)}
+              disabled={busy}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={busy || !voidReason.trim()}
+              onClick={handleVoidConfirm}
+            >
+              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Void invoice
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminGuard>
   );
 }

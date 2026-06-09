@@ -42,37 +42,56 @@ export default function InvoicesListPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<InvoiceStatus | "all">("all");
-  const [fy, setFy] = useState("all");
+  const [financialYear, setFinancialYear] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await invoiceService.list({
         page,
-        page_size: 20,
-        status,
-        fy: fy === "all" ? undefined : fy,
+        page_size: 25,
+        q: query || undefined,
+        status: status === "all" ? "" : status,
+        financial_year:
+          financialYear === "all" ? undefined : financialYear,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
-        search: search || undefined,
       });
       setInvoices(res.items || []);
       setTotal(res.total || 0);
       setTotalPages(res.total_pages || 1);
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string } } };
-      toast.error(err.response?.data?.detail || "Failed to load invoices");
+      const e = error as { response?: { data?: { detail?: string } } };
+      toast.error(e.response?.data?.detail || "Failed to load invoices");
     } finally {
       setIsLoading(false);
     }
-  }, [page, status, fy, dateFrom, dateTo, search]);
+  }, [page, status, financialYear, dateFrom, dateTo, query]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleDownload = async (id: string) => {
+    setDownloadingId(id);
+    try {
+      const url = await invoiceService.downloadUrl(id);
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.error("Download URL not available");
+      }
+    } catch (error: unknown) {
+      const e = error as { response?: { data?: { detail?: string } } };
+      toast.error(e.response?.data?.detail || "Download failed");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const columns: Column<Invoice>[] = [
     {
@@ -81,14 +100,14 @@ export default function InvoicesListPage() {
       cell: (inv) => (
         <Link
           href={`/invoices/${inv.id}`}
-          className="font-medium text-primary hover:underline"
+          className="font-medium text-primary hover:underline tabular-nums"
         >
           {inv.invoice_no}
         </Link>
       ),
     },
     {
-      key: "date",
+      key: "invoice_date",
       header: "Date",
       sortable: true,
       sortValue: (inv) => inv.invoice_date,
@@ -102,23 +121,23 @@ export default function InvoicesListPage() {
       header: "Customer",
       cell: (inv) => (
         <div className="min-w-0">
-          <p className="text-sm font-medium truncate">{inv.customer?.name}</p>
-          {inv.customer?.gstin && (
+          <p className="text-sm font-medium truncate">{inv.customer_name}</p>
+          {inv.customer_gstin && (
             <p className="text-[11px] text-muted-foreground font-mono tabular-nums truncate">
-              {inv.customer.gstin}
+              {inv.customer_gstin}
             </p>
           )}
         </div>
       ),
     },
     {
-      key: "total",
+      key: "grand_total",
       header: "Total",
       sortable: true,
-      sortValue: (inv) => inv.total ?? 0,
+      sortValue: (inv) => inv.grand_total ?? 0,
       cell: (inv) => (
         <span className="font-semibold tabular-nums">
-          {formatRupees(inv.total)}
+          {formatRupees(inv.grand_total)}
         </span>
       ),
     },
@@ -141,9 +160,10 @@ export default function InvoicesListPage() {
         <Button
           variant="ghost"
           size="sm"
+          disabled={downloadingId === inv.id}
           onClick={(e) => {
             e.stopPropagation();
-            void invoiceService.download(inv.id);
+            void handleDownload(inv.id);
           }}
         >
           <Download className="mr-1 h-3.5 w-3.5" />
@@ -169,15 +189,15 @@ export default function InvoicesListPage() {
           </Button>
           <Button onClick={() => router.push("/invoices/new")}>
             <Plus className="mr-2 h-4 w-4" />
-            New Invoice
+            Create Invoice
           </Button>
         </PageHeader>
 
         <div className="flex flex-wrap items-end gap-3">
           <SearchInput
-            placeholder="Search invoice #, customer…"
+            placeholder="Search invoice #, customer, GSTIN…"
             onSearch={(q) => {
-              setSearch(q);
+              setQuery(q);
               setPage(1);
             }}
             className="w-72"
@@ -209,9 +229,9 @@ export default function InvoicesListPage() {
           <div className="space-y-1.5">
             <Label className="text-xs">Financial year</Label>
             <Select
-              value={fy}
+              value={financialYear}
               onValueChange={(v) => {
-                setFy(v);
+                setFinancialYear(v);
                 setPage(1);
               }}
             >

@@ -78,7 +78,8 @@ import type { BankStatus, Lead, LeadStage } from "@/types";
 export default function LeadDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAdmin, isManager } = useAuthStore();
+  const { isAdmin, isManager, company } = useAuthStore();
+  const isFmcBrand = company?.company_slug === "fundmycampus";
   const { slug, getEntry, getValidTransitions, stageRequiresNotes } = useStageConfig();
   const isFmc = slug !== "admitverse";
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
@@ -466,7 +467,7 @@ export default function LeadDetailPage() {
             <Edit className="mr-2 h-4 w-4" />
             Edit Lead
           </Button>
-          {isAdmin && (
+          {isAdmin && isFmcBrand && (
             <Button
               variant="outline"
               size="sm"

@@ -47,6 +47,9 @@ interface AdminNavItem {
   label: string;
   icon: typeof UserCog;
   adminOnly?: boolean;
+  // Optional company slug whitelist. When set the item only renders
+  // for users whose company.company_slug appears in the list.
+  brandSlugs?: string[];
 }
 
 const adminNav: AdminNavItem[] = [
@@ -56,13 +59,20 @@ const adminNav: AdminNavItem[] = [
   { href: "/admin/sources", label: "Sources", icon: Globe },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/csv-history", label: "CSV History", icon: FileSpreadsheet },
-  // Invoices is strictly admin-only — managers don't see it.
-  { href: "/invoices", label: "Invoices", icon: FileText, adminOnly: true },
+  // Invoices is strictly admin-only AND FMC-only for now. Admitverse
+  // doesn't use this module; hide the nav link there.
+  {
+    href: "/invoices",
+    label: "Invoices",
+    icon: FileText,
+    adminOnly: true,
+    brandSlugs: ["fundmycampus"],
+  },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, isAdmin, isManager, logout } = useAuthStore();
+  const { user, company, isAdmin, isManager, logout } = useAuthStore();
   const taskCount = useTaskCountStore((s) => s.count);
 
   const initials = user?.full_name
@@ -135,7 +145,15 @@ export function Sidebar() {
                 <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   {isAdmin ? "Admin" : "Management"}
                 </p>
-                {adminNav.filter((item) => !item.adminOnly || isAdmin).map((item) => (
+                {adminNav
+                  .filter((item) => !item.adminOnly || isAdmin)
+                  .filter(
+                    (item) =>
+                      !item.brandSlugs ||
+                      (company?.company_slug != null &&
+                        item.brandSlugs.includes(company.company_slug))
+                  )
+                  .map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
