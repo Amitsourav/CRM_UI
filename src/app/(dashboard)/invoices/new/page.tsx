@@ -17,9 +17,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+  X as IconX,
+} from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import api from "@/lib/api";
+import { formatLeadSerial } from "@/lib/utils";
 import {
   invoiceService,
   computeTaxPreview,
@@ -30,6 +50,7 @@ import {
   type InvoiceLineItem,
   type InvoiceSettings,
 } from "@/services/invoice-service";
+import type { Lead } from "@/types";
 
 interface CustomerForm {
   customer_name: string;
@@ -58,7 +79,14 @@ function emptyLineItem(): InvoiceLineItem {
 function CreateInvoiceInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const leadId = searchParams.get("lead_id") || undefined;
+  const initialLeadIdFromUrl = searchParams.get("lead_id") || undefined;
+  // The lead this invoice is linked to. Either preset from the URL
+  // (lead-detail → Create Invoice flow) or chosen via the picker
+  // below. Sent verbatim as lead_id in the POST body.
+  const [linkedLeadId, setLinkedLeadId] = useState<string | undefined>(
+    initialLeadIdFromUrl
+  );
+  const [linkedLeadLabel, setLinkedLeadLabel] = useState<string | null>(null);
 
   const [settings, setSettings] = useState<InvoiceSettings | null | undefined>(
     undefined
@@ -85,11 +113,13 @@ function CreateInvoiceInner() {
       });
   }, []);
 
+  // Runs whenever a lead is linked (from URL or via picker) so the
+  // customer block stays in sync with /invoices/prefill/lead/{id}.
   useEffect(() => {
-    if (!leadId) return;
+    if (!linkedLeadId) return;
     setPrefillLoading(true);
     invoiceService
-      .leadPrefill(leadId)
+      .leadPrefill(linkedLeadId)
       .then((p) => {
         setCustomer({
           customer_name: p.customer_name ?? "",
@@ -99,10 +129,16 @@ function CreateInvoiceInner() {
           customer_phone: p.customer_phone ?? "",
           customer_address: p.customer_address ?? "",
         });
+        if (!linkedLeadLabel) {
+          // Fallback when only the URL supplied an id — show the
+          // name we just received so the chip isn't blank.
+          setLinkedLeadLabel(p.customer_name ?? "Linked lead");
+        }
       })
       .catch(() => toast.error("Couldn't prefill from lead"))
       .finally(() => setPrefillLoading(false));
-  }, [leadId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedLeadId]);
 
   const updateCust = (p: Partial<CustomerForm>) =>
     setCustomer((c) => ({ ...c, ...p }));
@@ -178,7 +214,7 @@ function CreateInvoiceInner() {
         due_date: dueDate || null,
         line_items: cleanLines,
         notes: notes.trim() || undefined,
-        lead_id: leadId,
+        lead_id: linkedLeadId,
       });
       toast.success(`Invoice ${created.invoice_no} created`);
       router.push(`/invoices/${created.id}`);
@@ -230,7 +266,9 @@ function CreateInvoiceInner() {
         <PageHeader
           title="Create Invoice"
           description={
-            leadId ? "Prefilled from the linked lead." : "Issue a new invoice."
+            linkedLeadId
+              ? "Prefilled from the linked lead."
+              : "Issue a new invoice."
           }
         >
           <Button
@@ -277,7 +315,7 @@ function CreateInvoiceInner() {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
               <CardTitle className="text-base">
                 Bill to
                 {prefillLoading && (
@@ -286,6 +324,20 @@ function CreateInvoiceInner() {
                   </span>
                 )}
               </CardTitle>
+              <LeadPicker
+                linkedLeadId={linkedLeadId}
+                linkedLabel={linkedLeadLabel}
+                onPick={(lead) => {
+                  setLinkedLeadId(lead.id);
+                  setLinkedLeadLabel(
+                    `${lead.full_name}${formatLeadSerial(lead.serial_no) ? ` ${formatLeadSerial(lead.serial_no)}` : ""}`
+                  );
+                }}
+                onClear={() => {
+                  setLinkedLeadId(undefined);
+                  setLinkedLeadLabel(null);
+                }}
+              />
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1.5">
@@ -384,7 +436,12 @@ function CreateInvoiceInner() {
                 <thead className="bg-muted/40 border-b">
                   <tr className="text-left">
                     <th className="px-3 py-2 font-medium w-[45%]">Description *</th>
-                    <th className="px-3 py-2 font-medium">HSN/SAC</th>
+                    <th className="px-3 py-2 font-medium">
+                      HSN/SAC
+                      <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+                        (optional)
+                      </span>
+                    </th>
                     <th className="px-3 py-2 font-medium w-[80px] text-right">Qty</th>
                     <th className="px-3 py-2 font-medium w-[140px] text-right">Rate</th>
                     <th className="px-3 py-2 font-medium w-[150px] text-right">Amount</th>
@@ -562,6 +619,138 @@ function Row({ label, value }: { label: string; value: number }) {
       <span className="text-muted-foreground">{label}</span>
       <span className="tabular-nums">{formatRupees(value)}</span>
     </div>
+  );
+}
+
+// Lead picker for the Create Invoice form. When the admin types in
+// the search box, hits GET /leads/search?q=... and lists matches.
+// Picking a lead lifts {id, full_name, serial_no} to the parent so
+// it can call /invoices/prefill/lead/{id} and stamp lead_id on the
+// POST body. A clear button next to the chip drops the link.
+function LeadPicker({
+  linkedLeadId,
+  linkedLabel,
+  onPick,
+  onClear,
+}: {
+  linkedLeadId: string | undefined;
+  linkedLabel: string | null;
+  onPick: (lead: Lead) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Lead[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await api.get(
+          `/leads/search?q=${encodeURIComponent(q)}`
+        );
+        if (cancelled) return;
+        const items: Lead[] = Array.isArray(data) ? data : data?.items ?? [];
+        setResults(items);
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query, open]);
+
+  if (linkedLeadId) {
+    return (
+      <div className="flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs">
+        <span className="font-medium">Linked:</span>
+        <span className="truncate max-w-[180px]">
+          {linkedLabel ?? "Selected lead"}
+        </span>
+        <button
+          type="button"
+          onClick={onClear}
+          className="-mr-1 p-0.5 rounded hover:bg-muted"
+          aria-label="Unlink lead"
+        >
+          <IconX className="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Search className="mr-1 h-3.5 w-3.5" />
+          Pick from leads
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[320px] p-0">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Search by name, phone, email…"
+            value={query}
+            onValueChange={setQuery}
+          />
+          <CommandList>
+            {query.trim().length < 2 ? (
+              <p className="px-3 py-2 text-xs text-muted-foreground">
+                Type at least 2 characters to search.
+              </p>
+            ) : searching ? (
+              <p className="px-3 py-2 text-xs text-muted-foreground">
+                Searching…
+              </p>
+            ) : results.length === 0 ? (
+              <CommandEmpty>No leads found.</CommandEmpty>
+            ) : (
+              results.map((lead) => (
+                <CommandItem
+                  key={lead.id}
+                  value={lead.id}
+                  onSelect={() => {
+                    onPick(lead);
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className="cursor-pointer"
+                >
+                  <div className="flex w-full items-center justify-between gap-2 min-w-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {lead.full_name}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {lead.phone || lead.email || "No contact"}
+                      </p>
+                    </div>
+                    {formatLeadSerial(lead.serial_no) && (
+                      <span className="text-[11px] text-muted-foreground font-mono shrink-0">
+                        {formatLeadSerial(lead.serial_no)}
+                      </span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
