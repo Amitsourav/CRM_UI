@@ -86,13 +86,6 @@ function CreateInvoiceInner() {
   }, []);
 
   useEffect(() => {
-    if (settings && settings.default_terms && !notes) {
-      setNotes(settings.default_terms);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings]);
-
-  useEffect(() => {
     if (!leadId) return;
     setPrefillLoading(true);
     invoiceService
@@ -416,7 +409,7 @@ function CreateInvoiceInner() {
                         <td className="px-2 py-1.5">
                           <Input
                             value={row.hsn_sac ?? ""}
-                            maxLength={8}
+                            maxLength={10}
                             onChange={(e) =>
                               updateLine(idx, { hsn_sac: e.target.value })
                             }
@@ -512,10 +505,12 @@ function CreateInvoiceInner() {
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Terms, payment instructions, etc."
+                  placeholder="Per-invoice context, e.g. Q1 2026 commission"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Pre-filled from settings.default_terms when present.
+                  Default terms from Settings are applied separately by the
+                  backend — leave Notes empty unless this invoice needs its
+                  own context.
                 </p>
               </div>
             </CardContent>
