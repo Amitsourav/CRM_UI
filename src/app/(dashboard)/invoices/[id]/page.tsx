@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AdminGuard } from "@/components/shared/admin-guard";
 import { Button } from "@/components/ui/button";
@@ -315,8 +315,8 @@ export default function InvoiceDetailPage() {
                   {(invoice.line_items ?? []).map((item, idx) => (
                     <tr key={idx} className="border-b last:border-0">
                       <td className="px-3 py-2">{item.description}</td>
-                      <td className="px-3 py-2 font-mono text-xs">
-                        {item.lead_id ?? "—"}
+                      <td className="px-3 py-2 text-xs">
+                        {renderLeadCell(item)}
                       </td>
                       <td className="px-3 py-2 font-mono text-xs">
                         {item.hsn_sac ?? "—"}
@@ -390,6 +390,36 @@ export default function InvoiceDetailPage() {
       </Dialog>
     </AdminGuard>
   );
+}
+
+// Per-row Lead ID renderer — backend's hybrid resolver populates
+// lead_serial_no + lead_name when the entry resolves to a real lead.
+// Falls through to a raw display for free-text entries and numeric
+// strings that didn't resolve.
+function renderLeadCell(line: Invoice["line_items"][number]): ReactNode {
+  if (line.lead_serial_no != null && line.lead_name) {
+    return (
+      <span>
+        <span className="font-mono tabular-nums">#{line.lead_serial_no}</span>
+        <span className="text-muted-foreground"> · </span>
+        <span>{line.lead_name}</span>
+      </span>
+    );
+  }
+  if (line.lead_serial_no != null) {
+    return (
+      <span className="font-mono tabular-nums">#{line.lead_serial_no}</span>
+    );
+  }
+  if (line.lead_id) {
+    if (/^\d+$/.test(line.lead_id)) {
+      return (
+        <span className="font-mono tabular-nums">#{line.lead_id}</span>
+      );
+    }
+    return <span className="font-mono break-all">{line.lead_id}</span>;
+  }
+  return <span className="text-muted-foreground">—</span>;
 }
 
 function SummaryRow({ label, value }: { label: string; value: number }) {

@@ -33,9 +33,14 @@ export interface InvoiceLineItem {
   hsn_sac?: string;
   qty: number;
   rate: number;
-  // Per-row lead reference (FMC commission invoices link each row to
-  // a specific student lead). Optional — sent only when set.
+  // Per-row lead reference. On submit: any string (UUID, serial, or
+  // free text) — backend resolves. On read: the resolved canonical
+  // UUID if recognised, otherwise the admin's raw input verbatim.
   lead_id?: string;
+  // Populated by backend's resolver when lead_id matched a real lead
+  // in this tenant. null for free-text entries.
+  lead_serial_no?: number | null;
+  lead_name?: string | null;
   // Server returns this on read; create body omits it.
   amount?: number;
 }
