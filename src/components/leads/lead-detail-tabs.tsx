@@ -49,6 +49,7 @@ import {
   APPLICATION_STATUS_LABELS,
   BANK_STATUS_BADGE_CLASSES,
   BANK_STATUS_LABELS,
+  isDnpStage,
 } from "@/lib/constants";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { useUsersStore } from "@/stores/users-store";
@@ -516,7 +517,7 @@ function ProfileSection({
               )}
             </span>
           </div>
-          {isFmc && lead.current_stage === "dnp" && (
+          {isDnpStage(lead.current_stage) && (
             <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
               <span className="text-sm text-muted-foreground">DNP attempts</span>
               <DropdownMenu>

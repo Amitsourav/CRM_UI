@@ -3,7 +3,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -38,7 +37,6 @@ import {
   ChevronDown,
   ChevronRight,
   Bot,
-  Loader2,
   Pencil,
   X as IconX,
   Globe,
@@ -57,7 +55,9 @@ import {
   BANK_STATUS_BADGE_CLASSES,
   BANK_STATUS_LABELS,
   getStageHex,
+  isDnpStage,
 } from "@/lib/constants";
+import { DnpBadge } from "@/components/leads/dnp-badge";
 import { formatLakhs, formatLeadSerial } from "@/lib/utils";
 import {
   formatFollowUp,
@@ -74,16 +74,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import type { BankStatus, Lead, LeadStage, User } from "@/types";
 
 interface PipelineCardProps {
@@ -257,11 +247,6 @@ function FmcEnhancedCard({
   stageHex: string;
 }) {
   const [docsOpen, setDocsOpen] = useState(false);
-  // DNP-N changes require a note (backend rule). Track the pending
-  // value here while a confirmation modal collects the note.
-  const [pendingDnp, setPendingDnp] = useState<number | null>(null);
-  const [dnpNote, setDnpNote] = useState("");
-  const [dnpSubmitting, setDnpSubmitting] = useState(false);
 
   // Card-level click → open lead in new tab. Implemented as a div click
   // rather than an <a target="_blank"> wrapper because nested Radix triggers
@@ -444,62 +429,18 @@ function FmcEnhancedCard({
               </p>
             )}
           </div>
-          {lead.current_stage === "dnp" && (() => {
-            const n = lead.dnp_count ?? 0;
-            const label = n > 0 ? `DNP-${n}` : "DNP";
-            const tone =
-              n >= 5
-                ? "bg-red-100 text-red-700 border-red-200 hover:bg-red-200"
-                : n >= 3
-                  ? "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200"
-                  : n >= 1
-                    ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
-                    : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200";
-            return (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  asChild
-                  onClick={stopBubble}
-                  onPointerDown={stopBubble}
-                >
-                  <button
-                    type="button"
-                    title={`Moved to DNP ${n} time${n === 1 ? "" : "s"} — click to change`}
-                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] leading-none font-medium border shrink-0 transition-colors ${tone}`}
-                  >
-                    {label}
-                    <ChevronDown className="h-3 w-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  onClick={stopBubble}
-                  onPointerDown={stopBubble}
-                >
-                  {[1, 2, 3, 4, 5, 6].map((value) => (
-                    <DropdownMenuItem
-                      key={value}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (value === n) return;
-                        // Open the note-required modal — actual PUT
-                        // is fired from the modal's Confirm.
-                        setPendingDnp(value);
-                        setDnpNote("");
-                      }}
-                    >
-                      {n === value ? (
-                        <Check className="mr-1.5 h-3.5 w-3.5" />
-                      ) : (
-                        <span className="mr-1.5 h-3.5 w-3.5" />
-                      )}
-                      DNP-{value}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            );
-          })()}
+          {lead.current_stage === "dnp" && (
+            <DnpBadge
+              count={lead.dnp_count ?? 0}
+              onConfirm={(next, note) =>
+                onUpdateLead(lead.id, {
+                  dnp_count: next,
+                  conversation_notes: note,
+                })
+              }
+              stopBubble={stopBubble}
+            />
+          )}
           <div className="flex items-center gap-0.5 shrink-0">
             <button
               type="button"
@@ -932,86 +873,6 @@ function FmcEnhancedCard({
         </span>
       )}
     </Card>
-
-    {/* DNP-N change requires a note — backend rejects writes that
-        don't include conversation_notes for this field. */}
-    <Dialog
-      open={pendingDnp !== null}
-      onOpenChange={(o) => {
-        if (!o) {
-          setPendingDnp(null);
-          setDnpNote("");
-        }
-      }}
-    >
-      <DialogContent
-        onClick={stopBubble}
-        onPointerDown={stopBubble}
-      >
-        <DialogHeader>
-          <DialogTitle>
-            DNP-{lead.dnp_count ?? 0} → DNP-{pendingDnp ?? 0}
-          </DialogTitle>
-          <DialogDescription>
-            Add a short note about why this DNP attempt count is changing.
-            The note will appear in the lead&apos;s remarks timeline.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2">
-          <Label htmlFor="dnp-note">Conversation notes *</Label>
-          <Textarea
-            id="dnp-note"
-            autoFocus
-            rows={3}
-            value={dnpNote}
-            onChange={(e) => setDnpNote(e.target.value)}
-            placeholder="e.g. user is busy, retry tomorrow"
-          />
-          {!dnpNote.trim() && (
-            <p className="text-xs text-red-600">A note is required.</p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            disabled={dnpSubmitting}
-            onClick={() => {
-              setPendingDnp(null);
-              setDnpNote("");
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            disabled={dnpSubmitting || !dnpNote.trim() || pendingDnp == null}
-            onClick={() => {
-              if (pendingDnp == null) return;
-              const note = dnpNote.trim();
-              if (!note) return;
-              setDnpSubmitting(true);
-              // onUpdateLead's promise isn't surfaced; close the
-              // dialog optimistically and let any backend error
-              // surface via the existing toast inside the parent.
-              try {
-                onUpdateLead(lead.id, {
-                  dnp_count: pendingDnp,
-                  conversation_notes: note,
-                });
-              } finally {
-                setDnpSubmitting(false);
-                setPendingDnp(null);
-                setDnpNote("");
-              }
-            }}
-          >
-            {dnpSubmitting && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Confirm
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
     </div>
   );
 }
@@ -1311,7 +1172,7 @@ function AdmitverseEnhancedCard({
       }`}
     >
       <div className="space-y-2 min-w-0">
-        {/* Row 1: name + star + kebab */}
+        {/* Row 1: name + DNP badge + star + kebab */}
         <div className="flex items-start justify-between gap-1 min-w-0">
           <p className="font-medium text-sm truncate flex-1 min-w-0">
             {lead.full_name}
@@ -1321,6 +1182,18 @@ function AdmitverseEnhancedCard({
               </span>
             )}
           </p>
+          {isDnpStage(lead.current_stage) && (
+            <DnpBadge
+              count={lead.dnp_count ?? 0}
+              onConfirm={(next, note) =>
+                onUpdateLead(lead.id, {
+                  dnp_count: next,
+                  conversation_notes: note,
+                })
+              }
+              stopBubble={stopBubble}
+            />
+          )}
           {starButton}
           {stageDropdown}
         </div>

@@ -199,6 +199,19 @@ export function stageRequiresNotes(
   return false;
 }
 
+// DNP stages across brands: FMC's single `dnp` plus Admitverse's
+// `dnp_pre_qualified`/`dnp_post_qualified`. The backend increments
+// `dnp_count` on entry to any of these, so the DNP-N badge logic is shared.
+export const DNP_STAGES: ReadonlySet<LeadStage> = new Set([
+  "dnp",
+  "dnp_pre_qualified",
+  "dnp_post_qualified",
+]);
+
+export function isDnpStage(stage: LeadStage): boolean {
+  return DNP_STAGES.has(stage);
+}
+
 export const DISPOSITION_LABELS: Record<CallDisposition, string> = {
   dnp: "Did Not Pick",
   connected: "Connected",
