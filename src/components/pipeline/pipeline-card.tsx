@@ -1167,12 +1167,14 @@ function AdmitverseEnhancedCard({
       className="block text-inherit no-underline"
     >
     <Card
-      className={`p-3 cursor-pointer hover:shadow-md transition-shadow ${
+      className={`w-full max-w-full overflow-hidden p-3 cursor-pointer hover:shadow-md transition-shadow ${
         lead.is_important ? "ring-1 ring-yellow-300/70" : ""
       }`}
     >
       <div className="space-y-2 min-w-0">
-        {/* Row 1: name + DNP badge + star + kebab */}
+        {/* Row 1: name + DNP badge + star + kebab. Right controls are grouped
+            in a shrink-0 cluster so the name truncates and they stay pinned
+            (and visible) on the right — same pattern as the FMC card. */}
         <div className="flex items-start justify-between gap-1 min-w-0">
           <p className="font-medium text-sm truncate flex-1 min-w-0">
             {lead.full_name}
@@ -1182,20 +1184,22 @@ function AdmitverseEnhancedCard({
               </span>
             )}
           </p>
-          {isDnpStage(lead.current_stage) && (
-            <DnpBadge
-              count={lead.dnp_count ?? 0}
-              onConfirm={(next, note) =>
-                onUpdateLead(lead.id, {
-                  dnp_count: next,
-                  conversation_notes: note,
-                })
-              }
-              stopBubble={stopBubble}
-            />
-          )}
-          {starButton}
-          {stageDropdown}
+          <div className="flex items-center gap-1 shrink-0">
+            {isDnpStage(lead.current_stage) && (
+              <DnpBadge
+                count={lead.dnp_count ?? 0}
+                onConfirm={(next, note) =>
+                  onUpdateLead(lead.id, {
+                    dnp_count: next,
+                    conversation_notes: note,
+                  })
+                }
+                stopBubble={stopBubble}
+              />
+            )}
+            {starButton}
+            {stageDropdown}
+          </div>
         </div>
 
         {/* Phone */}
