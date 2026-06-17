@@ -154,6 +154,22 @@ export interface Lead {
   // Ordered best-status-first, stable across status changes (tie-break:
   // oldest first). PATCH each via /leads/{leadId}/banks/{entry.id}.
   top_banks?: Array<{ id: string; bank_name: string; bank_status: BankStatus }>;
+  // Admitverse-only: university applications. budget stays the editable
+  // free-text field; budget_amount/budget_currency are read-only,
+  // backend-parsed values for display & sorting. primary_university /
+  // application_status / application_count / top_applications summarize the
+  // lead's applications for cards & tiles (mirror of FMC's top_banks).
+  budget_amount?: number;
+  budget_currency?: string;
+  primary_university?: string;
+  application_status?: ApplicationStatus | string;
+  application_count?: number;
+  top_applications?: Array<{
+    id: string;
+    university_name: string;
+    program?: string | null;
+    application_status: ApplicationStatus;
+  }>;
   // Loan/bank fields (FMC). Optional — Admitverse leads don't populate them.
   loan_amount?: string;
   bank_name?: string | null;
@@ -284,6 +300,49 @@ export interface CallFilters {
 }
 
 export type PfStatus = "paid" | "pending";
+
+// Admitverse-only: university application lifecycle. The status ladder
+// mirrors FMC's BankStatus funnel; `rejected`/`withdrawn` are terminal
+// off-ramps. Offer-detail fields (offer_date … visa_status) are only
+// accepted by the backend once status is `offer_received` or later.
+export type ApplicationStatus =
+  | "applied"
+  | "shortlisted"
+  | "offer_received"
+  | "conditional_offer"
+  | "unconditional_offer"
+  | "deposit_paid"
+  | "cas_received"
+  | "visa_applied"
+  | "visa_approved"
+  | "enrolled"
+  | "rejected"
+  | "withdrawn";
+
+export type VisaStatus = "not_started" | "applied" | "approved" | "rejected";
+
+export interface Application {
+  id: string;
+  lead_id: string;
+  university_name: string;
+  program?: string | null;
+  intake?: string | null;
+  country?: string | null;
+  application_status: ApplicationStatus;
+  notes?: string | null;
+  // Offer-stage fields — backend populates once application_status reaches
+  // offer_received / later. PATCH is rejected (400) for earlier statuses.
+  // Amounts may serialize as string or number, like BankEntry's money fields.
+  offer_date?: string | null; // YYYY-MM-DD
+  tuition_fee?: string | number | null;
+  scholarship_amount?: string | number | null;
+  deposit_amount?: string | number | null;
+  deposit_paid_date?: string | null; // YYYY-MM-DD
+  cas_number?: string | null;
+  visa_status?: VisaStatus | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface BankEntry {
   id: string;

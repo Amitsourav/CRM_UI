@@ -21,8 +21,11 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useBanksStore } from "@/stores/banks-store";
-import { BANK_STATUS_LABELS } from "@/lib/constants";
-import type { BankStatus } from "@/types";
+import {
+  APPLICATION_STATUS_LABELS,
+  BANK_STATUS_LABELS,
+} from "@/lib/constants";
+import type { ApplicationStatus, BankStatus } from "@/types";
 import {
   LEAD_SEGMENT_LABELS,
   type PipelineFilters,
@@ -38,6 +41,9 @@ interface LeadFiltersSheetProps {
   // Lead-segment filter is admin-only — non-admin users only ever
   // see their own leads, so the filter is meaningless for them.
   showLeadSegmentFilter: boolean;
+  // FMC shows bank/loan/DNP filters; Admitverse shows application/university/
+  // budget filters instead (the backend ignores the other brand's params).
+  isFmc: boolean;
   agents: User[];
   sources: LeadSource[];
   campaigns: { id: string; name: string }[];
@@ -45,6 +51,9 @@ interface LeadFiltersSheetProps {
 
 const EMPTY_FILTERS: PipelineFilters = {};
 const ALL_BANK_STATUSES = Object.keys(BANK_STATUS_LABELS) as BankStatus[];
+const ALL_APPLICATION_STATUSES = Object.keys(
+  APPLICATION_STATUS_LABELS
+) as ApplicationStatus[];
 
 export function LeadFiltersSheet({
   open,
@@ -53,6 +62,7 @@ export function LeadFiltersSheet({
   onApply,
   showAgentFilter,
   showLeadSegmentFilter,
+  isFmc,
   agents,
   sources,
   campaigns,
@@ -60,8 +70,9 @@ export function LeadFiltersSheet({
   const banks = useBanksStore((s) => s.banks);
   const ensureBanks = useBanksStore((s) => s.ensureFetched);
   useEffect(() => {
-    if (open) ensureBanks();
-  }, [open, ensureBanks]);
+    // Bank list is only used by the FMC bank filter.
+    if (open && isFmc) ensureBanks();
+  }, [open, isFmc, ensureBanks]);
 
   // Local draft — applied to the parent only when the user clicks Apply.
   const [draft, setDraft] = useState<PipelineFilters>(value);
@@ -198,68 +209,145 @@ export function LeadFiltersSheet({
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Bank</Label>
-            <Select
-              value={toSelectValue(draft.bank_name)}
-              onValueChange={(v) => update({ bank_name: fromSelectValue(v) })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Any bank" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all">Any bank</SelectItem>
-                {banks.map((b) => (
-                  <SelectItem key={b} value={b}>
-                    {b}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isFmc && (
+            <div className="space-y-1.5">
+              <Label>Bank</Label>
+              <Select
+                value={toSelectValue(draft.bank_name)}
+                onValueChange={(v) => update({ bank_name: fromSelectValue(v) })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any bank" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">Any bank</SelectItem>
+                  {banks.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          <div className="space-y-1.5">
-            <Label>Bank status</Label>
-            <Select
-              value={toSelectValue(draft.bank_status)}
-              onValueChange={(v) =>
-                update({ bank_status: fromSelectValue(v) })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Any status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all">Any status</SelectItem>
-                {ALL_BANK_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {BANK_STATUS_LABELS[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isFmc && (
+            <div className="space-y-1.5">
+              <Label>Bank status</Label>
+              <Select
+                value={toSelectValue(draft.bank_status)}
+                onValueChange={(v) =>
+                  update({ bank_status: fromSelectValue(v) })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">Any status</SelectItem>
+                  {ALL_BANK_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {BANK_STATUS_LABELS[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          <div className="space-y-1.5">
-            <Label>Budget (lakhs)</Label>
-            <div className="flex items-center gap-2">
+          {/* Admitverse-only: application status + university + budget range. */}
+          {!isFmc && (
+            <div className="space-y-1.5">
+              <Label>Application status</Label>
+              <Select
+                value={toSelectValue(draft.application_status)}
+                onValueChange={(v) =>
+                  update({ application_status: fromSelectValue(v) })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">Any status</SelectItem>
+                  {ALL_APPLICATION_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {APPLICATION_STATUS_LABELS[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {!isFmc && (
+            <div className="space-y-1.5">
+              <Label htmlFor="filter-university">University</Label>
               <Input
-                type="number"
-                inputMode="decimal"
-                placeholder="Min"
-                value={draft.loan_min ?? ""}
-                onChange={(e) => update({ loan_min: e.target.value })}
-              />
-              <span className="text-muted-foreground">–</span>
-              <Input
-                type="number"
-                inputMode="decimal"
-                placeholder="Max"
-                value={draft.loan_max ?? ""}
-                onChange={(e) => update({ loan_max: e.target.value })}
+                id="filter-university"
+                placeholder="e.g. University of Oxford"
+                value={draft.university ?? ""}
+                onChange={(e) => update({ university: e.target.value })}
               />
             </div>
-          </div>
+          )}
+
+          {isFmc ? (
+            <div className="space-y-1.5">
+              <Label>Budget (lakhs)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="Min"
+                  value={draft.loan_min ?? ""}
+                  onChange={(e) => update({ loan_min: e.target.value })}
+                />
+                <span className="text-muted-foreground">–</span>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="Max"
+                  value={draft.loan_max ?? ""}
+                  onChange={(e) => update({ loan_max: e.target.value })}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label>Budget</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="Min"
+                  value={draft.budget_min ?? ""}
+                  onChange={(e) => update({ budget_min: e.target.value })}
+                />
+                <span className="text-muted-foreground">–</span>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="Max"
+                  value={draft.budget_max ?? ""}
+                  onChange={(e) => update({ budget_max: e.target.value })}
+                />
+                <Input
+                  className="w-20"
+                  placeholder="INR"
+                  value={draft.budget_currency ?? ""}
+                  onChange={(e) =>
+                    update({
+                      budget_currency: e.target.value
+                        .toUpperCase()
+                        .slice(0, 3),
+                    })
+                  }
+                  aria-label="Budget currency"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="filter-country">Destination country</Label>
@@ -329,26 +417,28 @@ export function LeadFiltersSheet({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>DNP attempts</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                inputMode="numeric"
-                placeholder="Min"
-                value={draft.dnp_min ?? ""}
-                onChange={(e) => update({ dnp_min: e.target.value })}
-              />
-              <span className="text-muted-foreground">–</span>
-              <Input
-                type="number"
-                inputMode="numeric"
-                placeholder="Max"
-                value={draft.dnp_max ?? ""}
-                onChange={(e) => update({ dnp_max: e.target.value })}
-              />
+          {isFmc && (
+            <div className="space-y-1.5">
+              <Label>DNP attempts</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="Min"
+                  value={draft.dnp_min ?? ""}
+                  onChange={(e) => update({ dnp_min: e.target.value })}
+                />
+                <span className="text-muted-foreground">–</span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="Max"
+                  value={draft.dnp_max ?? ""}
+                  onChange={(e) => update({ dnp_max: e.target.value })}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex items-center gap-2 pt-1">
             <Checkbox

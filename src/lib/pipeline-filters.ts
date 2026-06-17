@@ -15,6 +15,15 @@ export interface PipelineFilters {
   loan_max?: string;
   bank_name?: string;
   bank_status?: string;
+  // Admitverse-only filters. The backend ignores these on FMC and ignores
+  // FMC's loan_*/bank_*/dnp_* on AV.
+  application_status?: string;
+  university?: string;
+  // Budget range (AV). Free numbers; backend parses. Currency defaults to
+  // "INR" server-side when omitted.
+  budget_min?: string;
+  budget_max?: string;
+  budget_currency?: string;
   target_country?: string;
   target_intake?: string;
   // Comma-separated in state; serialized as repeated tags= params.
@@ -28,10 +37,10 @@ export interface PipelineFilters {
   dnp_min?: string;
   dnp_max?: string;
   important_only?: "true" | "";
-  // Sort: "loan_asc" (low → high) or "loan_desc" (high → low).
-  // Omitted = backend default (newest first). Leads with no loan
-  // amount go to the bottom regardless — backend handles it.
-  sort_by?: "loan_asc" | "loan_desc";
+  // Sort: FMC uses "loan_asc"/"loan_desc" (low → high / high → low); AV uses
+  // "budget_asc"/"budget_desc". Omitted = backend default (newest first).
+  // Leads with no amount sort to the bottom — backend handles it.
+  sort_by?: "loan_asc" | "loan_desc" | "budget_asc" | "budget_desc";
   // Admin-only segmentation filter — restricted-view roles only see
   // their own leads, so this filter is meaningless for them.
   lead_segment?:
@@ -62,6 +71,11 @@ const SCALAR_FILTER_KEYS: (keyof PipelineFilters)[] = [
   "loan_max",
   "bank_name",
   "bank_status",
+  "application_status",
+  "university",
+  "budget_min",
+  "budget_max",
+  "budget_currency",
   "target_country",
   "target_intake",
   "created_from",
@@ -106,7 +120,13 @@ export function parseFiltersFromParams(
     if (key === "important_only") {
       f.important_only = v === "true" ? "true" : "";
     } else if (key === "sort_by") {
-      if (v === "loan_asc" || v === "loan_desc") f.sort_by = v;
+      if (
+        v === "loan_asc" ||
+        v === "loan_desc" ||
+        v === "budget_asc" ||
+        v === "budget_desc"
+      )
+        f.sort_by = v;
     } else if (key === "lead_segment") {
       if (
         v === "unassigned" ||
@@ -165,6 +185,8 @@ export function countActiveFilters(filters: PipelineFilters): number {
     }
   };
   countOnce("loan_min", "loan_max");
+  // budget_currency is a modifier on the budget range, not its own filter.
+  countOnce("budget_min", "budget_max", "budget_currency");
   countOnce("created_from", "created_to");
   countOnce("due_from", "due_to");
   countOnce("dnp_min", "dnp_max");

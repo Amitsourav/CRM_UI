@@ -15,6 +15,7 @@ import {
 import { LeadTimeline } from "./lead-timeline";
 import { LeadRemarks } from "./lead-remarks";
 import { LeadBanksManager } from "./lead-banks-manager";
+import { ApplicationsManager } from "./applications-manager";
 import { DocsChecklist } from "./docs-checklist";
 import { CallHistory } from "@/components/calls/call-history";
 import { CallLogForm } from "@/components/calls/call-log-form";
@@ -25,6 +26,7 @@ import {
   CalendarClock,
   ChevronDown,
   ClipboardList,
+  GraduationCap,
   IndianRupee,
   Landmark,
   Phone,
@@ -43,6 +45,8 @@ import {
   followUpToneClass,
 } from "@/lib/follow-up";
 import {
+  APPLICATION_STATUS_BADGE_CLASSES,
+  APPLICATION_STATUS_LABELS,
   BANK_STATUS_BADGE_CLASSES,
   BANK_STATUS_LABELS,
 } from "@/lib/constants";
@@ -108,6 +112,9 @@ export function LeadDetailTabs({
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="remarks">Remarks</TabsTrigger>
           {isFmc && <TabsTrigger value="banks">Banks</TabsTrigger>}
+          {!isFmc && (
+            <TabsTrigger value="applications">Applications</TabsTrigger>
+          )}
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="calls">Calls</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
@@ -119,6 +126,7 @@ export function LeadDetailTabs({
             isFmc={isFmc}
             onRefetchLead={onRefetchLead}
             onOpenBanksTab={() => setActiveTab("banks")}
+            onOpenApplicationsTab={() => setActiveTab("applications")}
           />
         </TabsContent>
 
@@ -138,6 +146,23 @@ export function LeadDetailTabs({
               </CardHeader>
               <CardContent>
                 <LeadBanksManager
+                  leadId={lead.id}
+                  showNotes
+                  onChanged={onRefetchLead}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {!isFmc && (
+          <TabsContent value="applications" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Applications</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ApplicationsManager
                   leadId={lead.id}
                   showNotes
                   onChanged={onRefetchLead}
@@ -239,11 +264,13 @@ function ProfileSection({
   isFmc,
   onRefetchLead,
   onOpenBanksTab,
+  onOpenApplicationsTab,
 }: {
   lead: Lead;
   isFmc: boolean;
   onRefetchLead?: () => void;
   onOpenBanksTab?: () => void;
+  onOpenApplicationsTab?: () => void;
 }) {
   // Resolve names from assigned_agent_id / pre_counsellor_id via the
   // users store. Backend may send the denormalized *_name string on the
@@ -268,6 +295,15 @@ function ProfileSection({
       : undefined);
 
   const followUp = formatFollowUp(lead.due_date);
+  // AV budget: prefer the backend-parsed amount/currency for display
+  // (counsellor still edits the free-text `budget` elsewhere).
+  const budgetDisplay =
+    lead.budget_amount != null
+      ? `${lead.budget_currency ? `${lead.budget_currency} ` : ""}${lead.budget_amount.toLocaleString()}`
+      : lead.budget;
+  const appStatus = lead.application_status as
+    | keyof typeof APPLICATION_STATUS_LABELS
+    | undefined;
   // Structured BankEntry rows from /leads/{id}/banks are the source
   // of truth. We intentionally don't synthesize a chip from legacy
   // bank_name/bank_status — that disagrees with the Banks tab.
@@ -371,7 +407,50 @@ function ProfileSection({
         <CardContent>
           <InfoRow label="Target Degree" value={lead.target_degree} />
           <InfoRow label="Target Intake" value={lead.target_intake} />
-          {!isFmc && <InfoRow label="Budget" value={lead.budget} />}
+          {!isFmc && <InfoRow label="Budget" value={budgetDisplay} />}
+          {!isFmc && (
+            <InfoRow label="Primary university" value={lead.primary_university} />
+          )}
+          {!isFmc && appStatus && APPLICATION_STATUS_LABELS[appStatus] && (
+            <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
+              <span className="text-sm text-muted-foreground">
+                Application status
+              </span>
+              <button
+                type="button"
+                onClick={onOpenApplicationsTab}
+                className="flex items-center gap-2 text-sm rounded -m-1 p-1 hover:bg-muted/60 transition-colors"
+                title="Manage applications"
+              >
+                <GraduationCap className="h-3.5 w-3.5 text-violet-500" />
+                <span
+                  className={cn(
+                    "inline-flex items-center px-1.5 py-0.5 rounded-full border text-[11px] leading-none",
+                    APPLICATION_STATUS_BADGE_CLASSES[appStatus]
+                  )}
+                >
+                  {APPLICATION_STATUS_LABELS[appStatus]}
+                </span>
+                {(lead.application_count ?? 0) > 1 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{(lead.application_count ?? 1) - 1} more
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+          {!isFmc && !appStatus && (
+            <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
+              <span className="text-sm text-muted-foreground">Applications</span>
+              <button
+                type="button"
+                onClick={onOpenApplicationsTab}
+                className="text-sm text-muted-foreground italic hover:underline"
+              >
+                — Add application
+              </button>
+            </div>
+          )}
           <div className="py-1.5 border-b border-border/50">
             <span className="text-sm text-muted-foreground">
               Preferred Countries

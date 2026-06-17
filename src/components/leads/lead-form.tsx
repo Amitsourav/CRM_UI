@@ -40,6 +40,7 @@ import { useTaskCountStore } from "@/stores/task-count-store";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { useBanksStore } from "@/stores/banks-store";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
+import { UniversityAutocomplete } from "@/components/leads/university-autocomplete";
 import type { Lead } from "@/types";
 
 interface LeadFormProps {
@@ -402,7 +403,14 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   </div>
                   <div className="space-y-1">
                     <Label>University</Label>
-                    <Input value={form.university} onChange={(e) => updateField("university", e.target.value)} />
+                    {isFmc ? (
+                      <Input value={form.university} onChange={(e) => updateField("university", e.target.value)} />
+                    ) : (
+                      <UniversityAutocomplete
+                        value={form.university}
+                        onChange={(v) => updateField("university", v)}
+                      />
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label>Percentage</Label>

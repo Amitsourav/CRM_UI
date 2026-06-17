@@ -5,6 +5,7 @@ import {
   CalendarClock,
   ClipboardList,
   FileText,
+  GraduationCap,
   IndianRupee,
   Landmark,
   PhoneCall,
@@ -21,6 +22,8 @@ import {
 } from "@/lib/follow-up";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import {
+  APPLICATION_STATUS_BADGE_CLASSES,
+  APPLICATION_STATUS_LABELS,
   BANK_STATUS_BADGE_CLASSES,
   BANK_STATUS_LABELS,
 } from "@/lib/constants";
@@ -31,6 +34,7 @@ interface LeadSummaryTilesProps {
   counsellorName?: string;
   preCounsellorName?: string;
   onOpenBanksTab?: () => void;
+  onOpenApplicationsTab?: () => void;
 }
 
 // Compact at-a-glance strip rendered between the lead header and the
@@ -41,11 +45,20 @@ export function LeadSummaryTiles({
   counsellorName,
   preCounsellorName,
   onOpenBanksTab,
+  onOpenApplicationsTab,
 }: LeadSummaryTilesProps) {
   const { slug, getEntry } = useStageConfig();
   const isFmc = slug !== "admitverse";
   const stageEntry = getEntry(lead.current_stage);
   const followUp = formatFollowUp(lead.due_date);
+  // AV: prefer the backend-parsed budget for display.
+  const budgetDisplay =
+    lead.budget_amount != null
+      ? `${lead.budget_currency ? `${lead.budget_currency} ` : ""}${lead.budget_amount.toLocaleString()}`
+      : lead.budget;
+  const appStatus = lead.application_status as
+    | keyof typeof APPLICATION_STATUS_LABELS
+    | undefined;
   // Structured BankEntry list is the source of truth. Legacy
   // bank_name/bank_status on the lead is intentionally ignored —
   // otherwise this tile contradicts the Banks tab when only the
@@ -133,10 +146,46 @@ export function LeadSummaryTiles({
           label="Budget"
         >
           <span className="text-sm font-medium truncate">
-            {lead.budget || (
+            {budgetDisplay || (
               <span className="text-muted-foreground font-normal">—</span>
             )}
           </span>
+        </Tile>
+      )}
+
+      {/* University / application (AV) — click opens Applications tab */}
+      {!isFmc && (
+        <Tile
+          icon={<GraduationCap className="h-4 w-4 text-violet-500" />}
+          label="University"
+          onClick={onOpenApplicationsTab}
+        >
+          {lead.primary_university ? (
+            <span className="flex items-center gap-1.5 text-sm min-w-0">
+              <span className="font-medium truncate">
+                {lead.primary_university}
+              </span>
+              {appStatus && APPLICATION_STATUS_LABELS[appStatus] && (
+                <span
+                  className={cn(
+                    "inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] leading-none shrink-0",
+                    APPLICATION_STATUS_BADGE_CLASSES[appStatus]
+                  )}
+                >
+                  {APPLICATION_STATUS_LABELS[appStatus]}
+                </span>
+              )}
+              {(lead.application_count ?? 0) > 1 && (
+                <span className="text-xs text-muted-foreground shrink-0">
+                  +{(lead.application_count ?? 1) - 1}
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-sm text-muted-foreground italic">
+              Add application
+            </span>
+          )}
         </Tile>
       )}
 

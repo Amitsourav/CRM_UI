@@ -511,6 +511,7 @@ export default function LeadDetailPage() {
         counsellorName={headerAgentName}
         preCounsellorName={headerPreCounsellorName}
         onOpenBanksTab={() => setActiveTab("banks")}
+        onOpenApplicationsTab={() => setActiveTab("applications")}
       />
 
       <LeadDetailTabs

@@ -1,10 +1,12 @@
 import type {
+  ApplicationStatus,
   BankStatus,
   CallDisposition,
   LeadStage,
   Role,
   TaskStatus,
   TaskType,
+  VisaStatus,
 } from "@/types";
 
 // Human-readable role labels. Includes a "telecaller" key as a 24-hour
@@ -308,4 +310,83 @@ export const BANK_STATUS_BADGE_CLASSES: Record<BankStatus, string> = {
   sanctioned: "bg-teal-50 text-teal-700 border-teal-200",
   pf_paid: "bg-emerald-50 text-emerald-700 border-emerald-200",
   disbursed: "bg-green-100 text-green-800 border-green-300",
+};
+
+/* ── Admitverse: university application status ── */
+
+export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  applied: "Applied",
+  shortlisted: "Shortlisted",
+  offer_received: "Offer Received",
+  conditional_offer: "Conditional Offer",
+  unconditional_offer: "Unconditional Offer",
+  deposit_paid: "Deposit Paid",
+  cas_received: "CAS Received",
+  visa_applied: "Visa Applied",
+  visa_approved: "Visa Approved",
+  enrolled: "Enrolled",
+  rejected: "Rejected",
+  withdrawn: "Withdrawn",
+};
+
+// Ladder order (the progression part). rejected/withdrawn are terminal
+// off-ramps and intentionally excluded from the ordered ladder; they're
+// still selectable statuses.
+export const APPLICATION_STATUS_ORDER: ApplicationStatus[] = [
+  "applied",
+  "shortlisted",
+  "offer_received",
+  "conditional_offer",
+  "unconditional_offer",
+  "deposit_paid",
+  "cas_received",
+  "visa_applied",
+  "visa_approved",
+  "enrolled",
+];
+
+// Statuses at which the offer-detail fields (offer_date … visa_status)
+// become editable + visible. Before this point the backend rejects writes
+// to those fields. Mirrors FMC's SANCTIONED_OR_BEYOND gate.
+export const OFFER_OR_BEYOND: ReadonlySet<ApplicationStatus> = new Set([
+  "offer_received",
+  "conditional_offer",
+  "unconditional_offer",
+  "deposit_paid",
+  "cas_received",
+  "visa_applied",
+  "visa_approved",
+  "enrolled",
+]);
+
+export function applicationShowsOfferDetails(
+  status: ApplicationStatus
+): boolean {
+  return OFFER_OR_BEYOND.has(status);
+}
+
+// Funnel ramp: blue → green, with red off-ramps for rejected/withdrawn.
+export const APPLICATION_STATUS_BADGE_CLASSES: Record<
+  ApplicationStatus,
+  string
+> = {
+  applied: "bg-blue-50 text-blue-700 border-blue-200",
+  shortlisted: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  offer_received: "bg-violet-50 text-violet-700 border-violet-200",
+  conditional_offer: "bg-amber-50 text-amber-700 border-amber-200",
+  unconditional_offer: "bg-teal-50 text-teal-700 border-teal-200",
+  deposit_paid: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  cas_received: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  visa_applied: "bg-green-50 text-green-700 border-green-200",
+  visa_approved: "bg-green-100 text-green-800 border-green-300",
+  enrolled: "bg-green-200 text-green-900 border-green-400",
+  rejected: "bg-red-50 text-red-700 border-red-200",
+  withdrawn: "bg-slate-100 text-slate-600 border-slate-200",
+};
+
+export const VISA_STATUS_LABELS: Record<VisaStatus, string> = {
+  not_started: "Not Started",
+  applied: "Applied",
+  approved: "Approved",
+  rejected: "Rejected",
 };

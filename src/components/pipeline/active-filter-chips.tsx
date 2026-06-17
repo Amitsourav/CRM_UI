@@ -3,7 +3,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X as IconX } from "lucide-react";
-import { BANK_STATUS_LABELS } from "@/lib/constants";
+import {
+  APPLICATION_STATUS_LABELS,
+  BANK_STATUS_LABELS,
+} from "@/lib/constants";
 import type { LeadSource, User } from "@/types";
 import {
   LEAD_SEGMENT_LABELS,
@@ -98,6 +101,36 @@ export function ActiveFilterChips({
       key: "bank_status",
       label: `Bank status: ${display}`,
       clears: ["bank_status"],
+    });
+  }
+
+  if (filters.application_status) {
+    const labels = APPLICATION_STATUS_LABELS as Record<string, string>;
+    const display =
+      labels[filters.application_status] ?? filters.application_status;
+    chips.push({
+      key: "application_status",
+      label: `Application: ${display}`,
+      clears: ["application_status"],
+    });
+  }
+
+  if (filters.university) {
+    chips.push({
+      key: "university",
+      label: `University: ${filters.university}`,
+      clears: ["university"],
+    });
+  }
+
+  if (filters.budget_min || filters.budget_max) {
+    const cur = filters.budget_currency ? `${filters.budget_currency} ` : "";
+    const lo = filters.budget_min ?? "0";
+    const hi = filters.budget_max ?? "∞";
+    chips.push({
+      key: "budget",
+      label: `Budget: ${cur}${lo}–${hi}`,
+      clears: ["budget_min", "budget_max", "budget_currency"],
     });
   }
 

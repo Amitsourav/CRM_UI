@@ -532,36 +532,49 @@ export function PipelineBoard() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button
-            variant={filters.sort_by === "loan_asc" ? "default" : "outline"}
-            size="sm"
-            title="Sort by loan amount — low to high"
-            aria-pressed={filters.sort_by === "loan_asc"}
-            onClick={() =>
-              patchFilters({
-                sort_by:
-                  filters.sort_by === "loan_asc" ? undefined : "loan_asc",
-              })
-            }
-          >
-            <ArrowUpNarrowWide className="mr-2 h-4 w-4" />
-            Low → High
-          </Button>
-          <Button
-            variant={filters.sort_by === "loan_desc" ? "default" : "outline"}
-            size="sm"
-            title="Sort by loan amount — high to low"
-            aria-pressed={filters.sort_by === "loan_desc"}
-            onClick={() =>
-              patchFilters({
-                sort_by:
-                  filters.sort_by === "loan_desc" ? undefined : "loan_desc",
-              })
-            }
-          >
-            <ArrowDownNarrowWide className="mr-2 h-4 w-4" />
-            High → Low
-          </Button>
+          {(() => {
+            // FMC sorts by loan amount; Admitverse by budget. Same UI,
+            // brand-specific sort_by values the backend understands.
+            const ascValue = isFmc ? "loan_asc" : "budget_asc";
+            const descValue = isFmc ? "loan_desc" : "budget_desc";
+            const metric = isFmc ? "loan amount" : "budget";
+            return (
+              <>
+                <Button
+                  variant={filters.sort_by === ascValue ? "default" : "outline"}
+                  size="sm"
+                  title={`Sort by ${metric} — low to high`}
+                  aria-pressed={filters.sort_by === ascValue}
+                  onClick={() =>
+                    patchFilters({
+                      sort_by:
+                        filters.sort_by === ascValue ? undefined : ascValue,
+                    })
+                  }
+                >
+                  <ArrowUpNarrowWide className="mr-2 h-4 w-4" />
+                  Low → High
+                </Button>
+                <Button
+                  variant={
+                    filters.sort_by === descValue ? "default" : "outline"
+                  }
+                  size="sm"
+                  title={`Sort by ${metric} — high to low`}
+                  aria-pressed={filters.sort_by === descValue}
+                  onClick={() =>
+                    patchFilters({
+                      sort_by:
+                        filters.sort_by === descValue ? undefined : descValue,
+                    })
+                  }
+                >
+                  <ArrowDownNarrowWide className="mr-2 h-4 w-4" />
+                  High → Low
+                </Button>
+              </>
+            );
+          })()}
           <ActiveFilterChips
             filters={filters}
             agents={agents}
@@ -580,6 +593,7 @@ export function PipelineBoard() {
         onApply={setFilters}
         showAgentFilter={isManager}
         showLeadSegmentFilter={isAdmin}
+        isFmc={isFmc}
         agents={agents}
         sources={sources}
         campaigns={campaigns}

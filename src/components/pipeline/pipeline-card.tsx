@@ -52,6 +52,8 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import {
+  APPLICATION_STATUS_BADGE_CLASSES,
+  APPLICATION_STATUS_LABELS,
   BANK_STATUS_BADGE_CLASSES,
   BANK_STATUS_LABELS,
   getStageHex,
@@ -1273,6 +1275,21 @@ function AdmitverseEnhancedCard({
   const countriesPreview = countries.slice(0, 2).join(", ");
   const countriesExtra = countries.length > 2 ? countries.length - 2 : 0;
 
+  // Application summary (read-only on the tile — managed on the detail page).
+  const primaryUniversity =
+    lead.primary_university || lead.top_applications?.[0]?.university_name;
+  const appStatus = lead.application_status as
+    | keyof typeof APPLICATION_STATUS_LABELS
+    | undefined;
+  const appExtra =
+    (lead.application_count ?? 0) > 1 ? (lead.application_count ?? 1) - 1 : 0;
+  // Prefer the backend-parsed budget for display; editing still targets the
+  // free-text `budget` field below.
+  const budgetDisplay =
+    lead.budget_amount != null
+      ? `${lead.budget_currency ? `${lead.budget_currency} ` : ""}${lead.budget_amount.toLocaleString()}`
+      : lead.budget;
+
   const agentName = lead.assigned_agent_name || lead.assigned_agent?.full_name;
   const followUp = formatFollowUp(lead.due_date);
   const created = formatRelative(lead.created_at);
@@ -1336,10 +1353,34 @@ function AdmitverseEnhancedCard({
           </p>
         )}
 
-        {/* Application info (all 3 fields hide-when-empty so the whole section
+        {/* Application info (all fields hide-when-empty so the whole section
             collapses if there's nothing to show) */}
-        {(intakeDisplay || countries.length > 0 || lead.budget) && (
+        {(intakeDisplay ||
+          countries.length > 0 ||
+          lead.budget ||
+          lead.budget_amount != null ||
+          primaryUniversity) && (
         <div className="border-t pt-2 space-y-1">
+          {primaryUniversity && (
+            <div className="flex items-center gap-1.5 text-xs text-foreground/80 min-w-0">
+              <School className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+              <span className="font-medium truncate min-w-0">
+                {primaryUniversity}
+              </span>
+              {appStatus && APPLICATION_STATUS_LABELS[appStatus] && (
+                <span
+                  className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] leading-none shrink-0 ${APPLICATION_STATUS_BADGE_CLASSES[appStatus]}`}
+                >
+                  {APPLICATION_STATUS_LABELS[appStatus]}
+                </span>
+              )}
+              {appExtra > 0 && (
+                <span className="text-[10px] text-muted-foreground shrink-0">
+                  +{appExtra}
+                </span>
+              )}
+            </div>
+          )}
           <InlineRow
             Icon={GraduationCap}
             iconClass="text-indigo-500"
@@ -1415,8 +1456,8 @@ function AdmitverseEnhancedCard({
             Icon={Wallet}
             iconClass="text-amber-600"
             label="Budget"
-            display={lead.budget}
-            isEmpty={!lead.budget}
+            display={budgetDisplay}
+            isEmpty={!lead.budget && lead.budget_amount == null}
             hideIfEmpty
             editing={editing === "budget"}
             onStartEdit={(e) => {
