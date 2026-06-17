@@ -41,6 +41,7 @@ import { useStageConfig } from "@/hooks/use-stage-config";
 import { useBanksStore } from "@/stores/banks-store";
 import { DocsChecklist } from "@/components/leads/docs-checklist";
 import { UniversityAutocomplete } from "@/components/leads/university-autocomplete";
+import { ApplicationsManager } from "@/components/leads/applications-manager";
 import type { Lead } from "@/types";
 
 interface LeadFormProps {
@@ -88,6 +89,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     target_intake: "",
     preferred_countries: "",
     preferred_universities: "",
+    budget: "",
     loan_amount: "",
     bank_name: "",
     bank_status: "",
@@ -134,6 +136,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         target_intake: lead.target_intake || "",
         preferred_countries: lead.preferred_countries?.join(", ") || "",
         preferred_universities: lead.preferred_universities?.join(", ") || "",
+        budget: lead.budget || "",
         loan_amount: lead.loan_amount || "",
         bank_name: lead.bank_name || "",
         bank_status: lead.bank_status || "",
@@ -152,6 +155,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         pincode: "", highest_qualification: "", stream: "", passing_year: "",
         college_name: "", university: "", percentage: "", target_degree: "",
         target_intake: "", preferred_countries: "", preferred_universities: "",
+        budget: "",
         loan_amount: "", bank_name: "", bank_status: "", docs_required: "6",
         docs_submitted: "",
         assigned_agent_id: "", pre_counsellor_id: "", lead_source_id: "",
@@ -232,18 +236,6 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     const docsRequired = form.docs_required
       ? parseInt(form.docs_required)
       : undefined;
-    const docsSubmitted = form.docs_submitted
-      ? parseInt(form.docs_submitted)
-      : undefined;
-    if (
-      !isFmc &&
-      docsRequired !== undefined &&
-      docsSubmitted !== undefined &&
-      docsSubmitted > docsRequired
-    ) {
-      toast.error("Docs submitted can't exceed docs required");
-      return;
-    }
 
     setIsSubmitting(true);
     try {
@@ -275,14 +267,15 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         assigned_agent_id: form.assigned_agent_id || undefined,
         pre_counsellor_id: form.pre_counsellor_id || null,
         lead_source_id: form.lead_source_id || undefined,
-        loan_amount: form.loan_amount || undefined,
-        bank_name: form.bank_name || undefined,
-        bank_status: form.bank_status || undefined,
+        // Loan/bank fields are FMC-only; Admitverse uses the free-text budget.
+        loan_amount: isFmc ? form.loan_amount || undefined : undefined,
+        bank_name: isFmc ? form.bank_name || undefined : undefined,
+        bank_status: isFmc ? form.bank_status || undefined : undefined,
+        budget: isFmc ? undefined : form.budget.trim() || undefined,
         docs_required: docsRequired,
-        // FMC drives docs_submitted from the checklist via submitted_docs;
-        // other brands keep the manual numeric field.
-        docs_submitted: isFmc ? undefined : docsSubmitted,
-        submitted_docs: isFmc ? submittedDocs : undefined,
+        // Both brands drive docs_submitted from the checklist via
+        // submitted_docs; the backend recomputes the numeric count.
+        submitted_docs: submittedDocs,
         notes: form.notes || undefined,
         tags: form.tags
           ? form.tags.split(",").map((s) => s.trim()).filter(Boolean)
@@ -524,7 +517,9 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 </div>
               </div>
 
-              {/* Loan Details */}
+              {/* Loan Details — FMC only. Admitverse uses the Budget &
+                  Applications section below instead. */}
+              {isFmc && (
               <div>
                 <h4 className="text-sm font-semibold mb-3">Loan Details</h4>
                 <div className="grid grid-cols-2 gap-3">
@@ -664,40 +659,85 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                       onChange={(e) => updateField("docs_required", e.target.value)}
                     />
                   </div>
-                  {!isFmc && (
-                    <div className="space-y-1">
-                      <Label>Docs Submitted</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={form.docs_required || undefined}
-                        value={form.docs_submitted}
-                        onChange={(e) =>
-                          updateField("docs_submitted", e.target.value)
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  <Label>Submitted Documents</Label>
+                  <DocsChecklist
+                    selected={submittedDocs}
+                    onToggle={(key) =>
+                      setSubmittedDocs((prev) =>
+                        prev.includes(key)
+                          ? prev.filter((k) => k !== key)
+                          : [...prev, key]
+                      )
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground pt-1">
+                    {submittedDocs.length} of {form.docs_required || "—"} submitted
+                  </p>
+                </div>
+              </div>
+              )}
+
+              {/* Budget, Documents & Applications — Admitverse only */}
+              {!isFmc && (
+                <div className="space-y-5">
+                  <div>
+                    <h4 className="text-sm font-semibold mb-3">
+                      Budget &amp; Documents
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label>Budget</Label>
+                        <Input
+                          value={form.budget}
+                          onChange={(e) => updateField("budget", e.target.value)}
+                          placeholder="e.g. £25,000 / 30 L"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Docs Required</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={form.docs_required}
+                          onChange={(e) =>
+                            updateField("docs_required", e.target.value)
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-1.5">
+                      <Label>Submitted Documents</Label>
+                      <DocsChecklist
+                        selected={submittedDocs}
+                        onToggle={(key) =>
+                          setSubmittedDocs((prev) =>
+                            prev.includes(key)
+                              ? prev.filter((k) => k !== key)
+                              : [...prev, key]
+                          )
                         }
                       />
+                      <p className="text-xs text-muted-foreground pt-1">
+                        {submittedDocs.length} of {form.docs_required || "—"}{" "}
+                        submitted
+                      </p>
                     </div>
-                  )}
-                </div>
-                {isFmc && (
-                  <div className="mt-3 space-y-1.5">
-                    <Label>Submitted Documents</Label>
-                    <DocsChecklist
-                      selected={submittedDocs}
-                      onToggle={(key) =>
-                        setSubmittedDocs((prev) =>
-                          prev.includes(key)
-                            ? prev.filter((k) => k !== key)
-                            : [...prev, key]
-                        )
-                      }
-                    />
-                    <p className="text-xs text-muted-foreground pt-1">
-                      {submittedDocs.length} of {form.docs_required || "—"} submitted
-                    </p>
                   </div>
-                )}
-              </div>
+                  <div>
+                    <h4 className="text-sm font-semibold mb-3">Applications</h4>
+                    {isEdit && lead ? (
+                      <ApplicationsManager leadId={lead.id} showNotes />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Save the lead first, then add university applications
+                        here.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Meta */}
               <div>
