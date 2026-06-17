@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PipelineCard } from "./pipeline-card";
 import { useStageConfig } from "@/hooks/use-stage-config";
+import { isDnpStage } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 import type { Lead, LeadStage } from "@/types";
 
@@ -40,7 +41,7 @@ export function PipelineColumn({
   return (
     <div
       className={`flex flex-col shrink-0 bg-muted/50 rounded-lg ${
-        stage === "created" ? "w-[400px]" : "w-[340px]"
+        stage === "created" || isDnpStage(stage) ? "w-[400px]" : "w-[340px]"
       }`}
     >
       <div className="flex items-center justify-between p-3 border-b">
