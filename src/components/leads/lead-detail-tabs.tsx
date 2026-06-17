@@ -408,50 +408,6 @@ function ProfileSection({
         <CardContent>
           <InfoRow label="Target Degree" value={lead.target_degree} />
           <InfoRow label="Target Intake" value={lead.target_intake} />
-          {!isFmc && <InfoRow label="Budget" value={budgetDisplay} />}
-          {!isFmc && (
-            <InfoRow label="Primary university" value={lead.primary_university} />
-          )}
-          {!isFmc && appStatus && APPLICATION_STATUS_LABELS[appStatus] && (
-            <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
-              <span className="text-sm text-muted-foreground">
-                Application status
-              </span>
-              <button
-                type="button"
-                onClick={onOpenApplicationsTab}
-                className="flex items-center gap-2 text-sm rounded -m-1 p-1 hover:bg-muted/60 transition-colors"
-                title="Manage applications"
-              >
-                <GraduationCap className="h-3.5 w-3.5 text-violet-500" />
-                <span
-                  className={cn(
-                    "inline-flex items-center px-1.5 py-0.5 rounded-full border text-[11px] leading-none",
-                    APPLICATION_STATUS_BADGE_CLASSES[appStatus]
-                  )}
-                >
-                  {APPLICATION_STATUS_LABELS[appStatus]}
-                </span>
-                {(lead.application_count ?? 0) > 1 && (
-                  <span className="text-xs text-muted-foreground">
-                    +{(lead.application_count ?? 1) - 1} more
-                  </span>
-                )}
-              </button>
-            </div>
-          )}
-          {!isFmc && !appStatus && (
-            <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
-              <span className="text-sm text-muted-foreground">Applications</span>
-              <button
-                type="button"
-                onClick={onOpenApplicationsTab}
-                className="text-sm text-muted-foreground italic hover:underline"
-              >
-                — Add application
-              </button>
-            </div>
-          )}
           <div className="py-1.5 border-b border-border/50">
             <span className="text-sm text-muted-foreground">
               Preferred Countries
@@ -724,6 +680,76 @@ function ProfileSection({
                 </p>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Admitverse mirror of the FMC Finance card: budget, the lead's top
+          application summary (→ Applications tab), and the study-abroad doc
+          checklist driven by GET /leads/docs/checklist. */}
+      {!isFmc && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Applications &amp; Documents
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <InfoRow label="Budget" value={budgetDisplay} />
+            <div className="flex justify-between items-center gap-3 py-1.5 border-b border-border/50">
+              <span className="text-sm text-muted-foreground">University</span>
+              {lead.primary_university ? (
+                <button
+                  type="button"
+                  onClick={onOpenApplicationsTab}
+                  className="flex items-center gap-2 text-sm rounded -m-1 p-1 hover:bg-muted/60 transition-colors"
+                  title="Manage applications"
+                >
+                  <GraduationCap className="h-3.5 w-3.5 text-violet-500" />
+                  <span className="font-medium break-words min-w-0">
+                    {lead.primary_university}
+                  </span>
+                  {appStatus && APPLICATION_STATUS_LABELS[appStatus] && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center px-1.5 py-0.5 rounded-full border text-[11px] leading-none shrink-0",
+                        APPLICATION_STATUS_BADGE_CLASSES[appStatus]
+                      )}
+                    >
+                      {APPLICATION_STATUS_LABELS[appStatus]}
+                    </span>
+                  )}
+                  {(lead.application_count ?? 0) > 1 && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      +{(lead.application_count ?? 1) - 1} more
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onOpenApplicationsTab}
+                  className="text-sm text-muted-foreground italic hover:underline"
+                >
+                  — Add application
+                </button>
+              )}
+            </div>
+            <div className="py-1.5">
+              <div className="flex justify-between items-center gap-3">
+                <span className="text-sm text-muted-foreground">
+                  Docs progress
+                </span>
+                <span className="text-sm font-medium">
+                  {docsDone} / {docsTotal || "—"} docs
+                </span>
+              </div>
+              <DocsChecklist
+                selected={lead.submitted_docs ?? []}
+                onToggle={handleDocToggle}
+                className="mt-2"
+              />
+            </div>
           </CardContent>
         </Card>
       )}

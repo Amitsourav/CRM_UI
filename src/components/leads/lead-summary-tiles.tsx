@@ -224,8 +224,8 @@ export function LeadSummaryTiles({
         </Tile>
       )}
 
-      {/* Docs progress (FMC) */}
-      {isFmc && docsTotal > 0 && (
+      {/* Docs progress (both brands) */}
+      {docsTotal > 0 && (
         <Tile
           icon={<FileText className="h-4 w-4 text-cyan-600" />}
           label="Docs"
