@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { LeadStageBadge } from "./lead-stage-badge";
 import { Button } from "@/components/ui/button";
@@ -41,8 +40,6 @@ export function LeadTable({
   onBulkAssign,
   onCall,
 }: LeadTableProps) {
-  const router = useRouter();
-
   const columns: Column<Lead>[] = [
     {
       key: "serial_no",
@@ -62,6 +59,8 @@ export function LeadTable({
       cell: (lead) => (
         <Link
           href={`/leads/${lead.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
           className="font-medium text-primary hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
@@ -133,7 +132,11 @@ export function LeadTable({
                 Start AI Call
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => router.push(`/leads/${lead.id}`)}>
+            <DropdownMenuItem
+              onClick={() =>
+                window.open(`/leads/${lead.id}`, "_blank", "noopener,noreferrer")
+              }
+            >
               <Eye className="mr-2 h-4 w-4" />
               View
             </DropdownMenuItem>
@@ -184,7 +187,9 @@ export function LeadTable({
         onSelectionChange={onSelectionChange}
         emptyTitle="No leads found"
         emptyDescription="Create your first lead or adjust your filters."
-        onRowClick={(lead) => router.push(`/leads/${lead.id}`)}
+        onRowClick={(lead) =>
+          window.open(`/leads/${lead.id}`, "_blank", "noopener,noreferrer")
+        }
       />
     </div>
   );
