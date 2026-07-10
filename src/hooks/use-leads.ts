@@ -14,7 +14,7 @@ interface UseLeadsParams {
   dateTo?: string;
   search?: string;
   // Admin-only segmentation filter, same contract as the pipeline
-  // page: unassigned / counsellor / pre_counsellor / campaign.
+  // page: unassigned / counsellor / pre_counsellor / campaign / normal.
   leadSegment?: string;
 }
 

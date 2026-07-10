@@ -144,7 +144,8 @@ export function LeadFiltersSheet({
                       next === "unassigned" ||
                       next === "counsellor" ||
                       next === "pre_counsellor" ||
-                      next === "campaign"
+                      next === "campaign" ||
+                      next === "normal"
                         ? next
                         : undefined,
                   });

@@ -47,7 +47,8 @@ export interface PipelineFilters {
     | "unassigned"
     | "counsellor"
     | "pre_counsellor"
-    | "campaign";
+    | "campaign"
+    | "normal";
 }
 
 export const LEAD_SEGMENT_LABELS: Record<
@@ -58,6 +59,7 @@ export const LEAD_SEGMENT_LABELS: Record<
   counsellor: "Has Counsellor",
   pre_counsellor: "Has Pre-Counsellor",
   campaign: "In Campaign",
+  normal: "Normal (non-AI)",
 };
 
 // All keys that are simple single-value scalar params (i.e. not the
@@ -132,7 +134,8 @@ export function parseFiltersFromParams(
         v === "unassigned" ||
         v === "counsellor" ||
         v === "pre_counsellor" ||
-        v === "campaign"
+        v === "campaign" ||
+        v === "normal"
       ) {
         f.lead_segment = v;
       }
