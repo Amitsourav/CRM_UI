@@ -60,33 +60,18 @@ interface StageChangeData {
   toStage: LeadStage;
 }
 
-// Both pipelines are split into two tabs so working deals aren't
-// cluttered by raw intake / dead leads. Stages listed here go to the
-// "New / DNP / Lost" tab; everything else stays on the Main tab.
-const FMC_INTAKE_STAGES = new Set<string>(["created", "dnp", "lost"]);
-const AV_INTAKE_STAGES = new Set<string>([
-  "created",
-  "dnp_pre_qualified",
-  "dnp_post_qualified",
-  "lost",
-]);
+// Both pipelines are split into two tabs by lead segment (not by stage):
+// "Main Pipeline" shows Normal (non-AI) leads and "AI Calling" shows leads
+// enrolled in a campaign. Every stage column renders in both tabs — the tab
+// only changes the lead_segment filter sent to /leads/by-stage.
+type PipelineSegment = "normal" | "campaign";
 
 export function PipelineBoard() {
-  const { isAdmin, isManager } = useAuthStore();
+  const { isManager } = useAuthStore();
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
   const { slug, stages: STAGES, getEntry, canTransition } = useStageConfig();
   const isFmc = slug !== "admitverse";
 
-  // Pipeline tab: "main" = active deals, "intake" = created / dnp / lost.
-  const [pipelineTab, setPipelineTab] = useState<"main" | "intake">("main");
-  const intakeStages = isFmc ? FMC_INTAKE_STAGES : AV_INTAKE_STAGES;
-  const visibleStages = useMemo(
-    () =>
-      STAGES.filter((s) =>
-        pipelineTab === "intake" ? intakeStages.has(s) : !intakeStages.has(s),
-      ),
-    [STAGES, intakeStages, pipelineTab],
-  );
   const lostReasons = useLostReasonsStore((s) => s.reasons);
   const lostReasonsFetched = useLostReasonsStore((s) => s.fetched);
   const ensureLostReasons = useLostReasonsStore((s) => s.ensureFetched);
@@ -147,6 +132,26 @@ export function PipelineBoard() {
     },
     [filters, setFilters]
   );
+
+  // The two tabs are just the lead_segment filter surfaced as buttons.
+  // Anything that isn't the "campaign" (AI Calling) segment is treated as
+  // the Main Pipeline (Normal) tab.
+  const activeSegment: PipelineSegment =
+    filters.lead_segment === "campaign" ? "campaign" : "normal";
+
+  // Default the board to Normal leads on first load: if no valid segment is
+  // in the URL yet, seed lead_segment=normal so /leads/by-stage returns
+  // non-AI leads. Deep links with ?lead_segment=campaign are left untouched.
+  useEffect(() => {
+    if (
+      filters.lead_segment !== "normal" &&
+      filters.lead_segment !== "campaign"
+    ) {
+      patchFilters({ lead_segment: "normal" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.lead_segment]);
+
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [agents, setAgents] = useState<User[]>([]);
   const [sources, setSources] = useState<LeadSource[]>([]);
@@ -520,7 +525,7 @@ export function PipelineBoard() {
   if (isLoading) {
     return (
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {visibleStages.map((stage) => (
+        {STAGES.map((stage) => (
           <div key={stage} className="min-w-[280px]">
             <Skeleton className="h-10 w-full mb-2" />
             <div className="space-y-2">
@@ -538,24 +543,25 @@ export function PipelineBoard() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)]">
-      {/* Pipeline tabs (both brands) — split active deals from raw intake /
-          dead leads so the main board stays focused. */}
+      {/* Pipeline tabs (both brands) — split leads by segment (AI vs Normal).
+          All stage columns render in both tabs; only the lead_segment filter
+          changes, so the board re-fetches the matching set of leads. */}
       <div className="flex items-center gap-1 mb-3 shrink-0">
         <Button
-          variant={pipelineTab === "main" ? "default" : "outline"}
+          variant={activeSegment === "normal" ? "default" : "outline"}
           size="sm"
-          aria-pressed={pipelineTab === "main"}
-          onClick={() => setPipelineTab("main")}
+          aria-pressed={activeSegment === "normal"}
+          onClick={() => patchFilters({ lead_segment: "normal" })}
         >
           Main Pipeline
         </Button>
         <Button
-          variant={pipelineTab === "intake" ? "default" : "outline"}
+          variant={activeSegment === "campaign" ? "default" : "outline"}
           size="sm"
-          aria-pressed={pipelineTab === "intake"}
-          onClick={() => setPipelineTab("intake")}
+          aria-pressed={activeSegment === "campaign"}
+          onClick={() => patchFilters({ lead_segment: "campaign" })}
         >
-          New / DNP / Lost
+          AI Calling
         </Button>
       </div>
 
@@ -635,7 +641,9 @@ export function PipelineBoard() {
         value={filters}
         onApply={setFilters}
         showAgentFilter={isManager}
-        showLeadSegmentFilter={isAdmin}
+        // lead_segment is now driven by the Main Pipeline / AI Calling tabs,
+        // so it's no longer offered as a separate filter in the sheet.
+        showLeadSegmentFilter={false}
         isFmc={isFmc}
         agents={agents}
         sources={sources}
@@ -647,7 +655,7 @@ export function PipelineBoard() {
           per-column. */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex items-stretch gap-4 overflow-x-auto pb-4 flex-1 min-h-0">
-          {visibleStages.map((stage) => (
+          {STAGES.map((stage) => (
             <PipelineColumn
               key={stage}
               stage={stage}

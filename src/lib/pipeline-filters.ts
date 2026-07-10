@@ -197,6 +197,9 @@ export function countActiveFilters(filters: PipelineFilters): number {
     if (counted.has(k)) continue;
     // sort_by is a sort, not a filter — don't count it.
     if (k === "sort_by") continue;
+    // lead_segment is driven by the pipeline's Main / AI Calling tabs,
+    // not the filter sheet — don't count it as an active filter.
+    if (k === "lead_segment") continue;
     const v = filters[k];
     if (v !== undefined && v !== null && v !== "") n += 1;
   }

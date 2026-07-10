@@ -8,10 +8,7 @@ import {
   BANK_STATUS_LABELS,
 } from "@/lib/constants";
 import type { LeadSource, User } from "@/types";
-import {
-  LEAD_SEGMENT_LABELS,
-  type PipelineFilters,
-} from "@/lib/pipeline-filters";
+import { type PipelineFilters } from "@/lib/pipeline-filters";
 
 interface ActiveFilterChipsProps {
   filters: PipelineFilters;
@@ -196,13 +193,8 @@ export function ActiveFilterChips({
     });
   }
 
-  if (filters.lead_segment) {
-    chips.push({
-      key: "lead_segment",
-      label: `Segment: ${LEAD_SEGMENT_LABELS[filters.lead_segment]}`,
-      clears: ["lead_segment"],
-    });
-  }
+  // lead_segment is surfaced by the pipeline's Main Pipeline / AI Calling
+  // tabs, not as a filter chip, so it's intentionally omitted here.
 
   if (chips.length === 0) return null;
 
