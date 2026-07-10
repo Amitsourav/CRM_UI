@@ -60,11 +60,33 @@ interface StageChangeData {
   toStage: LeadStage;
 }
 
+// Both pipelines are split into two tabs so working deals aren't
+// cluttered by raw intake / dead leads. Stages listed here go to the
+// "New / DNP / Lost" tab; everything else stays on the Main tab.
+const FMC_INTAKE_STAGES = new Set<string>(["created", "dnp", "lost"]);
+const AV_INTAKE_STAGES = new Set<string>([
+  "created",
+  "dnp_pre_qualified",
+  "dnp_post_qualified",
+  "lost",
+]);
+
 export function PipelineBoard() {
   const { isAdmin, isManager } = useAuthStore();
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
   const { slug, stages: STAGES, getEntry, canTransition } = useStageConfig();
   const isFmc = slug !== "admitverse";
+
+  // Pipeline tab: "main" = active deals, "intake" = created / dnp / lost.
+  const [pipelineTab, setPipelineTab] = useState<"main" | "intake">("main");
+  const intakeStages = isFmc ? FMC_INTAKE_STAGES : AV_INTAKE_STAGES;
+  const visibleStages = useMemo(
+    () =>
+      STAGES.filter((s) =>
+        pipelineTab === "intake" ? intakeStages.has(s) : !intakeStages.has(s),
+      ),
+    [STAGES, intakeStages, pipelineTab],
+  );
   const lostReasons = useLostReasonsStore((s) => s.reasons);
   const lostReasonsFetched = useLostReasonsStore((s) => s.fetched);
   const ensureLostReasons = useLostReasonsStore((s) => s.ensureFetched);
@@ -498,7 +520,7 @@ export function PipelineBoard() {
   if (isLoading) {
     return (
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {STAGES.map((stage) => (
+        {visibleStages.map((stage) => (
           <div key={stage} className="min-w-[280px]">
             <Skeleton className="h-10 w-full mb-2" />
             <div className="space-y-2">
@@ -516,6 +538,27 @@ export function PipelineBoard() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)]">
+      {/* Pipeline tabs (both brands) — split active deals from raw intake /
+          dead leads so the main board stays focused. */}
+      <div className="flex items-center gap-1 mb-3 shrink-0">
+        <Button
+          variant={pipelineTab === "main" ? "default" : "outline"}
+          size="sm"
+          aria-pressed={pipelineTab === "main"}
+          onClick={() => setPipelineTab("main")}
+        >
+          Main Pipeline
+        </Button>
+        <Button
+          variant={pipelineTab === "intake" ? "default" : "outline"}
+          size="sm"
+          aria-pressed={pipelineTab === "intake"}
+          onClick={() => setPipelineTab("intake")}
+        >
+          New / DNP / Lost
+        </Button>
+      </div>
+
       {/* Filters row — a Filters button + active chips. The full filter
           form lives in a drawer so the page header stays light. */}
       <div className="flex flex-col gap-2 mb-4 shrink-0">
@@ -604,7 +647,7 @@ export function PipelineBoard() {
           per-column. */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex items-stretch gap-4 overflow-x-auto pb-4 flex-1 min-h-0">
-          {STAGES.map((stage) => (
+          {visibleStages.map((stage) => (
             <PipelineColumn
               key={stage}
               stage={stage}
