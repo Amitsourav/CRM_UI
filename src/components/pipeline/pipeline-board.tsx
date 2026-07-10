@@ -67,7 +67,7 @@ interface StageChangeData {
 type PipelineSegment = "normal" | "campaign";
 
 export function PipelineBoard() {
-  const { isManager } = useAuthStore();
+  const { isAdmin, isManager } = useAuthStore();
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
   const { slug, stages: STAGES, getEntry, canTransition } = useStageConfig();
   const isFmc = slug !== "admitverse";
@@ -141,8 +141,15 @@ export function PipelineBoard() {
 
   // Default the board to Normal leads on first load: if no valid segment is
   // in the URL yet, seed lead_segment=normal so /leads/by-stage returns
-  // non-AI leads. Deep links with ?lead_segment=campaign are left untouched.
+  // non-AI leads. The AI Calling (campaign) segment is admin-only, so force
+  // non-admins to normal even if a deep link says ?lead_segment=campaign.
   useEffect(() => {
+    if (!isAdmin) {
+      if (filters.lead_segment !== "normal") {
+        patchFilters({ lead_segment: "normal" });
+      }
+      return;
+    }
     if (
       filters.lead_segment !== "normal" &&
       filters.lead_segment !== "campaign"
@@ -150,7 +157,7 @@ export function PipelineBoard() {
       patchFilters({ lead_segment: "normal" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.lead_segment]);
+  }, [filters.lead_segment, isAdmin]);
 
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [agents, setAgents] = useState<User[]>([]);
@@ -555,14 +562,16 @@ export function PipelineBoard() {
         >
           Main Pipeline
         </Button>
-        <Button
-          variant={activeSegment === "campaign" ? "default" : "outline"}
-          size="sm"
-          aria-pressed={activeSegment === "campaign"}
-          onClick={() => patchFilters({ lead_segment: "campaign" })}
-        >
-          AI Calling
-        </Button>
+        {isAdmin && (
+          <Button
+            variant={activeSegment === "campaign" ? "default" : "outline"}
+            size="sm"
+            aria-pressed={activeSegment === "campaign"}
+            onClick={() => patchFilters({ lead_segment: "campaign" })}
+          >
+            AI Calling
+          </Button>
+        )}
       </div>
 
       {/* Filters row — a Filters button + active chips. The full filter
