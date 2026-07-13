@@ -29,6 +29,7 @@ function blankSettings(): InvoiceSettings {
   return {
     invoice_prefix: "FMC",
     default_tax_rate: 18,
+    invoice_start_number: 20,
   };
 }
 
@@ -79,6 +80,12 @@ export default function InvoiceSettingsPage() {
       Number(s.default_tax_rate) > 100
     )
       return "Default tax rate must be 0–100";
+    if (
+      s.invoice_start_number == null ||
+      !Number.isInteger(Number(s.invoice_start_number)) ||
+      Number(s.invoice_start_number) < 1
+    )
+      return "Starting invoice number must be a whole number of at least 1";
     return null;
   };
 
@@ -377,6 +384,31 @@ export default function InvoiceSettingsPage() {
                     }
                   />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="start-number">Starting invoice number *</Label>
+                  <span className="text-[11px] text-muted-foreground">
+                    Applies from the next financial year
+                  </span>
+                </div>
+                <Input
+                  id="start-number"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={settings.invoice_start_number ?? 20}
+                  onChange={(e) =>
+                    patch({
+                      invoice_start_number: Number(e.target.value),
+                    })
+                  }
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  The first invoice of a new financial year starts from this
+                  number. It won&apos;t change the current year&apos;s running
+                  sequence.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="terms">Default terms</Label>

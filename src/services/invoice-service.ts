@@ -23,6 +23,10 @@ export interface InvoiceSettings {
   bank_branch?: string;
   invoice_prefix?: string;
   default_tax_rate?: number;
+  // First invoice number of a new financial year. Backend defaults new
+  // tenants to 20; the PUT is a partial upsert, so omitting it keeps the
+  // stored value (and never disturbs the current year's running sequence).
+  invoice_start_number?: number;
   default_terms?: string;
   logo_url?: string | null;
   signature_url?: string | null;
