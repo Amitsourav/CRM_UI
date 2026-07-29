@@ -559,6 +559,58 @@ export interface AIAgent {
   pricing?: AgentPricing;
 }
 
+/* ── Website Leads (public form submission inbox) ── */
+
+// Submissions from the marketing-site lead forms land in a review inbox
+// rather than the pipeline — the forms are public and collect junk. A
+// counsellor triages each one: Convert → a real Lead, Spam → dismissed.
+// `duplicate` is set by the backend, never by the UI: it means ingest (or
+// a rejected convert) matched an already-active lead by email/phone.
+export type WebsiteSubmissionStatus =
+  | "new"
+  | "converted"
+  | "duplicate"
+  | "spam";
+
+export interface WebsiteSubmission {
+  id: string;
+  form_key: string;
+  form_name: string;
+  source: string;
+  page?: string | null;
+  tag?: string | null;
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  message?: string | null;
+  // Everything else the form posted. Forms add fields without a frontend
+  // change, so this is rendered generically — never key-by-key.
+  payload?: Record<string, unknown> | null;
+  external_id?: string | null;
+  status: WebsiteSubmissionStatus;
+  // Non-null on a `new` row when ingest already matched an existing lead;
+  // converting such a row returns 409. Also set once converted.
+  lead_id?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at: string;
+}
+
+export interface WebsiteLeadCounts {
+  new: number;
+  converted: number;
+  duplicate: number;
+  spam: number;
+  total: number;
+}
+
+export interface WebsiteLeadForm {
+  form_key: string;
+  form_name: string;
+  total: number;
+  new: number;
+}
+
 /* ── API Shapes ── */
 export interface PaginatedResponse<T> {
   items: T[];

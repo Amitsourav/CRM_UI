@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTaskCountStore } from "@/stores/task-count-store";
+import { useWebsiteLeadCountStore } from "@/stores/website-lead-count-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -24,6 +25,7 @@ import {
   FileText,
   PhoneCall,
   Megaphone,
+  Inbox,
   LogOut,
 } from "lucide-react";
 
@@ -54,6 +56,10 @@ interface AdminNavItem {
 }
 
 const adminNav: AdminNavItem[] = [
+  // Review inbox for public website form submissions. Manager+ only (the
+  // API 403s pre-counsellors), so it lives in this section — which is
+  // already gated on isManager.
+  { href: "/website-leads", label: "Website Leads", icon: Inbox },
   { href: "/admin/users", label: "Users", icon: UserCog },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/admin/agents", label: "AI Agents", icon: Bot },
@@ -75,6 +81,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, company, isAdmin, isManager, logout } = useAuthStore();
   const taskCount = useTaskCountStore((s) => s.count);
+  const newWebsiteLeads = useWebsiteLeadCountStore((s) => s.counts.new);
 
   const initials = user?.full_name
     ?.split(" ")
@@ -165,7 +172,12 @@ export function Sidebar() {
                     )}
                   >
                     <item.icon className="h-4 w-4" />
-                    {item.label}
+                    <span>{item.label}</span>
+                    {item.href === "/website-leads" && newWebsiteLeads > 0 && (
+                      <span className="ml-auto rounded-full bg-red-500 text-white text-[10px] leading-none font-semibold px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                        {newWebsiteLeads > 99 ? "99+" : newWebsiteLeads}
+                      </span>
+                    )}
                   </Link>
                 ))}
               </>

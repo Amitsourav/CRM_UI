@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTaskCountStore } from "@/stores/task-count-store";
+import { useWebsiteLeadCountPolling } from "@/hooks/use-website-leads";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { PageSkeleton } from "@/components/shared/loading-skeleton";
@@ -46,6 +47,9 @@ export default function DashboardLayout({
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [user?.id, refreshTaskCount]);
+
+  // Sidebar "Website Leads" badge — manager+ only; the hook no-ops otherwise.
+  useWebsiteLeadCountPolling();
 
   if (isLoading) {
     return (

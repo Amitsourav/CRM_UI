@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTaskCountStore } from "@/stores/task-count-store";
+import { useWebsiteLeadCountStore } from "@/stores/website-lead-count-store";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,6 +24,7 @@ import {
   FileSpreadsheet,
   PhoneCall,
   Megaphone,
+  Inbox,
 } from "lucide-react";
 
 const mainNav = [
@@ -38,6 +40,7 @@ const preCounsellorNav = [
 ];
 
 const adminNav = [
+  { href: "/website-leads", label: "Website Leads", icon: Inbox },
   { href: "/admin/users", label: "Users", icon: UserCog },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/admin/agents", label: "AI Agents", icon: Bot },
@@ -52,6 +55,7 @@ export function MobileNav() {
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const isManager = useAuthStore((s) => s.isManager);
   const taskCount = useTaskCountStore((s) => s.count);
+  const newWebsiteLeads = useWebsiteLeadCountStore((s) => s.counts.new);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -125,7 +129,12 @@ export function MobileNav() {
                     )}
                   >
                     <item.icon className="h-4 w-4" />
-                    {item.label}
+                    <span>{item.label}</span>
+                    {item.href === "/website-leads" && newWebsiteLeads > 0 && (
+                      <span className="ml-auto rounded-full bg-red-500 text-white text-[10px] leading-none font-semibold px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                        {newWebsiteLeads > 99 ? "99+" : newWebsiteLeads}
+                      </span>
+                    )}
                   </Link>
                 ))}
               </>
