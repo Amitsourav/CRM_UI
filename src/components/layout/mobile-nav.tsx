@@ -25,12 +25,15 @@ import {
   PhoneCall,
   Megaphone,
   Inbox,
+  Landmark,
 } from "lucide-react";
 
+// `fmcOnly` items are hidden on Admitverse — mirrors `sidebar.tsx`.
 const mainNav = [
   { href: "/leads", label: "Leads", icon: LayoutDashboard },
   { href: "/calls", label: "Calls", icon: PhoneCall },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
+  { href: "/bank-shares", label: "Bank Shares", icon: Landmark, fmcOnly: true },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/notifications", label: "Notifications", icon: Bell },
 ];
@@ -54,6 +57,9 @@ export function MobileNav() {
   const pathname = usePathname();
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const isManager = useAuthStore((s) => s.isManager);
+  const isAdmitverse = useAuthStore(
+    (s) => s.company?.company_slug === "admitverse"
+  );
   const taskCount = useTaskCountStore((s) => s.count);
   const newWebsiteLeads = useWebsiteLeadCountStore((s) => s.counts.new);
 
@@ -72,7 +78,9 @@ export function MobileNav() {
         </div>
         <ScrollArea className="flex-1 py-4">
           <nav className="space-y-1 px-3">
-            {mainNav.map((item) => (
+            {mainNav
+              .filter((item) => !item.fmcOnly || !isAdmitverse)
+              .map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

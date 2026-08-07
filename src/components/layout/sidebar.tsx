@@ -26,13 +26,20 @@ import {
   PhoneCall,
   Megaphone,
   Inbox,
+  Landmark,
   LogOut,
 } from "lucide-react";
 
+// `fmcOnly` items are hidden on Admitverse. Convention matches the rest of
+// the codebase (`slug !== "admitverse"` ⇒ FMC), because FMC's slug isn't
+// necessarily a fixed string.
 const mainNav = [
   { href: "/leads", label: "Leads", icon: LayoutDashboard },
   { href: "/calls", label: "Calls", icon: PhoneCall },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
+  // Read-only bank-share matrix. Every role can open it — the backend
+  // filters restricted roles down to their own leads.
+  { href: "/bank-shares", label: "Bank Shares", icon: Landmark, fmcOnly: true },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/notifications", label: "Notifications", icon: Bell },
 ];
@@ -49,9 +56,7 @@ interface AdminNavItem {
   label: string;
   icon: typeof UserCog;
   adminOnly?: boolean;
-  // When true the item is hidden on Admitverse. Convention matches
-  // the rest of the codebase (`slug !== "admitverse"` ⇒ FMC),
-  // because FMC's slug isn't necessarily a fixed string.
+  /** Hidden on Admitverse — see the note on `mainNav`. */
   fmcOnly?: boolean;
 }
 
@@ -83,6 +88,8 @@ export function Sidebar() {
   const taskCount = useTaskCountStore((s) => s.count);
   const newWebsiteLeads = useWebsiteLeadCountStore((s) => s.counts.new);
 
+  const isAdmitverse = company?.company_slug === "admitverse";
+
   const initials = user?.full_name
     ?.split(" ")
     .map((n) => n[0])
@@ -109,7 +116,9 @@ export function Sidebar() {
         {/* Navigation */}
         <ScrollArea className="flex-1 py-4">
           <nav className="space-y-1 px-3">
-            {mainNav.map((item) => (
+            {mainNav
+              .filter((item) => !item.fmcOnly || !isAdmitverse)
+              .map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -155,11 +164,7 @@ export function Sidebar() {
                 </p>
                 {adminNav
                   .filter((item) => !item.adminOnly || isAdmin)
-                  .filter(
-                    (item) =>
-                      !item.fmcOnly ||
-                      company?.company_slug !== "admitverse"
-                  )
+                  .filter((item) => !item.fmcOnly || !isAdmitverse)
                   .map((item) => (
                   <Link
                     key={item.href}

@@ -611,6 +611,61 @@ export interface WebsiteLeadForm {
   new: number;
 }
 
+/* ── Bank Share Grid (FMC only) ── */
+
+// One lead × one bank. Presence of this object in a row's `shares` map is
+// the *only* signal that the file was shared with that bank — a missing key
+// is a blank cell. Never infer sharing from `bank_status`.
+export interface BankShareSummary {
+  shared_at: string;
+  shared_by_name?: string | null;
+  // How the share was recorded — "whatsapp" today; the bot is the only writer.
+  source?: string | null;
+  bank_status?: BankStatus | string | null;
+  message_count?: number;
+  last_message_at?: string | null;
+  last_message_preview?: string | null;
+}
+
+export interface BankShareGridRow {
+  lead_id: string;
+  serial_no?: number | null;
+  full_name: string;
+  phone?: string | null;
+  // Null when the lead is unassigned.
+  counsellor_name?: string | null;
+  current_stage: LeadStage;
+  // Lakhs, as a string ("17.5"). Legacy rows may hold free text ("19 L").
+  loan_amount?: string | number | null;
+  // Keyed by bank name; keys are a subset of the response's `banks`.
+  shares: Record<string, BankShareSummary>;
+}
+
+export interface BankShareGridResponse
+  extends PaginatedResponse<BankShareGridRow> {
+  // Canonical column order from the backend. Render columns from this —
+  // a hard-coded list would silently drift from the backend's 18.
+  banks: string[];
+}
+
+export interface BankShareMessage {
+  id: string;
+  body: string;
+  // Frequently null for the bank's staff — fall back to sender_phone.
+  sender_name?: string | null;
+  sender_phone?: string | null;
+  is_our_team: boolean;
+  created_at: string;
+}
+
+export interface BankShareThread {
+  bank_name: string;
+  shared_at: string;
+  shared_by_name?: string | null;
+  bank_status?: BankStatus | string | null;
+  messages: BankShareMessage[];
+}
+
 /* ── API Shapes ── */
 export interface PaginatedResponse<T> {
   items: T[];
