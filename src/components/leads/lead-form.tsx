@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/command";
 import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isCleanLakhsInput } from "@/lib/loan-amount";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useTaskCountStore } from "@/stores/task-count-store";
@@ -530,22 +531,42 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                       value={form.loan_amount}
                       onChange={(e) => {
                         const val = e.target.value;
-                        if (isFmc) {
-                          // Numeric-only: digits + one optional decimal point.
-                          if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                            updateField("loan_amount", val);
-                          }
-                        } else {
+                        if (!isFmc) {
+                          updateField("loan_amount", val);
+                          return;
+                        }
+                        // Numeric-only: digits + one optional decimal point.
+                        // The guard is bypassed while the *current* value is
+                        // already unparseable — legacy rows hold things like
+                        // "19 L", and filtering keystrokes against a value
+                        // that can never pass rejects every edit including
+                        // backspace, leaving the field frozen with no
+                        // feedback. Once it's numeric again the guard
+                        // re-engages on its own.
+                        if (
+                          isCleanLakhsInput(val) ||
+                          !isCleanLakhsInput(form.loan_amount)
+                        ) {
                           updateField("loan_amount", val);
                         }
                       }}
                       placeholder={isFmc ? "25" : "25 L / 2.5 cr / 500000"}
                     />
-                    {isFmc && (
-                      <p className="text-xs text-muted-foreground">
-                        Enter in Lakhs. e.g. 25 = 25L, 100 = 1Cr, 300 = 3Cr
-                      </p>
-                    )}
+                    {isFmc &&
+                      (isCleanLakhsInput(form.loan_amount) ? (
+                        <p className="text-xs text-muted-foreground">
+                          Enter in Lakhs. e.g. 25 = 25L, 100 = 1Cr, 300 = 3Cr
+                        </p>
+                      ) : (
+                        // Warn, don't block: refusing to save would stop an
+                        // unrelated edit (a phone number, say) on the leads
+                        // still carrying legacy text — the same trap in a
+                        // different place.
+                        <p className="text-xs text-amber-600">
+                          Expected a plain number in Lakhs — e.g. 19 for
+                          &quot;19 L&quot;. Saved as typed if you leave it.
+                        </p>
+                      ))}
                   </div>
                   <div className="space-y-1">
                     <Label>Bank Name</Label>

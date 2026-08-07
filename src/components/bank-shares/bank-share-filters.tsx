@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { useUsersStore } from "@/stores/users-store";
+import { useBanksStore } from "@/stores/banks-store";
 
 export const ALL_VALUE = "__all__";
 
@@ -26,7 +27,7 @@ interface BankShareFiltersProps {
   bankName: string;
   sharedOnly: boolean;
   pageSize: number;
-  /** Bank list from the grid response — the same source as the columns. */
+  /** Grid-response bank list — fallback if /leads/banks hasn't landed yet. */
   banks: string[];
   onChange: (patch: Record<string, string | undefined>) => void;
   onClear: () => void;
@@ -50,9 +51,18 @@ export function BankShareFilters({
   const users = useUsersStore((s) => s.users);
   const ensureUsers = useUsersStore((s) => s.ensureFetched);
 
+  // GET /leads/banks — the canonical lender list, fetched once per session.
+  // It grows as we join more bank WhatsApp groups, so it is never derived
+  // from a local constant. Falls back to the grid response's `banks` (the
+  // same list) if this request hasn't landed yet.
+  const storeBanks = useBanksStore((s) => s.banks);
+  const ensureBanks = useBanksStore((s) => s.ensureFetched);
+  const bankOptions = storeBanks.length ? storeBanks : banks;
+
   useEffect(() => {
     ensureUsers();
-  }, [ensureUsers]);
+    ensureBanks();
+  }, [ensureUsers, ensureBanks]);
 
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
@@ -134,7 +144,7 @@ export function BankShareFilters({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL_VALUE}>Any bank</SelectItem>
-          {banks.map((bank) => (
+          {bankOptions.map((bank) => (
             <SelectItem key={bank} value={bank}>
               {bank}
             </SelectItem>

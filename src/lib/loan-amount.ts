@@ -34,3 +34,13 @@ export function formatLoanAmount(
 function trimZeros(value: number): string {
   return String(Number(value.toFixed(2)));
 }
+
+/**
+ * Does this string look like a clean lakhs figure — digits with at most one
+ * decimal point? Used to decide whether the FMC loan-amount input should
+ * keep filtering keystrokes, not to gate saving: legacy rows hold "19 L",
+ * and a value the guard rejects must still be editable and savable.
+ */
+export function isCleanLakhsInput(value: string): boolean {
+  return /^\d*\.?\d*$/.test(value);
+}
