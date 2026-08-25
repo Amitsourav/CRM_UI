@@ -73,6 +73,13 @@ export type CSVImportStatus =
   | "completed"
   | "failed";
 
+// One lender's decision about one file. Shares four words with LeadStage
+// (sanctioned / pf_paid / disbursed / lost) and moves independently of it:
+// PNB can be `lost` while the lead is still `processing` with Axis.
+//
+// `docs_reviewed` and `under_review` are no longer offered by
+// GET /leads/bank-statuses but remain valid on existing rows, so nothing may
+// treat the offered options as the full set.
 export type BankStatus =
   | "applied"
   | "docs_reviewed"
@@ -80,7 +87,8 @@ export type BankStatus =
   | "loan_login"
   | "sanctioned"
   | "pf_paid"
-  | "disbursed";
+  | "disbursed"
+  | "lost";
 
 /* ── Models ── */
 export interface User {
@@ -617,6 +625,8 @@ export interface WebsiteLeadForm {
 // the *only* signal that the file was shared with that bank — a missing key
 // is a blank cell. Never infer sharing from `bank_status`.
 export interface BankShareSummary {
+  /** PATCH target for this lender's status. */
+  entry_id?: string | null;
   shared_at: string;
   /** This lender's own figure, in lakhs. Null until it reaches `sanctioned`. */
   loan_amount_lakh?: number | string | null;

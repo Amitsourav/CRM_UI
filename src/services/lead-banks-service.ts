@@ -9,6 +9,8 @@ export interface BankEntryCreate {
 
 export interface BankEntryUpdate {
   bank_status?: BankStatus;
+  /** In lakhs — required when setting a bank to pf_paid without a stored one. */
+  loan_amount_lakh?: number;
   notes?: string | null;
   application_id?: string | null;
   sanction_date?: string | null;

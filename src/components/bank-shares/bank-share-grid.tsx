@@ -220,6 +220,14 @@ export function BankShareGrid({
                     leadName={row.full_name}
                     bankName={bank}
                     share={row.shares?.[bank]}
+                    onPatchShare={(name, patch) =>
+                      onPatchRow(row.lead_id, {
+                        shares: {
+                          ...row.shares,
+                          [name]: { ...row.shares?.[name], ...patch },
+                        },
+                      })
+                    }
                   />
                 </td>
               ))}

@@ -245,6 +245,7 @@ export const BANK_STATUS_LABELS: Record<BankStatus, string> = {
   sanctioned: "Sanctioned",
   pf_paid: "PF Paid",
   disbursed: "Disbursed",
+  lost: "Lost",
 };
 
 // Used by pill-style badges; walks blue → green to mirror funnel progression.
@@ -313,6 +314,9 @@ export const BANK_STATUS_PRIORITY: Record<BankStatus, number> = {
   under_review: 3,
   docs_reviewed: 2,
   applied: 1,
+  // A lender that declined isn't "furthest along" with anything, so it never
+  // wins the pre-selection this ordering drives.
+  lost: 0,
 };
 
 export const BANK_STATUS_BADGE_CLASSES: Record<BankStatus, string> = {
@@ -323,6 +327,7 @@ export const BANK_STATUS_BADGE_CLASSES: Record<BankStatus, string> = {
   sanctioned: "bg-teal-50 text-teal-700 border-teal-200",
   pf_paid: "bg-emerald-50 text-emerald-700 border-emerald-200",
   disbursed: "bg-green-100 text-green-800 border-green-300",
+  lost: "bg-red-50 text-red-700 border-red-200",
 };
 
 /* ── Admitverse: university application status ── */
