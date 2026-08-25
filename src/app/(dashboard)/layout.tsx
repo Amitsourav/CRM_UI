@@ -2,7 +2,9 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
+import { useSidebarStore } from "@/stores/sidebar-store";
 import { useTaskCountStore } from "@/stores/task-count-store";
 import { useWebsiteLeadCountPolling } from "@/hooks/use-website-leads";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -17,7 +19,16 @@ export default function DashboardLayout({
 }) {
   const { user, isLoading, fetchMe, isManager } = useAuthStore();
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
+  const sidebarCollapsed = useSidebarStore((s) => s.collapsed);
+  const sidebarHydrated = useSidebarStore((s) => s.hydrated);
+  const hydrateSidebar = useSidebarStore((s) => s.hydrate);
   const router = useRouter();
+
+  // Read the stored sidebar preference once the client is up — see the note
+  // in sidebar-store on why it can't be the initial state.
+  useEffect(() => {
+    hydrateSidebar();
+  }, [hydrateSidebar]);
 
   useEffect(() => {
     // If user already set (e.g. just logged in), just mark loading done.
@@ -64,7 +75,13 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen">
       <Sidebar />
-      <div className="md:pl-64">
+      <div
+        className={cn(
+          sidebarHydrated &&
+            "transition-[padding] duration-200 motion-reduce:transition-none",
+          sidebarCollapsed ? "md:pl-0" : "md:pl-64"
+        )}
+      >
         <Topbar />
         <main className="p-4 md:p-6">{children}</main>
       </div>

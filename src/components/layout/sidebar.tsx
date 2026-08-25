@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
+import { useSidebarStore } from "@/stores/sidebar-store";
 import { useTaskCountStore } from "@/stores/task-count-store";
 import { useWebsiteLeadCountStore } from "@/stores/website-lead-count-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,6 +29,7 @@ import {
   Inbox,
   Landmark,
   LogOut,
+  PanelLeftClose,
 } from "lucide-react";
 
 // `fmcOnly` items are hidden on Admitverse. Convention matches the rest of
@@ -87,6 +89,9 @@ export function Sidebar() {
   const { user, company, isAdmin, isManager, logout } = useAuthStore();
   const taskCount = useTaskCountStore((s) => s.count);
   const newWebsiteLeads = useWebsiteLeadCountStore((s) => s.counts.new);
+  const collapsed = useSidebarStore((s) => s.collapsed);
+  const hydrated = useSidebarStore((s) => s.hydrated);
+  const toggleSidebar = useSidebarStore((s) => s.toggle);
 
   const isAdmitverse = company?.company_slug === "admitverse";
 
@@ -104,13 +109,35 @@ export function Sidebar() {
   };
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
+    <div
+      className={cn(
+        "hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-40",
+        // Skipped until the stored preference lands, so a collapsed sidebar
+        // doesn't slide away on every page load.
+        hydrated && "transition-transform duration-200 motion-reduce:transition-none",
+        collapsed && "-translate-x-full"
+      )}
+      // Kept mounted while hidden so the transition can run; hidden from
+      // assistive tech and tab order once it's off-screen.
+      aria-hidden={collapsed}
+      inert={collapsed}
+    >
       <div className="flex flex-col flex-grow border-r bg-card">
         {/* Logo */}
-        <div className="flex items-center h-16 px-6 border-b">
-          <Link href="/leads" className="text-lg font-bold">
+        <div className="flex items-center h-16 gap-2 pl-6 pr-3 border-b">
+          <Link href="/leads" className="flex-1 truncate text-lg font-bold">
             {process.env.NEXT_PUBLIC_APP_NAME || "FundMyCampus CRM"}
           </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+            onClick={toggleSidebar}
+            aria-label="Hide sidebar"
+            title="Hide sidebar"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Navigation */}

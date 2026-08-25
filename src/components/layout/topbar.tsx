@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useNotificationStore } from "@/stores/notification-store";
 import { usePageTitleStore } from "@/stores/page-title-store";
+import { useSidebarStore } from "@/stores/sidebar-store";
 import { useNotificationPolling } from "@/hooks/use-notifications";
 import { MobileNav } from "./mobile-nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -29,7 +30,7 @@ import {
   CommandEmpty,
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Settings, LogOut, Search } from "lucide-react";
+import { Bell, Settings, LogOut, Search, PanelLeft } from "lucide-react";
 import api from "@/lib/api";
 import type { Lead } from "@/types";
 
@@ -38,6 +39,8 @@ export function Topbar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const sidebarCollapsed = useSidebarStore((s) => s.collapsed);
+  const toggleSidebar = useSidebarStore((s) => s.toggle);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<Lead[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,6 +101,19 @@ export function Topbar() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
       <MobileNav />
+
+      {/* Sidebar toggle — the only way back once it's hidden, so it stays
+          mounted in both states rather than appearing only when collapsed. */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="hidden md:flex h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
+        onClick={toggleSidebar}
+        aria-label={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+        title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+      >
+        <PanelLeft className="h-4 w-4" />
+      </Button>
 
       {/* Breadcrumb */}
       <div className="hidden sm:flex items-center gap-1 text-sm text-muted-foreground">
