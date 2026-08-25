@@ -26,9 +26,20 @@ function BankSharesPageContent() {
   const searchParams = useSearchParams();
 
   // ── URL-backed view state, so a filtered grid is shareable ──
-  const stage = searchParams.get("current_stage") || "";
-  const counsellorId = searchParams.get("agent_id") || "";
-  const bankName = searchParams.get("bank_name") || "";
+  // The three list filters are repeatable both here and on the API, so they
+  // round-trip as repeated params (?bank_name=PNB&bank_name=Axis) rather
+  // than a delimited string — no escaping, and the URL matches the request.
+  // Keyed on the serialized form: getAll() returns a fresh array each
+  // render, which would defeat every downstream memo.
+  const stagesKey = JSON.stringify(searchParams.getAll("current_stage"));
+  const counsellorsKey = JSON.stringify(searchParams.getAll("agent_id"));
+  const banksKey = JSON.stringify(searchParams.getAll("bank_name"));
+  const stages = useMemo<string[]>(() => JSON.parse(stagesKey), [stagesKey]);
+  const counsellorIds = useMemo<string[]>(
+    () => JSON.parse(counsellorsKey),
+    [counsellorsKey]
+  );
+  const bankNames = useMemo<string[]>(() => JSON.parse(banksKey), [banksKey]);
   const sharedOnly = searchParams.get("shared_only") === "1";
   const pageParam = Number(searchParams.get("page"));
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
@@ -38,11 +49,19 @@ function BankSharesPageContent() {
     : DEFAULT_PAGE_SIZE;
 
   const patchParams = useCallback(
-    (patch: Record<string, string | undefined>) => {
+    (patch: Record<string, string | string[] | undefined>) => {
       const next = new URLSearchParams(searchParams.toString());
       for (const [key, value] of Object.entries(patch)) {
-        if (value === undefined || value === "") next.delete(key);
-        else next.set(key, value);
+        if (Array.isArray(value)) {
+          // Replace the whole set: delete first, then one append per value.
+          // An empty selection drops the param rather than sending "?key=".
+          next.delete(key);
+          for (const v of value) if (v) next.append(key, v);
+        } else if (value === undefined || value === "") {
+          next.delete(key);
+        } else {
+          next.set(key, value);
+        }
       }
       const qs = next.toString();
       router.replace(qs ? `/bank-shares?${qs}` : "/bank-shares", {
@@ -75,21 +94,33 @@ function BankSharesPageContent() {
   const gridParams = useMemo(
     () => ({
       q: debouncedSearch || undefined,
-      current_stage: stage || undefined,
-      agent_id: counsellorId || undefined,
-      bank_name: bankName || undefined,
+      current_stage: stages.length ? stages : undefined,
+      agent_id: counsellorIds.length ? counsellorIds : undefined,
+      bank_name: bankNames.length ? bankNames : undefined,
       shared_only: sharedOnly || undefined,
       page,
       page_size: pageSize,
     }),
-    [debouncedSearch, stage, counsellorId, bankName, sharedOnly, page, pageSize]
+    [
+      debouncedSearch,
+      stages,
+      counsellorIds,
+      bankNames,
+      sharedOnly,
+      page,
+      pageSize,
+    ]
   );
 
   const { rows, banks, total, totalPages, isLoading, error, refetch } =
     useBankShareGrid(gridParams);
 
   const hasFilters =
-    !!searchValue || !!stage || !!counsellorId || !!bankName || sharedOnly;
+    !!searchValue ||
+    stages.length > 0 ||
+    counsellorIds.length > 0 ||
+    bankNames.length > 0 ||
+    sharedOnly;
 
   const clearFilters = () => {
     setSearchValue("");
@@ -127,9 +158,9 @@ function BankSharesPageContent() {
       <BankShareFilters
         searchValue={searchValue}
         onSearchChange={setSearchValue}
-        stage={stage}
-        counsellorId={counsellorId}
-        bankName={bankName}
+        stages={stages}
+        counsellorIds={counsellorIds}
+        bankNames={bankNames}
         sharedOnly={sharedOnly}
         pageSize={pageSize}
         banks={banks}

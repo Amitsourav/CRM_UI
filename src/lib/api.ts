@@ -12,6 +12,11 @@ const baseURL =
 const api = axios.create({
   baseURL,
   headers: { "Content-Type": "application/json" },
+  // Array params serialize as repeated bare keys (?tags=a&tags=b), not
+  // axios's default bracket form (?tags[]=a). Backends here read the
+  // repeated form and silently ignore the bracketed one — which returns an
+  // unfiltered result with no error, so the default is worse than a failure.
+  paramsSerializer: { indexes: null },
 });
 
 api.interceptors.request.use((config) => {
