@@ -36,11 +36,32 @@ function trimZeros(value: number): string {
 }
 
 /**
- * Does this string look like a clean lakhs figure — digits with at most one
- * decimal point? Used to decide whether the FMC loan-amount input should
- * keep filtering keystrokes, not to gate saving: legacy rows hold "19 L",
- * and a value the guard rejects must still be editable and savable.
+ * Renders a figure the backend has already converted to lakhs. Accepts the
+ * string-or-number both money shapes arrive in.
  */
-export function isCleanLakhsInput(value: string): boolean {
-  return /^\d*\.?\d*$/.test(value);
+export function formatLakhs(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "—";
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return String(value);
+  return `${trimZeros(parsed)} L`;
+}
+
+/**
+ * What to show in a lead's loan column.
+ *
+ * A lender that has paid its processing fee has committed a real figure, so
+ * it wins over the student's asking number — and there can be more than one.
+ * Most rows have none, including leads moved to `pf_paid` before the bank
+ * became mandatory, so the asking figure is the ordinary fallback.
+ */
+export function formatCommittedLoan(
+  askingAmount: string | number | null | undefined,
+  pfPaidBanks: Array<{ bank_name: string; loan_amount_lakh: number | string }> | undefined
+): string {
+  if (pfPaidBanks?.length) {
+    return pfPaidBanks
+      .map((b) => `${formatLakhs(b.loan_amount_lakh)} (${b.bank_name})`)
+      .join(", ");
+  }
+  return formatLoanAmount(askingAmount);
 }

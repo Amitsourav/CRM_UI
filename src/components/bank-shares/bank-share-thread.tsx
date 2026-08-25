@@ -5,6 +5,7 @@ import { format, formatDistanceToNow, isValid, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { BANK_STATUS_BADGE_CLASSES, BANK_STATUS_LABELS } from "@/lib/constants";
+import { formatLakhs } from "@/lib/loan-amount";
 import {
   threadKey,
   useBankShareThreadStore,
@@ -88,6 +89,16 @@ export function BankShareThread({
           <p className="text-sm font-semibold">{bankName}</p>
           <BankStatusBadge status={status} />
         </div>
+        {/* This lender's own figure — null until the file reaches sanctioned,
+            so its absence is normal and shows nothing rather than a dash. */}
+        {summary.loan_amount_lakh != null && (
+          <p className="font-mono text-xs tabular-nums">
+            {formatLakhs(summary.loan_amount_lakh)}
+            <span className="ml-1 font-sans text-muted-foreground">
+              sanctioned here
+            </span>
+          </p>
+        )}
         <p className="text-xs text-muted-foreground">
           Shared {relativeTime(summary.shared_at)}
           {sharedBy ? ` by ${sharedBy}` : ""}

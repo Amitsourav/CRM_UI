@@ -618,6 +618,8 @@ export interface WebsiteLeadForm {
 // is a blank cell. Never infer sharing from `bank_status`.
 export interface BankShareSummary {
   shared_at: string;
+  /** This lender's own figure, in lakhs. Null until it reaches `sanctioned`. */
+  loan_amount_lakh?: number | string | null;
   shared_by_name?: string | null;
   // How the share was recorded — "whatsapp" today; the bot is the only writer.
   source?: string | null;
@@ -625,6 +627,16 @@ export interface BankShareSummary {
   message_count?: number;
   last_message_at?: string | null;
   last_message_preview?: string | null;
+}
+
+/**
+ * A lender that has actually committed money. Once one exists, it — not the
+ * student's asking figure — is the real number for the row.
+ */
+export interface PfPaidBank {
+  bank_name: string;
+  /** Already in lakhs; display as-is. */
+  loan_amount_lakh: number | string;
 }
 
 export interface BankShareGridRow {
@@ -635,8 +647,13 @@ export interface BankShareGridRow {
   // Null when the lead is unassigned.
   counsellor_name?: string | null;
   current_stage: LeadStage;
-  // Lakhs, as a string ("17.5"). Legacy rows may hold free text ("19 L").
+  // What the student asked for. Lakhs, as a string ("17.5"); legacy rows may
+  // hold free text ("19 L").
   loan_amount?: string | number | null;
+  // What a lender committed. Empty for most rows — including leads moved to
+  // pf_paid before the bank became mandatory — so `loan_amount` is the
+  // fallback, not an error case.
+  pf_paid_banks?: PfPaidBank[];
   // Keyed by bank name; keys are a subset of the response's `banks`.
   shares: Record<string, BankShareSummary>;
 }

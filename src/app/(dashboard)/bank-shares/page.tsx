@@ -118,8 +118,16 @@ function BankSharesPageContent() {
     ]
   );
 
-  const { rows, banks, total, totalPages, isLoading, error, refetch } =
-    useBankShareGrid(gridParams);
+  const {
+    rows,
+    banks,
+    total,
+    totalPages,
+    isLoading,
+    error,
+    refetch,
+    patchRow,
+  } = useBankShareGrid(gridParams);
 
   const hasFilters =
     !!searchValue ||
@@ -238,7 +246,12 @@ function BankSharesPageContent() {
         )}
 
         {!isLoading && !error && rows.length > 0 && (
-          <BankShareGrid rows={rows} banks={banks} />
+          <BankShareGrid
+            rows={rows}
+            banks={banks}
+            onRowChanged={refetch}
+            onPatchRow={patchRow}
+          />
         )}
       </div>
 

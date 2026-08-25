@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { LeadStageBadge } from "@/components/leads/lead-stage-badge";
-import { formatLoanAmount } from "@/lib/loan-amount";
 import { BankShareCell } from "./bank-share-cell";
-import type { BankShareGridRow } from "@/types";
+import { LoanAmountCell } from "./loan-amount-cell";
+import { StageSelectCell } from "./stage-select-cell";
+import type { BankShareGridRow, LeadStage } from "@/types";
 
 /**
  * The lead columns are frozen so the bank block can scroll under them.
@@ -23,10 +23,45 @@ const FROZEN_COLUMNS = [
   { key: "student", label: "Student", width: "w-[196px] min-w-[196px]", left: "lg:left-0" },
   { key: "counsellor", label: "Counsellor", width: "w-[124px] min-w-[124px]", left: "lg:left-[196px]" },
   { key: "stage", label: "Stage", width: "w-[128px] min-w-[128px]", left: "lg:left-[320px]" },
-  { key: "loan", label: "Loan", width: "w-[86px] min-w-[86px]", left: "lg:left-[448px]" },
+  { key: "loan", label: "Loan", width: "w-[132px] min-w-[132px]", left: "lg:left-[448px]" },
 ] as const;
 
 const BANK_COL = "w-[78px] min-w-[78px]";
+
+/**
+ * Row tint by stage. Soft on purpose: the ink-ramp share cells sit on top of
+ * it and the row's own text has to stay at normal contrast, so the tint marks
+ * the row without competing with what's in it.
+ *
+ * Decoration only — the stage name is always spelled out in the Stage cell,
+ * so nothing here is the sole carrier of meaning. Both themes are defined:
+ * a wash that reads as a tint on white turns into a muddy block on dark.
+ */
+const ROW_TINT: Partial<Record<LeadStage, { base: string; hover: string }>> = {
+  lost: {
+    base: "bg-red-50 dark:bg-red-950/30",
+    hover: "group-hover:bg-red-100/80 dark:group-hover:bg-red-950/50",
+  },
+  disbursed: {
+    base: "bg-green-50 dark:bg-green-950/30",
+    hover: "group-hover:bg-green-100/80 dark:group-hover:bg-green-950/50",
+  },
+  pf_paid: {
+    base: "bg-orange-50 dark:bg-orange-950/30",
+    hover: "group-hover:bg-orange-100/80 dark:group-hover:bg-orange-950/50",
+  },
+  sanctioned: {
+    base: "bg-blue-50 dark:bg-blue-950/30",
+    hover: "group-hover:bg-blue-100/80 dark:group-hover:bg-blue-950/50",
+  },
+};
+
+// Frozen cells can't be transparent — the bank block scrolls underneath them —
+// so the tint is applied per cell rather than to the <tr>.
+function rowCellClasses(stage: LeadStage): string {
+  const tint = ROW_TINT[stage];
+  return tint ? `${tint.base} ${tint.hover}` : CELL_BG;
+}
 // Opaque background is required on frozen cells — the scrolling bank block
 // passes underneath them.
 const CELL_BG = "bg-card group-hover:bg-muted/40";
@@ -37,9 +72,18 @@ interface BankShareGridProps {
   rows: BankShareGridRow[];
   /** Column order, from the response. Never a hard-coded list. */
   banks: string[];
+  /** Refetch the page — a stage move can rewrite this lead's bank cells. */
+  onRowChanged: () => void;
+  /** Optimistic local patch, so an edit shows before the slow refetch lands. */
+  onPatchRow: (leadId: string, patch: Partial<BankShareGridRow>) => void;
 }
 
-export function BankShareGrid({ rows, banks }: BankShareGridProps) {
+export function BankShareGrid({
+  rows,
+  banks,
+  onRowChanged,
+  onPatchRow,
+}: BankShareGridProps) {
   return (
     <div className="h-full overflow-auto">
       <table className="w-full border-separate border-spacing-0 text-sm">
@@ -71,14 +115,16 @@ export function BankShareGrid({ rows, banks }: BankShareGridProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {rows.map((row) => {
+            const tint = rowCellClasses(row.current_stage);
+            return (
             <tr key={row.lead_id} className="group">
               <td
                 className={cn(
                   "z-10 border-b px-3 py-1.5 lg:sticky",
                   FROZEN_COLUMNS[0].width,
                   FROZEN_COLUMNS[0].left,
-                  CELL_BG
+                  tint
                 )}
               >
                 <Link
@@ -111,7 +157,7 @@ export function BankShareGrid({ rows, banks }: BankShareGridProps) {
                   "z-10 border-b px-3 py-1.5 lg:sticky",
                   FROZEN_COLUMNS[1].width,
                   FROZEN_COLUMNS[1].left,
-                  CELL_BG
+                  tint
                 )}
               >
                 {/* Null when the lead is unassigned. */}
@@ -131,10 +177,15 @@ export function BankShareGrid({ rows, banks }: BankShareGridProps) {
                   "z-10 border-b px-3 py-1.5 lg:sticky",
                   FROZEN_COLUMNS[2].width,
                   FROZEN_COLUMNS[2].left,
-                  CELL_BG
+                  tint
                 )}
               >
-                <LeadStageBadge stage={row.current_stage} />
+                <StageSelectCell
+                  leadId={row.lead_id}
+                  currentStage={row.current_stage}
+                  shares={row.shares}
+                  onChanged={onRowChanged}
+                />
               </td>
 
               <td
@@ -142,17 +193,25 @@ export function BankShareGrid({ rows, banks }: BankShareGridProps) {
                   "z-10 border-b px-3 py-1.5 font-mono text-[12px] tabular-nums whitespace-nowrap lg:sticky lg:border-r",
                   FROZEN_COLUMNS[3].width,
                   FROZEN_COLUMNS[3].left,
-                  CELL_BG
+                  tint
                 )}
               >
-                {formatLoanAmount(row.loan_amount)}
+                <LoanAmountCell
+                  leadId={row.lead_id}
+                  loanAmount={row.loan_amount}
+                  pfPaidBanks={row.pf_paid_banks}
+                  onSaved={(loan_amount) =>
+                    onPatchRow(row.lead_id, { loan_amount })
+                  }
+                />
               </td>
 
               {banks.map((bank) => (
                 <td
                   key={bank}
                   className={cn(
-                    "border-b px-1.5 py-1.5 transition-colors group-hover:bg-muted/40",
+                    "border-b px-1.5 py-1.5 transition-colors",
+                    tint,
                     BANK_COL
                   )}
                 >
@@ -165,7 +224,8 @@ export function BankShareGrid({ rows, banks }: BankShareGridProps) {
                 </td>
               ))}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

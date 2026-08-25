@@ -16,6 +16,11 @@ interface UseBankShareGridResult {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
+  /**
+   * Local row patch for optimistic inline edits. The grid request takes
+   * 2–20s, so a refetch is far too slow to serve as the edit's feedback.
+   */
+  patchRow: (leadId: string, patch: Partial<BankShareGridRow>) => void;
 }
 
 export function useBankShareGrid(
@@ -63,5 +68,23 @@ export function useBankShareGrid(
     fetchGrid();
   }, [fetchGrid]);
 
-  return { rows, banks, total, totalPages, isLoading, error, refetch: fetchGrid };
+  const patchRow = useCallback(
+    (leadId: string, patch: Partial<BankShareGridRow>) => {
+      setRows((prev) =>
+        prev.map((r) => (r.lead_id === leadId ? { ...r, ...patch } : r))
+      );
+    },
+    []
+  );
+
+  return {
+    rows,
+    banks,
+    total,
+    totalPages,
+    isLoading,
+    error,
+    refetch: fetchGrid,
+    patchRow,
+  };
 }
