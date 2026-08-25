@@ -16,15 +16,6 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PageSkeleton } from "@/components/shared/loading-skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -39,19 +30,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import {
   ArrowRightLeft,
   Phone,
   Plus,
   Edit,
   UserPlus,
   Trash2,
-  CalendarIcon,
   Loader2,
   Star,
   Bot,
@@ -67,6 +51,14 @@ import api from "@/lib/api";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { useTaskCountStore } from "@/stores/task-count-store";
 import { useLostReasonsStore } from "@/stores/lost-reasons-store";
+import { StageChangeFields } from "@/components/shared/stage-change-fields";
+import {
+  buildStagePayload,
+  EMPTY_STAGE_DRAFT,
+  stageNeedsBankCommitment,
+  validateStageChange,
+  type StageChangeDraft,
+} from "@/lib/stage-change";
 import { usePageTitleStore } from "@/stores/page-title-store";
 import { useUsersStore } from "@/stores/users-store";
 import { leadBanksService } from "@/services/lead-banks-service";
@@ -81,11 +73,9 @@ export default function LeadDetailPage() {
   const { isAdmin, isManager, company } = useAuthStore();
   // Codebase convention: FMC is "anything not Admitverse".
   const isFmcBrand = company?.company_slug !== "admitverse";
-  const { slug, getEntry, getValidTransitions, stageRequiresNotes } = useStageConfig();
+  const { slug, getEntry, getValidTransitions } = useStageConfig();
   const isFmc = slug !== "admitverse";
   const refreshTaskCount = useTaskCountStore((s) => s.refresh);
-  const lostReasons = useLostReasonsStore((s) => s.reasons);
-  const lostReasonsFetched = useLostReasonsStore((s) => s.fetched);
   const ensureLostReasons = useLostReasonsStore((s) => s.ensureFetched);
   const leadId = params.id as string;
 
@@ -105,10 +95,8 @@ export default function LeadDetailPage() {
 
   // Stage change
   const [targetStage, setTargetStage] = useState<LeadStage | "">("");
-  const [stageNotes, setStageNotes] = useState("");
-  const [stageAgenda, setStageAgenda] = useState("");
-  const [lostReason, setLostReason] = useState("");
-  const [stageDueDate, setStageDueDate] = useState<Date | undefined>();
+  // Shared with the Kanban and the bank-share grid — see lib/stage-change.
+  const [stageDraft, setStageDraft] = useState<StageChangeDraft>(EMPTY_STAGE_DRAFT);
   const [stageSubmitting, setStageSubmitting] = useState(false);
 
   const fetchLead = useCallback(async () => {
@@ -188,62 +176,49 @@ export default function LeadDetailPage() {
 
   const handleStageSelect = (stage: LeadStage) => {
     setTargetStage(stage);
-    setStageNotes("");
-    setStageAgenda("");
-    setLostReason("");
-    setStageDueDate(undefined);
+    // PF Paid pre-selects the lender this lead is furthest along with, the
+    // same default the bank-share grid uses.
+    const best = stageNeedsBankCommitment(stage)
+      ? [...(lead?.top_banks ?? [])].sort(
+          (a, b) =>
+            (BANK_STATUS_PRIORITY[b.bank_status] ?? 0) -
+            (BANK_STATUS_PRIORITY[a.bank_status] ?? 0)
+        )[0]
+      : undefined;
+    setStageDraft({ ...EMPTY_STAGE_DRAFT, bankName: best?.bank_name ?? "" });
     setStageDialogOpen(true);
     // Always fetch — backend returns the canonical FMC list or [] on
     // Admitverse; the response decides dropdown vs textarea.
     if (stage === "lost") ensureLostReasons();
   };
 
-  // Backend requires due_date on every non-terminal stage move. Terminal
-  // stages (where due_date is optional and can be blank):
-  //   FMC:         lost, disbursed
-  //   Admitverse:  lost, enrolled
-  const isDueDateRequiredForStage = (stage: LeadStage): boolean => {
-    if (stage === "lost") return false;
-    if (isFmc) return stage !== "disbursed";
-    return stage !== "enrolled";
-  };
-
   const handleStageSubmit = async () => {
     if (!targetStage) return;
-    if (stageRequiresNotes(targetStage) && (!stageNotes.trim() || !stageAgenda.trim())) {
-      toast.error("Notes and agenda are required");
-      return;
-    }
-    if (targetStage === "lost" && !lostReason.trim()) {
-      toast.error("Lost reason is required");
-      return;
-    }
-    if (isDueDateRequiredForStage(targetStage) && !stageDueDate) {
-      toast.error("Follow-up date is required.");
+    const problem = validateStageChange(slug, targetStage, stageDraft);
+    if (problem) {
+      toast.error(problem);
       return;
     }
 
     setStageSubmitting(true);
     try {
-      const payload: Record<string, unknown> = { to_stage: targetStage };
-      if (stageRequiresNotes(targetStage)) {
-        payload.conversation_notes = stageNotes;
-        payload.agent_agenda = stageAgenda;
-      } else if (stageNotes.trim()) {
-        // Optional remark on a non-gated transition.
-        payload.conversation_notes = stageNotes.trim();
-      }
-      if (targetStage === "lost") payload.lost_reason = lostReason;
-      if (stageDueDate) payload.due_date = format(stageDueDate, "yyyy-MM-dd");
-
-      await api.post(`/leads/${leadId}/stage`, payload);
+      await api.post(
+        `/leads/${leadId}/stage`,
+        buildStagePayload(slug, targetStage, stageDraft)
+      );
       toast.success(`Stage changed to ${getEntry(targetStage).label}`);
       refreshTaskCount();
       setStageDialogOpen(false);
       fetchLead();
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string } } };
-      toast.error(err.response?.data?.detail || "Failed to change stage");
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string } };
+      };
+      toast.error(
+        err.response?.status === 403
+          ? "This lead isn't assigned to you"
+          : err.response?.data?.detail || "Failed to change stage"
+      );
     } finally {
       setStageSubmitting(false);
     }
@@ -532,106 +507,13 @@ export default function LeadDetailPage() {
           </DialogHeader>
           <div className="space-y-4">
             {targetStage && (
-              <div className="space-y-2">
-                <Label>
-                  {stageRequiresNotes(targetStage)
-                    ? "Conversation Notes *"
-                    : "Remark (optional)"}
-                </Label>
-                <Textarea
-                  value={stageNotes}
-                  onChange={(e) => setStageNotes(e.target.value)}
-                  placeholder={
-                    stageRequiresNotes(targetStage)
-                      ? "Notes from conversation..."
-                      : "Add a note about this change..."
-                  }
-                />
-              </div>
+              <StageChangeFields
+                toStage={targetStage}
+                draft={stageDraft}
+                onChange={(patch) => setStageDraft((d) => ({ ...d, ...patch }))}
+                showNotes
+              />
             )}
-            {targetStage && stageRequiresNotes(targetStage) && (
-              <div className="space-y-2">
-                <Label>Agent Agenda *</Label>
-                <Textarea
-                  value={stageAgenda}
-                  onChange={(e) => setStageAgenda(e.target.value)}
-                  placeholder="Next steps..."
-                />
-              </div>
-            )}
-            {targetStage === "lost" && (
-              <div className="space-y-2">
-                <Label>Lost Reason *</Label>
-                {/* Response shape from /leads/lost-reasons drives the
-                    control: non-empty list → locked dropdown; [] →
-                    free text. */}
-                {!lostReasonsFetched ? (
-                  <p className="text-xs text-muted-foreground">
-                    Loading reasons…
-                  </p>
-                ) : lostReasons.length > 0 ? (
-                  <>
-                    <Select value={lostReason} onValueChange={setLostReason}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a reason..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {lostReasons.map((r) => (
-                          <SelectItem key={r} value={r}>
-                            {r}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {!lostReason.trim() && (
-                      <p className="text-xs text-red-600">
-                        Lost Reason is required
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <Textarea
-                    value={lostReason}
-                    onChange={(e) => setLostReason(e.target.value)}
-                    placeholder="Reason for marking as lost..."
-                  />
-                )}
-              </div>
-            )}
-            {(() => {
-              const required =
-                !!targetStage && isDueDateRequiredForStage(targetStage);
-              return (
-                <div className="space-y-2">
-                  <Label>
-                    Next callback date{" "}
-                    {required ? (
-                      <span className="text-red-600">*</span>
-                    ) : (
-                      <span className="text-muted-foreground font-normal">
-                        (optional)
-                      </span>
-                    )}
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {stageDueDate ? format(stageDueDate, "PPP") : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={stageDueDate} onSelect={setStageDueDate} />
-                    </PopoverContent>
-                  </Popover>
-                  {required && !stageDueDate && (
-                    <p className="text-xs text-red-600">
-                      Follow-up date is required.
-                    </p>
-                  )}
-                </div>
-              );
-            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStageDialogOpen(false)}>Cancel</Button>
@@ -639,10 +521,8 @@ export default function LeadDetailPage() {
               onClick={handleStageSubmit}
               disabled={
                 stageSubmitting ||
-                (targetStage === "lost" && !lostReason.trim()) ||
                 (!!targetStage &&
-                  isDueDateRequiredForStage(targetStage) &&
-                  !stageDueDate)
+                  validateStageChange(slug, targetStage, stageDraft) !== null)
               }
             >
               {stageSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -10,6 +10,15 @@ import { useStageConfig } from "@/hooks/use-stage-config";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTaskCountStore } from "@/stores/task-count-store";
 import { useLostReasonsStore } from "@/stores/lost-reasons-store";
+import { BANK_STATUS_PRIORITY } from "@/lib/constants";
+import { StageChangeFields } from "@/components/shared/stage-change-fields";
+import {
+  buildStagePayload,
+  EMPTY_STAGE_DRAFT,
+  stageNeedsBankCommitment,
+  validateStageChange,
+  type StageChangeDraft,
+} from "@/lib/stage-change";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import {
@@ -21,13 +30,6 @@ import {
 import type { Lead, LeadStage, User, LeadSource } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -35,9 +37,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
@@ -72,8 +71,6 @@ export function PipelineBoard() {
   const { slug, stages: STAGES, getEntry, canTransition } = useStageConfig();
   const isFmc = slug !== "admitverse";
 
-  const lostReasons = useLostReasonsStore((s) => s.reasons);
-  const lostReasonsFetched = useLostReasonsStore((s) => s.fetched);
   const ensureLostReasons = useLostReasonsStore((s) => s.ensureFetched);
 
   const [stageData, setStageData] = useState<Record<string, StageData>>(() => {
@@ -166,9 +163,9 @@ export function PipelineBoard() {
 
   // Stage change dialog
   const [stageChangeData, setStageChangeData] = useState<StageChangeData | null>(null);
-  const [notes, setNotes] = useState("");
-  const [lostReason, setLostReason] = useState("");
-  const [dueDateTime, setDueDateTime] = useState(""); // date-only: "YYYY-MM-DD" (backend accepts plain ISO date)
+  // One draft shared with the other stage-change surfaces — the required
+  // fields per target stage live in lib/stage-change, not here.
+  const [stageDraft, setStageDraft] = useState<StageChangeDraft>(EMPTY_STAGE_DRAFT);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load filter options
@@ -320,6 +317,12 @@ export function PipelineBoard() {
       return;
     }
     setStageChangeData({ leadId, fromStage, toStage });
+    setStageDraft(
+      draftForStage(
+        stageData[fromStage]?.leads.find((l) => l.id === leadId),
+        toStage
+      )
+    );
     // Fetch reasons regardless of brand — backend returns the
     // canonical list for FMC and [] for Admitverse, and the UI uses
     // the response to decide dropdown vs textarea.
@@ -478,41 +481,24 @@ export function PipelineBoard() {
     }
   };
 
-  // Backend requires due_date on every non-terminal stage move. Terminal
-  // stages (where due_date is optional and can be blank):
-  //   FMC:         lost, disbursed
-  //   Admitverse:  lost, enrolled
-  const isDueDateRequiredForStage = (stage: LeadStage): boolean => {
-    if (stage === "lost") return false;
-    if (isFmc) return stage !== "disbursed";
-    return stage !== "enrolled";
-  };
-
   const handleStageChangeSubmit = async () => {
     if (!stageChangeData) return;
     const { leadId, fromStage, toStage } = stageChangeData;
 
-    if (toStage === "lost" && !lostReason.trim()) {
-      toast.error("Lost reason is required");
-      return;
-    }
-    if (isDueDateRequiredForStage(toStage) && !dueDateTime) {
-      toast.error("Follow-up date is required.");
+    const problem = validateStageChange(slug, toStage, stageDraft);
+    if (problem) {
+      toast.error(problem);
       return;
     }
 
     setIsSubmitting(true);
-    const extraData: Record<string, unknown> = {};
-    if (toStage === "lost") {
-      extraData.lost_reason = lostReason.trim();
-    } else {
-      if (notes.trim()) extraData.conversation_notes = notes.trim();
-      if (dueDateTime) {
-        // Send the date string as-is; backend's timestamptz column accepts
-        // "YYYY-MM-DD" and stores it as midnight UTC.
-        extraData.due_date = dueDateTime;
-      }
-    }
+    // to_stage is added by performStageChange.
+    const { to_stage: _toStage, ...extraData } = buildStagePayload(
+      slug,
+      toStage,
+      stageDraft
+    );
+    void _toStage;
 
     const ok = await performStageChange(leadId, fromStage, toStage, extraData);
     setIsSubmitting(false);
@@ -522,11 +508,21 @@ export function PipelineBoard() {
     if (ok) closeStageDialog();
   };
 
+  // Same default as the bank-share grid: the bank this lead is furthest along
+  // with, taken from the card's own top_banks summary.
+  const draftForStage = (lead: Lead | undefined, toStage: LeadStage) => {
+    if (!stageNeedsBankCommitment(toStage)) return EMPTY_STAGE_DRAFT;
+    const best = [...(lead?.top_banks ?? [])].sort(
+      (a, b) =>
+        (BANK_STATUS_PRIORITY[b.bank_status] ?? 0) -
+        (BANK_STATUS_PRIORITY[a.bank_status] ?? 0)
+    )[0];
+    return { ...EMPTY_STAGE_DRAFT, bankName: best?.bank_name ?? "" };
+  };
+
   const closeStageDialog = () => {
     setStageChangeData(null);
-    setNotes("");
-    setLostReason("");
-    setDueDateTime("");
+    setStageDraft(EMPTY_STAGE_DRAFT);
   };
 
   if (isLoading) {
@@ -692,87 +688,19 @@ export function PipelineBoard() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {stageChangeData?.toStage === "lost" ? (
-              <div className="space-y-2">
-                <Label>Reason for lost *</Label>
-                {/* Backend's /leads/lost-reasons response shape drives
-                    the UI: a non-empty list → locked dropdown; an
-                    empty list → free-text input. Until the response
-                    arrives we show a loading placeholder. */}
-                {!lostReasonsFetched ? (
-                  <p className="text-xs text-muted-foreground">
-                    Loading reasons…
-                  </p>
-                ) : lostReasons.length > 0 ? (
-                  <>
-                    <Select value={lostReason} onValueChange={setLostReason}>
-                      <SelectTrigger autoFocus>
-                        <SelectValue placeholder="Select a reason..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {lostReasons.map((r) => (
-                          <SelectItem key={r} value={r}>
-                            {r}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {!lostReason.trim() && (
-                      <p className="text-xs text-red-600">
-                        Lost Reason is required
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <Textarea
-                    value={lostReason}
-                    onChange={(e) => setLostReason(e.target.value)}
-                    placeholder="Why is this lead lost?"
-                    autoFocus
-                  />
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label>Remark (optional)</Label>
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="What happened on this call?"
-                  />
-                </div>
-                {(() => {
-                  const required =
-                    !!stageChangeData &&
-                    isDueDateRequiredForStage(stageChangeData.toStage);
-                  return (
-                    <div className="space-y-2">
-                      <Label>
-                        Next callback date{" "}
-                        {required ? (
-                          <span className="text-red-600">*</span>
-                        ) : (
-                          <span className="text-muted-foreground font-normal">
-                            (optional)
-                          </span>
-                        )}
-                      </Label>
-                      <Input
-                        type="date"
-                        value={dueDateTime}
-                        onChange={(e) => setDueDateTime(e.target.value)}
-                        aria-label="When to follow up next"
-                      />
-                      {required && !dueDateTime && (
-                        <p className="text-xs text-red-600">
-                          Follow-up date is required.
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
-              </>
+            {/* Fields come from the shared component so the Kanban, the lead
+                detail page and the bank-share grid ask for exactly the same
+                things — PF Paid's bank + amount included. */}
+            {stageChangeData && (
+              <StageChangeFields
+                toStage={stageChangeData.toStage}
+                draft={stageDraft}
+                onChange={(patch) =>
+                  setStageDraft((d) => ({ ...d, ...patch }))
+                }
+                showNotes
+                autoFocus
+              />
             )}
           </div>
           <DialogFooter>
@@ -781,10 +709,12 @@ export function PipelineBoard() {
               onClick={handleStageChangeSubmit}
               disabled={
                 isSubmitting ||
-                (stageChangeData?.toStage === "lost" && !lostReason.trim()) ||
                 (!!stageChangeData &&
-                  isDueDateRequiredForStage(stageChangeData.toStage) &&
-                  !dueDateTime)
+                  validateStageChange(
+                    slug,
+                    stageChangeData.toStage,
+                    stageDraft
+                  ) !== null)
               }
             >
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
