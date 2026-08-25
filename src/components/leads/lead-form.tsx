@@ -34,7 +34,6 @@ import {
 } from "@/components/ui/command";
 import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isCleanLakhsInput } from "@/lib/loan-amount";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useTaskCountStore } from "@/stores/task-count-store";
@@ -526,47 +525,23 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>{isFmc ? "Loan Amount (in Lakhs)" : "Loan Amount"}</Label>
+                    {/* Free text on purpose — the backend parses "45",
+                        "7.5 Lakh" and "1.5cr" alike. The numeric mask that
+                        used to live here couldn't express those, and while
+                        it let you repair a legacy value it wouldn't let you
+                        type one, so any unit-carrying entry was impossible. */}
                     <Input
                       inputMode={isFmc ? "decimal" : "text"}
                       value={form.loan_amount}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (!isFmc) {
-                          updateField("loan_amount", val);
-                          return;
-                        }
-                        // Numeric-only: digits + one optional decimal point.
-                        // The guard is bypassed while the *current* value is
-                        // already unparseable — legacy rows hold things like
-                        // "19 L", and filtering keystrokes against a value
-                        // that can never pass rejects every edit including
-                        // backspace, leaving the field frozen with no
-                        // feedback. Once it's numeric again the guard
-                        // re-engages on its own.
-                        if (
-                          isCleanLakhsInput(val) ||
-                          !isCleanLakhsInput(form.loan_amount)
-                        ) {
-                          updateField("loan_amount", val);
-                        }
-                      }}
+                      onChange={(e) => updateField("loan_amount", e.target.value)}
                       placeholder={isFmc ? "25" : "25 L / 2.5 cr / 500000"}
                     />
-                    {isFmc &&
-                      (isCleanLakhsInput(form.loan_amount) ? (
-                        <p className="text-xs text-muted-foreground">
-                          Enter in Lakhs. e.g. 25 = 25L, 100 = 1Cr, 300 = 3Cr
-                        </p>
-                      ) : (
-                        // Warn, don't block: refusing to save would stop an
-                        // unrelated edit (a phone number, say) on the leads
-                        // still carrying legacy text — the same trap in a
-                        // different place.
-                        <p className="text-xs text-amber-600">
-                          Expected a plain number in Lakhs — e.g. 19 for
-                          &quot;19 L&quot;. Saved as typed if you leave it.
-                        </p>
-                      ))}
+                    {isFmc && (
+                      <p className="text-xs text-muted-foreground">
+                        In lakhs. 25 = 25L, 100 = 1Cr — or write the unit:
+                        &quot;7.5 Lakh&quot;, &quot;1.5cr&quot;.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label>Bank Name</Label>
