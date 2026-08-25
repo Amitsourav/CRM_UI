@@ -1,18 +1,10 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { Search, X } from "lucide-react";
+import { Landmark, Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { MultiSelectFilter } from "@/components/shared/multi-select-filter";
 import { useStageConfig } from "@/hooks/use-stage-config";
 import { useUsersStore } from "@/stores/users-store";
@@ -26,7 +18,6 @@ interface BankShareFiltersProps {
   counsellorIds: string[];
   bankNames: string[];
   sharedOnly: boolean;
-  pageSize: number;
   /** Grid-response bank list — fallback if /leads/banks hasn't landed yet. */
   banks: string[];
   onChange: (patch: Record<string, string | string[] | undefined>) => void;
@@ -41,7 +32,6 @@ export function BankShareFilters({
   counsellorIds,
   bankNames,
   sharedOnly,
-  pageSize,
   banks,
   onChange,
   onClear,
@@ -88,21 +78,22 @@ export function BankShareFilters({
     onChange({ [key]: values.length ? values : undefined, page: undefined });
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
-      <div className="relative w-full lg:max-w-xs">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    <div className="flex flex-1 flex-wrap items-center gap-2">
+      <div className="relative w-full sm:w-56">
+        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search name, phone or email…"
+          placeholder="Search students"
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9 pr-9"
+          className="h-8 pl-8 pr-8 text-sm"
         />
         {searchValue && (
           <Button
             variant="ghost"
             size="sm"
-            className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0"
+            className="absolute right-0.5 top-1/2 h-6 w-6 -translate-y-1/2 p-0"
             onClick={() => onSearchChange("")}
+            aria-label="Clear search"
           >
             <X className="h-3 w-3" />
           </Button>
@@ -115,7 +106,7 @@ export function BankShareFilters({
         options={stageOptions}
         selected={stages}
         onChange={(v) => patchFilter("current_stage", v)}
-        className="w-full lg:w-[170px]"
+        className="h-8 w-full text-sm sm:w-[150px]"
       />
 
       <MultiSelectFilter
@@ -124,7 +115,7 @@ export function BankShareFilters({
         options={counsellorOptions}
         selected={counsellorIds}
         onChange={(v) => patchFilter("agent_id", v)}
-        className="w-full lg:w-[190px]"
+        className="h-8 w-full text-sm sm:w-[160px]"
       />
 
       <MultiSelectFilter
@@ -134,43 +125,36 @@ export function BankShareFilters({
         selected={bankNames}
         onChange={(v) => patchFilter("bank_name", v)}
         showSelectAll
-        className="w-full lg:w-[170px]"
+        className="h-8 w-full text-sm sm:w-[150px]"
       />
 
-      <div className="flex items-center gap-2">
-        <Switch
-          id="shared-only"
-          checked={sharedOnly}
-          onCheckedChange={(checked) =>
-            onChange({ shared_only: checked ? "1" : undefined, page: undefined })
-          }
-        />
-        <Label htmlFor="shared-only" className="cursor-pointer text-sm">
-          Shared only
-        </Label>
-      </div>
-
-      {/* The endpoint is three queries regardless of page size, so 50 costs
-          payload rather than latency — but 25 keeps the first paint quick. */}
-      <Select
-        value={String(pageSize)}
-        onValueChange={(v) =>
-          onChange({ page_size: v === "25" ? undefined : v, page: undefined })
+      <Button
+        variant={sharedOnly ? "secondary" : "outline"}
+        size="sm"
+        aria-pressed={sharedOnly}
+        className={cn(
+          "h-8 gap-1.5 text-sm font-normal",
+          !sharedOnly && "text-muted-foreground"
+        )}
+        onClick={() =>
+          onChange({
+            shared_only: sharedOnly ? undefined : "1",
+            page: undefined,
+          })
         }
       >
-        <SelectTrigger className="w-full lg:w-[110px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="25">25 / page</SelectItem>
-          <SelectItem value="50">50 / page</SelectItem>
-        </SelectContent>
-      </Select>
+        <Landmark className="h-3.5 w-3.5" />
+        Shared only
+      </Button>
 
       {hasFilters && (
-        <Button variant="ghost" size="sm" onClick={onClear}>
-          <X className="mr-2 h-4 w-4" />
-          Clear
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-sm font-normal text-muted-foreground"
+          onClick={onClear}
+        >
+          Reset
         </Button>
       )}
     </div>

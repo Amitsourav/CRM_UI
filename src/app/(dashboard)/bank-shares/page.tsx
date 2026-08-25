@@ -3,11 +3,17 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Landmark, RefreshCw } from "lucide-react";
-import { PageHeader } from "@/components/shared/page-header";
 import { Pagination } from "@/components/shared/pagination";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageSkeleton } from "@/components/shared/loading-skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useBankShareGrid } from "@/hooks/use-bank-share-grid";
 import { useAuthStore } from "@/stores/auth-store";
@@ -134,84 +140,130 @@ function BankSharesPageContent() {
     });
   };
 
+  const onPageSizeChange = (value: string) =>
+    patchParams({ page_size: value === "25" ? undefined : value, page: undefined });
+
   const showingFrom = (page - 1) * pageSize + 1;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Bank Share Grid"
-        description="Which banks each file has gone to, and what's happened since. Hover a cell for the group conversation."
-      >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={refetch}
-          disabled={isLoading}
-        >
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </Button>
-      </PageHeader>
+    // Full-bleed: cancels the dashboard shell's padding so the matrix runs
+    // edge to edge. With ~20 bank columns, every 78px reclaimed is another
+    // lender visible without scrolling.
+    <div className="-m-4 flex h-[calc(100vh-4rem)] flex-col md:-m-6">
+      {/* One control rail. The page has no heading of its own — the topbar
+          breadcrumb already reads "Bank Shares", and repeating it here would
+          cost a row of vertical space to say nothing new. */}
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2.5 md:px-6">
+        <BankShareFilters
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          stages={stages}
+          counsellorIds={counsellorIds}
+          bankNames={bankNames}
+          sharedOnly={sharedOnly}
+          banks={banks}
+          onChange={patchParams}
+          onClear={clearFilters}
+          hasFilters={hasFilters}
+        />
 
-      <BankShareFilters
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        stages={stages}
-        counsellorIds={counsellorIds}
-        bankNames={bankNames}
-        sharedOnly={sharedOnly}
-        pageSize={pageSize}
-        banks={banks}
-        onChange={patchParams}
-        onClear={clearFilters}
-        hasFilters={hasFilters}
-      />
+        <div className="ml-auto flex items-center gap-3">
+          {!isLoading && !error && (
+            <p className="hidden font-mono text-xs tabular-nums text-muted-foreground lg:block">
+              {total.toLocaleString()} {total === 1 ? "file" : "files"}
+            </p>
+          )}
 
-      {isLoading && (
-        <BankShareGridSkeleton columns={banks.length || 12} />
-      )}
+          {/* The endpoint is three queries regardless of page size, so 50
+              costs payload rather than latency — 25 keeps first paint quick. */}
+          <Select
+            value={String(pageSize)}
+            onValueChange={(v) =>
+              onPageSizeChange(v)
+            }
+          >
+            <SelectTrigger className="h-8 w-[92px] text-sm" aria-label="Rows per page">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="25">25 rows</SelectItem>
+              <SelectItem value="50">50 rows</SelectItem>
+            </SelectContent>
+          </Select>
 
-      {!isLoading && error && (
-        <div className="rounded-md border py-12 text-center">
-          <p className="font-medium">Couldn&apos;t load the bank share grid</p>
-          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-          <Button variant="outline" className="mt-4" onClick={refetch}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Retry
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={refetch}
+            disabled={isLoading}
+            aria-label="Refresh"
+            title="Refresh"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`}
+            />
           </Button>
         </div>
-      )}
+      </div>
 
-      {!isLoading && !error && rows.length === 0 && (
-        <EmptyState
-          icon={Landmark}
-          title={hasFilters ? "No matching leads" : "Nothing shared yet"}
-          description={
-            hasFilters
-              ? "Try a different search term, stage, counsellor or bank."
-              : "Shares are recorded automatically when a file goes out to a bank's WhatsApp group."
-          }
-        />
-      )}
+      {/* The grid owns the rest of the viewport and scrolls inside itself, so
+          the rail and the pager below never leave the screen. */}
+      <div className="min-h-0 flex-1">
+        {isLoading && <BankShareGridSkeleton columns={banks.length || 12} />}
 
-      {!isLoading && !error && rows.length > 0 && (
-        <>
-          <BankShareGrid rows={rows} banks={banks} />
-          <div className="flex flex-col items-center gap-2">
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              onPageChange={(p) =>
-                patchParams({ page: p === 1 ? undefined : String(p) })
+        {!isLoading && error && (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="text-sm font-medium">The grid didn&apos;t load</p>
+            <p className="max-w-sm text-sm text-muted-foreground">{error}</p>
+            <Button variant="outline" size="sm" onClick={refetch}>
+              <RefreshCw className="mr-2 h-3.5 w-3.5" />
+              Try again
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && !error && rows.length === 0 && (
+          <div className="flex h-full items-center justify-center px-6">
+            <EmptyState
+              icon={Landmark}
+              title={hasFilters ? "No files match" : "No files shared yet"}
+              description={
+                hasFilters
+                  ? "Widen the search, or reset the filters to see every file."
+                  : "Shares appear here as soon as a file goes out to a bank's WhatsApp group."
               }
             />
-            <p className="text-sm text-muted-foreground">
-              Showing {showingFrom}–{showingFrom + rows.length - 1} of {total}
+          </div>
+        )}
+
+        {!isLoading && !error && rows.length > 0 && (
+          <BankShareGrid rows={rows} banks={banks} />
+        )}
+      </div>
+
+      {!isLoading && !error && rows.length > 0 && (
+        <div className="flex shrink-0 items-center justify-between gap-4 border-t px-4 py-2 md:px-6">
+          <div className="flex items-center gap-4">
+            <p className="font-mono text-xs tabular-nums text-muted-foreground">
+              {showingFrom.toLocaleString()}–
+              {(showingFrom + rows.length - 1).toLocaleString()} of{" "}
+              {total.toLocaleString()}
+            </p>
+            {/* Legend for the one accent on the page. */}
+            <p className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              Replied in the last 48h
             </p>
           </div>
-        </>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={(p) =>
+              patchParams({ page: p === 1 ? undefined : String(p) })
+            }
+          />
+        </div>
       )}
     </div>
   );
