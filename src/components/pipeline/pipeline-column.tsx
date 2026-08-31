@@ -15,6 +15,8 @@ interface PipelineColumnProps {
   leads: Lead[];
   totalCount: number;
   hasMore: boolean;
+  /** How many the next page fetches — the button says so plainly. */
+  pageSize: number;
   isLoadingMore: boolean;
   onLoadMore: () => void;
   onChangeStage: (leadId: string, fromStage: LeadStage, toStage: LeadStage) => void;
@@ -28,6 +30,7 @@ export function PipelineColumn({
   leads,
   totalCount,
   hasMore,
+  pageSize,
   isLoadingMore,
   onLoadMore,
   onChangeStage,
@@ -37,6 +40,8 @@ export function PipelineColumn({
 }: PipelineColumnProps) {
   const { getEntry } = useStageConfig();
   const config = getEntry(stage);
+  // The header keeps showing the true total; this is only what's unloaded.
+  const remaining = Math.max(totalCount - leads.length, 0);
 
   return (
     <div
@@ -89,20 +94,33 @@ export function PipelineColumn({
                 </Draggable>
               ))}
               {provided.placeholder}
+              {/* Sits after the last card, inside the scroll area: the user
+                  finds out there's more at the point they run out, which is
+                  where the question occurs to them. Nothing renders when the
+                  column is whole. */}
               {hasMore && (
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-xs text-muted-foreground"
+                  variant="outline"
+                  className="h-auto w-full flex-col gap-0.5 py-2"
                   onClick={onLoadMore}
                   disabled={isLoadingMore}
                 >
                   {isLoadingMore ? (
-                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  ) : null}
-                  {isLoadingMore
-                    ? "Loading..."
-                    : `Load more (${totalCount - leads.length} remaining)`}
+                    <span className="flex items-center gap-2 text-xs">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading…
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-xs font-medium">
+                        Show {Math.min(pageSize, remaining).toLocaleString()}{" "}
+                        more
+                      </span>
+                      <span className="text-[11px] font-normal text-muted-foreground">
+                        {remaining.toLocaleString()} remaining
+                      </span>
+                    </>
+                  )}
                 </Button>
               )}
             </div>

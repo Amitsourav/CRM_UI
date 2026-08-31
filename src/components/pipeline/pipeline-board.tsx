@@ -12,6 +12,7 @@ import { useTaskCountStore } from "@/stores/task-count-store";
 import { useLostReasonsStore } from "@/stores/lost-reasons-store";
 import { BANK_STATUS_PRIORITY } from "@/lib/constants";
 import { StageChangeFields } from "@/components/shared/stage-change-fields";
+import { showApiError } from "@/lib/api-errors";
 import {
   buildStagePayload,
   EMPTY_STAGE_DRAFT,
@@ -46,11 +47,25 @@ import {
 } from "lucide-react";
 
 
+/**
+ * The backend caps each column at `per_stage_limit` and reports the real
+ * total separately, so a column can hold far fewer cards than it claims.
+ * Sent explicitly rather than left to the backend default, so "load the next
+ * 50" lines up with what page 1 actually returned.
+ */
+const PER_STAGE_LIMIT = 50;
+
 interface StageData {
   leads: Lead[];
   total: number;
   page: number;
   isLoadingMore: boolean;
+  /**
+   * Set when a page comes back empty. Offset paging over a live list can run
+   * past the end while `total` still says there's more — without this the
+   * button would never go away.
+   */
+  exhausted: boolean;
 }
 
 interface StageChangeData {
@@ -76,7 +91,13 @@ export function PipelineBoard() {
   const [stageData, setStageData] = useState<Record<string, StageData>>(() => {
     const initial: Record<string, StageData> = {};
     STAGES.forEach((stage) => {
-      initial[stage] = { leads: [], total: 0, page: 1, isLoadingMore: false };
+      initial[stage] = {
+        leads: [],
+        total: 0,
+        page: 1,
+        isLoadingMore: false,
+        exhausted: false,
+      };
     });
     return initial;
   });
@@ -93,6 +114,7 @@ export function PipelineBoard() {
           total: 0,
           page: 1,
           isLoadingMore: false,
+          exhausted: false,
         };
       });
       return next;
@@ -195,8 +217,8 @@ export function PipelineBoard() {
   // /leads/by-stage returns a single response with two parallel
   // dictionaries keyed by stage:
   //   counts_by_stage[stage] → number of leads matching filters
-  //   items_by_stage[stage]  → leads for that stage (capped per stage
-  //                             by the backend; no FE pagination)
+  //   items_by_stage[stage]  → leads for that stage, capped at
+  //                             per_stage_limit; page the rest in per column
   interface ByStageResponse {
     total?: number;
     counts_by_stage?: Record<string, number>;
@@ -206,9 +228,10 @@ export function PipelineBoard() {
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params = buildFilterSearchParams(filters).toString();
+      const params = buildFilterSearchParams(filters);
+      params.set("per_stage_limit", String(PER_STAGE_LIMIT));
       const { data } = await api.get<ByStageResponse>(
-        params ? `/leads/by-stage?${params}` : `/leads/by-stage`
+        `/leads/by-stage?${params.toString()}`
       );
       const counts = data.counts_by_stage ?? {};
       const items = data.items_by_stage ?? {};
@@ -220,6 +243,7 @@ export function PipelineBoard() {
             total: counts[stage] ?? 0,
             page: 1,
             isLoadingMore: false,
+            exhausted: false,
           };
         }
         return next;
@@ -235,12 +259,72 @@ export function PipelineBoard() {
     fetchAll();
   }, [fetchAll]);
 
-  // /by-stage returns each stage's items in one shot — no per-stage
-  // pagination yet. Until BE exposes a "load more for this stage"
-  // contract, the column hides its Load more button by reporting no
-  // additional pages.
-  const handleLoadMore = (_stage: LeadStage) => {
-    void _stage;
+  /**
+   * Next page for one column.
+   *
+   * Every active filter is resent alongside `stage`/`offset` — the two calls
+   * have to agree or page 2 returns leads that don't match what the user
+   * searched for and drops them into the same column. That's also why this
+   * builds from the same `filters` object as the initial load and adds
+   * nothing the initial load doesn't send: a param on one call and not the
+   * other is the same bug in a different direction.
+   *
+   * `/leads?current_stage=X&page=2` is deliberately not used — it honours
+   * only a handful of the board's filters and silently ignores the rest,
+   * which would append unfiltered leads to a filtered column.
+   */
+  const handleLoadMore = async (stage: LeadStage) => {
+    const current = stageData[stage];
+    // Double-click guard: one request in flight per column.
+    if (!current || current.isLoadingMore || current.exhausted) return;
+
+    const offset = current.leads.length;
+    setStageData((prev) => ({
+      ...prev,
+      [stage]: { ...prev[stage], isLoadingMore: true },
+    }));
+
+    try {
+      const params = buildFilterSearchParams(filters);
+      params.set("stage", stage);
+      params.set("offset", String(offset));
+      params.set("per_stage_limit", String(PER_STAGE_LIMIT));
+      const { data } = await api.get<ByStageResponse>(
+        `/leads/by-stage?${params.toString()}`
+      );
+
+      const incoming = data.items_by_stage?.[stage] ?? [];
+      // The count comes back on every page and already reflects the filters,
+      // so the header keeps tracking the truth rather than a cached number.
+      const count = data.counts_by_stage?.[stage];
+
+      setStageData((prev) => {
+        const existing = prev[stage];
+        // Offset paging over a list that can change underneath us may repeat
+        // a lead. Duplicate draggableIds break the drag context, so they're
+        // dropped rather than appended.
+        const seen = new Set(existing.leads.map((l) => l.id));
+        const fresh = incoming.filter((l) => !seen.has(l.id));
+        return {
+          ...prev,
+          [stage]: {
+            ...existing,
+            leads: [...existing.leads, ...fresh],
+            total: count ?? existing.total,
+            page: existing.page + 1,
+            isLoadingMore: false,
+            // Empty page means the end, whatever the count says.
+            exhausted: incoming.length === 0,
+          },
+        };
+      });
+    } catch (error: unknown) {
+      setStageData((prev) => ({
+        ...prev,
+        [stage]: { ...prev[stage], isLoadingMore: false },
+      }));
+      showApiError(error, "Couldn't load more leads");
+    }
   };
 
   const performStageChange = async (
@@ -287,14 +371,7 @@ export function PipelineBoard() {
           total: prev[toStage].total - 1,
         },
       }));
-      const err = error as {
-        response?: { status?: number; data?: { detail?: string } };
-      };
-      if (err.response?.status === 403) {
-        toast.error("You don't have permission to modify this lead");
-      } else {
-        toast.error(err.response?.data?.detail || "Failed to change stage");
-      }
+      showApiError(error, "Failed to change stage");
       return false;
     }
   };
@@ -666,7 +743,11 @@ export function PipelineBoard() {
               stage={stage}
               leads={stageData[stage].leads}
               totalCount={stageData[stage].total}
-              hasMore={false}
+              hasMore={
+                !stageData[stage].exhausted &&
+                stageData[stage].leads.length < stageData[stage].total
+              }
+              pageSize={PER_STAGE_LIMIT}
               isLoadingMore={stageData[stage].isLoadingMore}
               onLoadMore={() => handleLoadMore(stage)}
               onChangeStage={requestStageChange}
