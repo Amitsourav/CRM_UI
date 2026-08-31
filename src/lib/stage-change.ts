@@ -16,6 +16,11 @@ export interface StageChangeDraft {
   bankName: string;
   /** Free text while typing; validated as a number in lakhs on submit. */
   bankLoanAmountLakh: string;
+  /** What the lender actually released, in lakhs — not the sanctioned figure. */
+  disbursedAmountLakh: string;
+  /** YYYY-MM-DD. */
+  disbursedOn: string;
+  utrReference: string;
   notes: string;
 }
 
@@ -24,6 +29,9 @@ export const EMPTY_STAGE_DRAFT: StageChangeDraft = {
   lostReason: "",
   bankName: "",
   bankLoanAmountLakh: "",
+  disbursedAmountLakh: "",
+  disbursedOn: "",
+  utrReference: "",
   notes: "",
 };
 
@@ -39,6 +47,15 @@ export function stageNeedsLostReason(stage: LeadStage): boolean {
  */
 export function stageNeedsBankCommitment(stage: LeadStage): boolean {
   return stage === "pf_paid";
+}
+
+/**
+ * Commission is earned on what a lender released, so marking a file disbursed
+ * now has to capture that amount and its date. The lender itself is optional —
+ * the backend falls back to the lead's primary one.
+ */
+export function stageNeedsDisbursement(stage: LeadStage): boolean {
+  return stage === "disbursed";
 }
 
 // Terminal stages don't take a follow-up date: FMC's disbursed, Admitverse's
@@ -60,7 +77,8 @@ export function stageAppliesImmediately(
   return (
     !stageNeedsDueDate(slug, stage) &&
     !stageNeedsLostReason(stage) &&
-    !stageNeedsBankCommitment(stage)
+    !stageNeedsBankCommitment(stage) &&
+    !stageNeedsDisbursement(stage)
   );
 }
 
@@ -91,10 +109,27 @@ export function validateStageChange(
       return "Enter the sanctioned amount in lakhs — a number above 0.";
     }
   }
+  if (stageNeedsDisbursement(stage)) {
+    if (parseLakhs(draft.disbursedAmountLakh) === null) {
+      return "Enter the amount released in lakhs — a number above 0.";
+    }
+    if (!draft.disbursedOn) return "Set the date the money was released.";
+    if (draft.disbursedOn > todayIso()) {
+      return "The release date can't be in the future.";
+    }
+  }
   if (stageNeedsDueDate(slug, stage) && !draft.dueDate) {
     return "Set a follow-up date.";
   }
   return null;
+}
+
+/** Local calendar date as YYYY-MM-DD, for comparing against date inputs. */
+export function todayIso(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 /** Request body for POST /leads/{id}/stage. */
@@ -119,6 +154,17 @@ export function buildStagePayload(
     payload.bank_name = draft.bankName.trim();
     // Already in lakhs — the backend converts to rupees. Never pre-multiply.
     payload.bank_loan_amount_lakh = parseLakhs(draft.bankLoanAmountLakh);
+  }
+
+  if (stageNeedsDisbursement(stage)) {
+    payload.disbursed_amount_lakh = parseLakhs(draft.disbursedAmountLakh);
+    payload.disbursed_on = draft.disbursedOn;
+    // Omitted unless the user picked one — the backend defaults to the lead's
+    // primary lender, which it already knows by the time a file disburses.
+    if (draft.bankName.trim()) payload.bank_name = draft.bankName.trim();
+    if (draft.utrReference.trim()) {
+      payload.utr_reference = draft.utrReference.trim();
+    }
   }
 
   return payload;

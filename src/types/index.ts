@@ -774,3 +774,94 @@ export interface UserStats {
   tasks_pending: number;
   tasks_overdue: number;
 }
+
+/* ── Commission reconciliation (FMC, admin-only) ── */
+
+/**
+ * A lender as the admin screen sees it, from GET /leads/banks/manage.
+ * `commission_rate` is a percentage and is null until an admin sets one —
+ * a lender without it can't have commission worked out, and marking a file
+ * disbursed against it fails.
+ */
+export interface ManagedBank {
+  id: string;
+  name: string;
+  commission_rate?: string | number | null;
+  is_active?: boolean;
+}
+
+/**
+ * Where a disbursement's commission has got to.
+ *   to_bill     — disbursed, never invoiced   (question 1: unbilled)
+ *   billed      — invoiced, nothing in yet
+ *   short_paid  — they paid less than owed    (question 3: shortfall)
+ *   paid        — settled
+ *   written_off — given up on, out of the outstanding total
+ */
+export type ReconciliationStatus =
+  | "to_bill"
+  | "billed"
+  | "short_paid"
+  | "paid"
+  | "written_off";
+
+/**
+ * One disbursement — a tranche of what a lender actually released, which is
+ * what commission is earned on. Never the sanctioned figure: a lender can
+ * approve ₹30L and release it as two ₹15L tranches, which is two bills.
+ *
+ * Every amount here is in RUPEES, as sent. Amounts posted back are in lakhs.
+ */
+export interface DisbursementRow {
+  id: string;
+  lead_id: string;
+  lead_name: string;
+  serial_no?: number | null;
+  bank_name: string;
+  tranche_no: number;
+  disbursed_amount: string | number;
+  disbursed_on: string;
+  commission_rate?: string | number | null;
+  commission_amount?: string | number | null;
+  gst_amount?: string | number | null;
+  /** Null until invoicing lands, so `to_bill` means "not yet on a bill". */
+  invoice_id?: string | null;
+  amount_received?: string | number | null;
+  tds_deducted?: string | number | null;
+  received_on?: string | null;
+  shortfall?: string | number | null;
+  status: ReconciliationStatus;
+  days_outstanding?: number | null;
+  utr_reference?: string | null;
+  source?: string | null;
+  write_off_reason?: string | null;
+  notes?: string | null;
+}
+
+/** Covers the whole filtered set, not the page — never re-sum the rows. */
+export interface ReconciliationTotals {
+  count: number;
+  disbursed_total: string | number;
+  commission_total: string | number;
+  gst_total: string | number;
+  received_total: string | number;
+  tds_total: string | number;
+  outstanding_total: string | number;
+}
+
+export interface ReconciliationResponse
+  extends PaginatedResponse<DisbursementRow> {
+  totals: ReconciliationTotals;
+}
+
+/** One row per lender — the "who do we chase this month" view. */
+export interface LenderSummaryRow {
+  bank_name: string;
+  files: number;
+  disbursed_total: string | number;
+  commission_total: string | number;
+  received_total: string | number;
+  tds_total: string | number;
+  outstanding_total: string | number;
+  unbilled_count: number;
+}

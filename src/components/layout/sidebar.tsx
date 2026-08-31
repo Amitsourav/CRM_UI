@@ -28,6 +28,7 @@ import {
   Megaphone,
   Inbox,
   Landmark,
+  IndianRupee,
   LogOut,
   PanelLeftClose,
 } from "lucide-react";
@@ -71,6 +72,22 @@ const adminNav: AdminNavItem[] = [
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/admin/agents", label: "AI Agents", icon: Bot },
   { href: "/admin/sources", label: "Sources", icon: Globe },
+  // Commission tracking is FMC-only (Admitverse has no lenders) and admin-only
+  // — every endpoint behind both is get_current_admin.
+  {
+    href: "/reconciliation",
+    label: "Commission",
+    icon: IndianRupee,
+    adminOnly: true,
+    fmcOnly: true,
+  },
+  {
+    href: "/admin/lenders",
+    label: "Lenders",
+    icon: Landmark,
+    adminOnly: true,
+    fmcOnly: true,
+  },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/csv-history", label: "CSV History", icon: FileSpreadsheet },
   // Invoices is strictly admin-only AND FMC-only for now. Admitverse

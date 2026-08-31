@@ -52,6 +52,7 @@ import { useStageConfig } from "@/hooks/use-stage-config";
 import { useTaskCountStore } from "@/stores/task-count-store";
 import { useLostReasonsStore } from "@/stores/lost-reasons-store";
 import { StageChangeFields } from "@/components/shared/stage-change-fields";
+import { showApiError } from "@/lib/api-errors";
 import {
   buildStagePayload,
   EMPTY_STAGE_DRAFT,
@@ -211,14 +212,7 @@ export default function LeadDetailPage() {
       setStageDialogOpen(false);
       fetchLead();
     } catch (error: unknown) {
-      const err = error as {
-        response?: { status?: number; data?: { detail?: string } };
-      };
-      toast.error(
-        err.response?.status === 403
-          ? "This lead isn't assigned to you"
-          : err.response?.data?.detail || "Failed to change stage"
-      );
+      showApiError(error, "Failed to change stage");
     } finally {
       setStageSubmitting(false);
     }

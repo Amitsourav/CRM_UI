@@ -26,6 +26,7 @@ import {
   Megaphone,
   Inbox,
   Landmark,
+  IndianRupee,
 } from "lucide-react";
 
 // `fmcOnly` items are hidden on Admitverse — mirrors `sidebar.tsx`.
@@ -42,12 +43,37 @@ const preCounsellorNav = [
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
-const adminNav = [
+interface AdminNavItem {
+  href: string;
+  label: string;
+  icon: typeof UserCog;
+  adminOnly?: boolean;
+  /** Hidden on Admitverse — mirrors `sidebar.tsx`. */
+  fmcOnly?: boolean;
+}
+
+const adminNav: AdminNavItem[] = [
   { href: "/website-leads", label: "Website Leads", icon: Inbox },
   { href: "/admin/users", label: "Users", icon: UserCog },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/admin/agents", label: "AI Agents", icon: Bot },
   { href: "/admin/sources", label: "Sources", icon: Globe },
+  // Commission tracking is FMC-only (Admitverse has no lenders) and admin-only
+  // — every endpoint behind both is get_current_admin.
+  {
+    href: "/reconciliation",
+    label: "Commission",
+    icon: IndianRupee,
+    adminOnly: true,
+    fmcOnly: true,
+  },
+  {
+    href: "/admin/lenders",
+    label: "Lenders",
+    icon: Landmark,
+    adminOnly: true,
+    fmcOnly: true,
+  },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/csv-history", label: "CSV History", icon: FileSpreadsheet },
 ];
@@ -124,7 +150,10 @@ export function MobileNav() {
                 <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   {isAdmin ? "Admin" : "Management"}
                 </p>
-                {adminNav.map((item) => (
+                {adminNav
+                  .filter((item) => !item.adminOnly || isAdmin)
+                  .filter((item) => !item.fmcOnly || !isAdmitverse)
+                  .map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}

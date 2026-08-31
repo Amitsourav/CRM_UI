@@ -11,6 +11,14 @@ export interface BankEntryUpdate {
   bank_status?: BankStatus;
   /** In lakhs — required when setting a bank to pf_paid without a stored one. */
   loan_amount_lakh?: number;
+  /**
+   * Required when setting a bank to `disbursed`: what actually left the bank,
+   * in lakhs, and when. Commission is earned on this, not on the sanctioned
+   * figure above.
+   */
+  disbursed_amount_lakh?: number;
+  disbursed_on?: string;
+  utr_reference?: string;
   notes?: string | null;
   application_id?: string | null;
   sanction_date?: string | null;

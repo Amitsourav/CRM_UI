@@ -5,6 +5,7 @@ import { ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { showApiError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -85,15 +86,8 @@ export function StageSelectCell({
       // so the row is refetched rather than patched locally.
       onChanged();
     } catch (error: unknown) {
-      const err = error as {
-        response?: { status?: number; data?: { detail?: string } };
-      };
-      // These detail strings are written for the user — show them as they are.
-      toast.error(
-        err.response?.status === 403
-          ? "This lead isn't assigned to you"
-          : err.response?.data?.detail || "Couldn't change the stage"
-      );
+      // These detail strings are written for the user — shown as they are.
+      showApiError(error, "Couldn't change the stage");
     } finally {
       setSubmitting(false);
     }
