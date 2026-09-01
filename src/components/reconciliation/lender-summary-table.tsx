@@ -20,6 +20,9 @@ export function LenderSummaryTable({ rows }: { rows: LenderSummaryRow[] }) {
             <th className="px-3 py-2 text-right font-medium">TDS</th>
             <th className="px-3 py-2 text-right font-medium">Outstanding</th>
             <th className="px-3 py-2 text-right font-medium">Unbilled</th>
+            <th className="px-3 py-2 text-right font-medium" title="Sanctioned files with no amount recorded — excluded from gross theoretical">
+              No amount
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -65,15 +68,16 @@ export function LenderSummaryTable({ rows }: { rows: LenderSummaryRow[] }) {
                 ) : (
                   <span className="text-muted-foreground">0</span>
                 )}
-                {/* Sanctioned files with no amount recorded are missing from
-                    the theoretical figure beside them. */}
-                {!!row.files_missing_amount && (
-                  <span
-                    className="ml-1.5 text-xs text-amber-600"
-                    title={`${row.files_missing_amount} sanctioned files have no amount, so they're excluded`}
-                  >
-                    +{row.files_missing_amount}?
+              </td>
+              {/* Sanctioned files with no amount recorded — excluded from the
+                  gross theoretical figure on this same row. */}
+              <td className="px-3 py-2 text-right font-mono tabular-nums">
+                {row.files_missing_amount ? (
+                  <span className="text-amber-600">
+                    {row.files_missing_amount}
                   </span>
+                ) : (
+                  <span className="text-muted-foreground">0</span>
                 )}
               </td>
             </tr>

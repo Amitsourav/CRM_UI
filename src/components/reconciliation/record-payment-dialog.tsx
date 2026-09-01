@@ -53,6 +53,10 @@ export function RecordPaymentDialog({
   const [tds, setTds] = useState("");
   const [receivedOn, setReceivedOn] = useState("");
   const [reference, setReference] = useState("");
+  // Set only for a negotiated settlement — otherwise the backend's own
+  // rate × disbursed stands.
+  const [agreed, setAgreed] = useState("");
+  const [showAgreed, setShowAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -61,11 +65,20 @@ export function RecordPaymentDialog({
     setTds(row.tds_deducted != null ? String(row.tds_deducted) : "");
     setReceivedOn(row.received_on ?? todayIso());
     setReference(row.utr_reference ?? "");
+    setAgreed("");
+    setShowAgreed(false);
   }, [row]);
 
   if (!row) return null;
 
-  const due = rupeesToNumber(row.commission_amount);
+  // A row that earns nothing owes nothing, whatever the rate says.
+  const earns = row.earns_commission !== false;
+  const calculated = earns ? rupeesToNumber(row.commission_amount) : 0;
+  const agreedValue = toAmount(agreed);
+  // The agreed figure replaces the calculated one everywhere, including the
+  // live settles line — otherwise the form would check the entry against a
+  // number it isn't going to save.
+  const due = agreedValue !== null ? agreedValue : calculated;
   const cashValue = toAmount(cash) ?? 0;
   const tdsValue = toAmount(tds) ?? 0;
   const settles = cashValue + tdsValue;
@@ -94,6 +107,14 @@ export function RecordPaymentDialog({
       toast.error("The payment can't be dated before the disbursement.");
       return;
     }
+    // The backend refuses an explicit amount on a row that earns nothing;
+    // saying so here beats bouncing it off the API.
+    if (agreedValue !== null && !earns) {
+      toast.error(
+        "This row is marked as not earning commission. Tick it first to set an agreed amount."
+      );
+      return;
+    }
 
     setSaving(true);
     try {
@@ -102,6 +123,7 @@ export function RecordPaymentDialog({
         tds_deducted: toAmount(tds) ?? 0,
         received_on: receivedOn,
         ...(reference.trim() ? { payment_reference: reference.trim() } : {}),
+        ...(agreedValue !== null ? { commission_amount: agreedValue } : {}),
       });
       toast.success("Payment recorded");
       onOpenChange(false);
@@ -124,11 +146,25 @@ export function RecordPaymentDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex items-baseline justify-between rounded-md bg-muted px-3 py-2">
-            <span className="text-sm text-muted-foreground">Commission due</span>
-            <span className="font-mono text-sm font-semibold tabular-nums">
-              {formatRupees(row.commission_amount)}
-            </span>
+          <div className="rounded-md bg-muted px-3 py-2">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm text-muted-foreground">
+                Commission due
+              </span>
+              <span className="font-mono text-sm font-semibold tabular-nums">
+                {formatRupees(due)}
+                {agreedValue !== null && (
+                  <span className="ml-2 font-sans text-xs font-normal text-muted-foreground line-through">
+                    {formatRupees(calculated)}
+                  </span>
+                )}
+              </span>
+            </div>
+            {!earns && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Marked as not earning commission.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -206,6 +242,36 @@ export function RecordPaymentDialog({
               />
             </div>
           </div>
+
+          {/* Tucked behind a toggle: settling for a different figure is the
+              exception, and an always-visible box invites overwriting a
+              correct calculation. */}
+          {showAgreed || agreed ? (
+            <div className="space-y-2">
+              <Label htmlFor="agreed-amount">Agreed commission</Label>
+              <Input
+                id="agreed-amount"
+                inputMode="decimal"
+                value={agreed}
+                onChange={(e) => setAgreed(e.target.value)}
+                placeholder={String(Math.round(calculated))}
+                disabled={!earns}
+              />
+              <p className="text-xs text-muted-foreground">
+                {earns
+                  ? "Replaces rate × disbursed for this row. Leave blank to keep the calculated figure."
+                  : "Tick \"earns commission\" on this row first."}
+              </p>
+            </div>
+          ) : (
+            <Button
+              variant="link"
+              className="h-auto p-0 text-xs text-muted-foreground"
+              onClick={() => setShowAgreed(true)}
+            >
+              Settled for a different amount?
+            </Button>
+          )}
         </div>
 
         <DialogFooter>

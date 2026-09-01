@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatRate, formatRupees } from "@/lib/money";
 import { StatusBadge } from "./status-badge";
 import type { DisbursementRow } from "@/types";
@@ -47,6 +48,9 @@ export function ReconciliationTable({
             <th className="px-3 py-2 text-right font-medium">Disbursed</th>
             <th className="px-3 py-2 font-medium">Date</th>
             <th className="px-3 py-2 text-right font-medium">Rate</th>
+            <th className="px-3 py-2 text-center font-medium" title="Earns commission">
+              Earns
+            </th>
             <th className="px-3 py-2 text-right font-medium">Commission</th>
             <th className="px-3 py-2 text-right font-medium">Received</th>
             <th className="px-3 py-2 text-right font-medium">Short</th>
@@ -104,6 +108,16 @@ export function ReconciliationTable({
                 <td className="px-3 py-2 text-right font-mono tabular-nums">
                   {formatRate(row.commission_rate)}
                 </td>
+                {/* Untick and the commission goes to zero while the rate above
+                    stays put, so the row still shows what it would have been
+                    worth. */}
+                <td className="px-3 py-2 text-center">
+                  <Checkbox
+                    checked={earns}
+                    onCheckedChange={(next) => onToggleEarns(row, next === true)}
+                    aria-label={`${row.lead_name} earns commission`}
+                  />
+                </td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums whitespace-nowrap">
                   {earns ? (
                     formatRupees(row.commission_amount)
@@ -153,13 +167,6 @@ export function ReconciliationTable({
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onRecordPayment(row)}>
                         Record payment
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => onToggleEarns(row, !earns)}
-                      >
-                        {earns
-                          ? "Mark as not earning commission"
-                          : "Mark as earning commission"}
                       </DropdownMenuItem>
                       {row.status !== "written_off" && (
                         <DropdownMenuItem onClick={() => onWriteOff(row)}>

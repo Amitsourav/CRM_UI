@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, Check, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -162,34 +163,52 @@ export function TheoreticalPanel() {
       {excluded > 0 && (
         <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/40">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <div>
+          <div className="space-y-1">
             <p>
-              {data.files_missing_amount > 0 && (
-                <>
-                  <span className="font-medium">
-                    {data.files_missing_amount.toLocaleString()} files
-                  </span>{" "}
-                  have no sanctioned amount
-                </>
-              )}
-              {data.files_missing_amount > 0 &&
-                data.files_missing_rate > 0 &&
-                " · "}
-              {data.files_missing_rate > 0 && (
-                <>
-                  <span className="font-medium">
-                    {data.files_missing_rate.toLocaleString()}
-                  </span>{" "}
-                  have no lender rate
-                </>
-              )}
-              .
-            </p>
-            <p className="mt-0.5 text-muted-foreground">
-              They&apos;re excluded, so the figures above are a floor.{" "}
               {data.files_counted.toLocaleString()} of{" "}
-              {data.files.toLocaleString()} files counted.
+              {data.files.toLocaleString()} files counted — the rest are
+              excluded, so every figure above is a floor.
             </p>
+            {/* Each count goes to where it can actually be resolved. Neither
+                links to the files themselves: nothing filters leads by
+                "sanctioned with no amount", and a link that showed the wrong
+                files would be worse than none. */}
+            <ul className="space-y-0.5">
+              {data.files_missing_amount > 0 && (
+                <li>
+                  <Link
+                    href="/reconciliation?tab=lenders"
+                    className="underline underline-offset-2 hover:no-underline"
+                  >
+                    <span className="font-medium">
+                      {data.files_missing_amount.toLocaleString()} files
+                    </span>{" "}
+                    have no sanctioned amount
+                  </Link>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    — see which lenders hold them
+                  </span>
+                </li>
+              )}
+              {data.files_missing_rate > 0 && (
+                <li>
+                  <Link
+                    href="/admin/lenders"
+                    className="underline underline-offset-2 hover:no-underline"
+                  >
+                    <span className="font-medium">
+                      {data.files_missing_rate.toLocaleString()} files
+                    </span>{" "}
+                    are on a route with no rate
+                  </Link>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    — set the rate, or move them to a specific route
+                  </span>
+                </li>
+              )}
+            </ul>
           </div>
         </div>
       )}
