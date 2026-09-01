@@ -13,6 +13,28 @@ import { formatRate } from "@/lib/money";
 import { lendersService } from "@/services/reconciliation-service";
 import type { ManagedBank } from "@/types";
 
+/**
+ * A bare bank name that also appears inside other route names — "Axis" next
+ * to "UC Axis" and "Axis Direct (UC Code)" — is unpriced on purpose: it could
+ * be either route, at different rates, and the backend won't guess. Files on
+ * it need moving to a specific route, not a rate typed here.
+ *
+ * Derived from the list rather than hardcoded, so a new route pair gets the
+ * same treatment without a code change. A name that matches nothing else is
+ * just a route awaiting its rate, and says so.
+ */
+function isAmbiguousRoute(name: string, all: ManagedBank[]): boolean {
+  const needle = name.trim().toLowerCase();
+  if (!needle) return false;
+  return all.some((other) => {
+    const candidate = other.name.trim().toLowerCase();
+    if (candidate === needle) return false;
+    return new RegExp(`\\b${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(
+      candidate
+    );
+  });
+}
+
 function LendersPageContent() {
   const [lenders, setLenders] = useState<ManagedBank[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +58,14 @@ function LendersPageContent() {
     fetchLenders();
   }, [fetchLenders]);
 
-  const missing = lenders.filter((l) => l.commission_rate == null).length;
+  const unpriced = lenders.filter((l) => l.commission_rate == null);
+  // Files sitting on a route with no rate earn nothing until they're moved to
+  // a specific one, so the file count is the number that matters, not the
+  // lender count.
+  const strandedFiles = unpriced.reduce(
+    (sum, l) => sum + (l.usage_count ?? 0),
+    0
+  );
 
   const save = async (lender: ManagedBank) => {
     const trimmed = value.trim();
@@ -68,23 +97,40 @@ function LendersPageContent() {
     <div className="space-y-6">
       <PageHeader
         title="Lenders"
-        description="Commission is worked out at these rates when a file disburses."
+        description="Each row is a route, not a bank — the same lender can appear more than once at different rates."
       />
 
       {/* A lender with no rate can't have commission calculated, and marking a
           file disbursed against it fails outright — so this is the blocking
           number, not a nice-to-have. */}
-      {!isLoading && missing > 0 && (
+      {!isLoading && unpriced.length > 0 && (
         <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/40">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <p>
-            <span className="font-medium">
-              {missing} {missing === 1 ? "lender has" : "lenders have"} no rate
-              set.
-            </span>{" "}
-            Marking a file disbursed against them will fail until one is
-            entered.
-          </p>
+          <div>
+            <p>
+              <span className="font-medium">
+                {unpriced.length}{" "}
+                {unpriced.length === 1 ? "route has" : "routes have"} no rate
+              </span>
+              {strandedFiles > 0 && (
+                <>
+                  , carrying{" "}
+                  <span className="font-medium">
+                    {strandedFiles.toLocaleString()} files
+                  </span>
+                </>
+              )}
+              .
+            </p>
+            {/* Some of these are unpriced on purpose: a bare bank name can be
+                either of its routes, and the backend won't guess a rate. Those
+                files need a route picked, not a rate typed here. */}
+            <p className="mt-0.5 text-muted-foreground">
+              A bare bank name that could be more than one route stays unpriced
+              on purpose — those files need moving to a specific route. The
+              rest just need a rate.
+            </p>
+          </div>
         </div>
       )}
 
@@ -98,7 +144,8 @@ function LendersPageContent() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-2 font-medium">Lender</th>
+              <th className="px-4 py-2 font-medium">Route</th>
+              <th className="w-24 px-4 py-2 text-right font-medium">Files</th>
               <th className="w-40 px-4 py-2 font-medium">Commission</th>
               <th className="w-24 px-4 py-2" />
             </tr>
@@ -111,6 +158,9 @@ function LendersPageContent() {
                     <div className="h-4 w-40 animate-pulse rounded bg-muted" />
                   </td>
                   <td className="px-4 py-3">
+                    <div className="ml-auto h-4 w-8 animate-pulse rounded bg-muted" />
+                  </td>
+                  <td className="px-4 py-3">
                     <div className="h-4 w-16 animate-pulse rounded bg-muted" />
                   </td>
                   <td />
@@ -120,7 +170,7 @@ function LendersPageContent() {
             {!isLoading && lenders.length === 0 && (
               <tr>
                 <td
-                  colSpan={3}
+                  colSpan={4}
                   className="px-4 py-10 text-center text-muted-foreground"
                 >
                   No lenders yet.
@@ -131,10 +181,15 @@ function LendersPageContent() {
             {!isLoading &&
               lenders.map((lender) => {
                 const unset = lender.commission_rate == null;
+                const ambiguous = unset && isAmbiguousRoute(lender.name, lenders);
                 const editing = editingId === lender.id;
                 return (
                   <tr key={lender.id} className="border-b last:border-b-0">
+                    {/* Full route name, never shortened to the bank. */}
                     <td className="px-4 py-2 font-medium">{lender.name}</td>
+                    <td className="px-4 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                      {lender.usage_count?.toLocaleString() ?? "—"}
+                    </td>
                     <td className="px-4 py-2">
                       {editing ? (
                         <div className="relative w-28">
@@ -160,8 +215,19 @@ function LendersPageContent() {
                             "font-mono tabular-nums",
                             unset && "text-amber-600"
                           )}
+                          title={
+                            ambiguous
+                              ? "This name matches more than one route, so it has no single rate — move these files to a specific route"
+                              : unset
+                                ? "Files on this route earn nothing until a rate is set"
+                                : undefined
+                          }
                         >
-                          {formatRate(lender.commission_rate)}
+                          {ambiguous
+                            ? "Route not specified"
+                            : unset
+                              ? "No rate"
+                              : formatRate(lender.commission_rate)}
                         </span>
                       )}
                     </td>

@@ -89,7 +89,7 @@ export function BankShareCell({
   // needs an amount and a date; `tranche` records a later instalment on a
   // file that already disbursed.
   const [form, setForm] = useState<null | {
-    kind: "pf_paid" | "disbursed" | "tranche";
+    kind: "pf_paid" | "sanctioned" | "disbursed" | "tranche";
     amount: string;
     date: string;
     reference: string;
@@ -134,6 +134,8 @@ export function BankShareCell({
     status: string,
     extra: {
       loan_amount_lakh?: number;
+      sanctioned_amount_lakh?: number;
+      sanction_date?: string;
       disbursed_amount_lakh?: number;
       disbursed_on?: string;
       utr_reference?: string;
@@ -182,6 +184,18 @@ export function BankShareCell({
       // can't see. Pre-filled when there is one.
       setForm({
         kind: "pf_paid",
+        amount:
+          share.loan_amount_lakh != null ? String(share.loan_amount_lakh) : "",
+        date: "",
+        reference: "",
+      });
+      return;
+    }
+    if (status === "sanctioned") {
+      // Same gate as the lead's stage: a sanction records what was approved
+      // and when. It earns nothing until the file reaches PF Paid.
+      setForm({
+        kind: "sanctioned",
         amount:
           share.loan_amount_lakh != null ? String(share.loan_amount_lakh) : "",
         date: "",
@@ -346,7 +360,9 @@ export function BankShareCell({
           <div className="space-y-3 p-3">
             <div className="space-y-2">
               <Label htmlFor="cell-amount">
-                {form.kind === "pf_paid" ? "Sanctioned amount" : "Amount released"}
+                {form.kind === "pf_paid" || form.kind === "sanctioned"
+                  ? "Sanctioned amount"
+                  : "Amount released"}
               </Label>
               <div className="relative">
                 <Input
@@ -357,14 +373,24 @@ export function BankShareCell({
                   onChange={(e) =>
                     setForm((f) => f && { ...f, amount: e.target.value })
                   }
-                  placeholder={form.kind === "pf_paid" ? "45" : "30"}
+                  placeholder={
+                    form.kind === "pf_paid" || form.kind === "sanctioned"
+                      ? "45"
+                      : "30"
+                  }
                   className="pr-14"
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                   lakh
                 </span>
               </div>
-              {form.kind !== "pf_paid" && (
+              {form.kind === "sanctioned" && (
+                <p className="text-xs text-muted-foreground">
+                  What this lender approved. Revenue starts counting at PF
+                  Paid.
+                </p>
+              )}
+              {(form.kind === "disbursed" || form.kind === "tranche") && (
                 <p className="text-xs text-muted-foreground">
                   What this lender actually released, not the sanctioned
                   amount.
@@ -375,7 +401,11 @@ export function BankShareCell({
             {form.kind !== "pf_paid" && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="cell-date">Date released</Label>
+                  <Label htmlFor="cell-date">
+                    {form.kind === "sanctioned"
+                      ? "Sanction date"
+                      : "Date released"}
+                  </Label>
                   <Input
                     id="cell-date"
                     type="date"
@@ -387,6 +417,7 @@ export function BankShareCell({
                   />
                 </div>
 
+                {form.kind !== "sanctioned" && (
                 <div className="space-y-2">
                   <Label htmlFor="cell-ref">
                     Bank reference{" "}
@@ -403,6 +434,7 @@ export function BankShareCell({
                     placeholder="AXISN12345678"
                   />
                 </div>
+                )}
               </>
             )}
 
@@ -426,11 +458,22 @@ export function BankShareCell({
                     return;
                   }
                   if (!form.date) {
-                    toast.error("Set the date the money was released.");
+                    toast.error(
+                      form.kind === "sanctioned"
+                        ? "Set the date of the sanction."
+                        : "Set the date the money was released."
+                    );
                     return;
                   }
                   if (form.date > todayIso()) {
-                    toast.error("The release date can't be in the future.");
+                    toast.error("The date can't be in the future.");
+                    return;
+                  }
+                  if (form.kind === "sanctioned") {
+                    patch("sanctioned", {
+                      sanctioned_amount_lakh: amount,
+                      sanction_date: form.date,
+                    });
                     return;
                   }
                   if (form.kind === "tranche") {

@@ -28,12 +28,14 @@ interface ReconciliationTableProps {
   rows: DisbursementRow[];
   onRecordPayment: (row: DisbursementRow) => void;
   onWriteOff: (row: DisbursementRow) => void;
+  onToggleEarns: (row: DisbursementRow, earns: boolean) => void;
 }
 
 export function ReconciliationTable({
   rows,
   onRecordPayment,
   onWriteOff,
+  onToggleEarns,
 }: ReconciliationTableProps) {
   return (
     <div className="overflow-x-auto rounded-md border">
@@ -55,13 +57,21 @@ export function ReconciliationTable({
         </thead>
         <tbody>
           {rows.map((row) => {
+            // Defaults on: only an explicit false turns a row off.
+            const earns = row.earns_commission !== false;
             const ageing =
               row.days_outstanding != null &&
               row.days_outstanding > AGEING_DAYS &&
               row.status !== "paid" &&
               row.status !== "written_off";
             return (
-              <tr key={row.id} className="border-b last:border-b-0 hover:bg-muted/40">
+              <tr
+                key={row.id}
+                className={cn(
+                  "border-b last:border-b-0 hover:bg-muted/40",
+                  !earns && "text-muted-foreground"
+                )}
+              >
                 <td className="px-3 py-2">
                   <Link
                     href={`/leads/${row.lead_id}`}
@@ -82,6 +92,8 @@ export function ReconciliationTable({
                     </span>
                   )}
                 </td>
+                {/* The full route, never shortened: "UC Axis" and "Axis
+                    Direct (UC Code)" are the same bank at different rates. */}
                 <td className="px-3 py-2 whitespace-nowrap">{row.bank_name}</td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums whitespace-nowrap">
                   {formatRupees(row.disbursed_amount)}
@@ -93,7 +105,16 @@ export function ReconciliationTable({
                   {formatRate(row.commission_rate)}
                 </td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums whitespace-nowrap">
-                  {formatRupees(row.commission_amount)}
+                  {earns ? (
+                    formatRupees(row.commission_amount)
+                  ) : (
+                    <span
+                      className="text-muted-foreground"
+                      title="Marked as not earning commission"
+                    >
+                      ₹0
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums whitespace-nowrap">
                   {formatRupees(row.amount_received)}
@@ -132,6 +153,13 @@ export function ReconciliationTable({
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onRecordPayment(row)}>
                         Record payment
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onToggleEarns(row, !earns)}
+                      >
+                        {earns
+                          ? "Mark as not earning commission"
+                          : "Mark as earning commission"}
                       </DropdownMenuItem>
                       {row.status !== "written_off" && (
                         <DropdownMenuItem onClick={() => onWriteOff(row)}>

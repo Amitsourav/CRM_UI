@@ -16,6 +16,10 @@ export interface StageChangeDraft {
   bankName: string;
   /** Free text while typing; validated as a number in lakhs on submit. */
   bankLoanAmountLakh: string;
+  /** What the lender approved, in lakhs. */
+  sanctionedAmountLakh: string;
+  /** YYYY-MM-DD. */
+  sanctionDate: string;
   /** What the lender actually released, in lakhs — not the sanctioned figure. */
   disbursedAmountLakh: string;
   /** YYYY-MM-DD. */
@@ -29,6 +33,8 @@ export const EMPTY_STAGE_DRAFT: StageChangeDraft = {
   lostReason: "",
   bankName: "",
   bankLoanAmountLakh: "",
+  sanctionedAmountLakh: "",
+  sanctionDate: "",
   disbursedAmountLakh: "",
   disbursedOn: "",
   utrReference: "",
@@ -50,6 +56,15 @@ export function stageNeedsBankCommitment(stage: LeadStage): boolean {
 }
 
 /**
+ * A sanction is an offer, so it records what was approved and when. It earns
+ * nothing on its own — revenue only starts counting at PF Paid, where the
+ * student paying the fee confirms the loan is real and which lender won it.
+ */
+export function stageNeedsSanction(stage: LeadStage): boolean {
+  return stage === "sanctioned";
+}
+
+/**
  * Commission is earned on what a lender released, so marking a file disbursed
  * now has to capture that amount and its date. The lender itself is optional —
  * the backend falls back to the lead's primary one.
@@ -58,15 +73,26 @@ export function stageNeedsDisbursement(stage: LeadStage): boolean {
   return stage === "disbursed";
 }
 
-// Terminal stages don't take a follow-up date: FMC's disbursed, Admitverse's
-// enrolled, and lost on both (which takes a reason instead).
+/**
+ * A follow-up date is the default requirement, but not for the stages that
+ * ask for money instead — sanctioned, pf_paid and disbursed each capture
+ * their own figures — nor for the terminal ones (FMC's disbursed,
+ * Admitverse's enrolled) or lost, which takes a reason.
+ *
+ * These three must agree with the fields on screen: requiring a date the form
+ * doesn't render leaves Save disabled with nothing to explain why.
+ */
 export function stageNeedsDueDate(
   slug: string | null | undefined,
   stage: LeadStage
 ): boolean {
   if (stage === "lost") return false;
   if (slug === "admitverse") return stage !== "enrolled";
-  return stage !== "disbursed";
+  return (
+    stage !== "disbursed" &&
+    !stageNeedsSanction(stage) &&
+    !stageNeedsBankCommitment(stage)
+  );
 }
 
 /** True when nothing has to be collected, so the move can just be applied. */
@@ -78,7 +104,8 @@ export function stageAppliesImmediately(
     !stageNeedsDueDate(slug, stage) &&
     !stageNeedsLostReason(stage) &&
     !stageNeedsBankCommitment(stage) &&
-    !stageNeedsDisbursement(stage)
+    !stageNeedsDisbursement(stage) &&
+    !stageNeedsSanction(stage)
   );
 }
 
@@ -107,6 +134,15 @@ export function validateStageChange(
     if (!draft.bankName.trim()) return "Pick the bank that was paid.";
     if (parseLakhs(draft.bankLoanAmountLakh) === null) {
       return "Enter the sanctioned amount in lakhs — a number above 0.";
+    }
+  }
+  if (stageNeedsSanction(stage)) {
+    if (parseLakhs(draft.sanctionedAmountLakh) === null) {
+      return "Enter the sanctioned amount in lakhs — a number above 0.";
+    }
+    if (!draft.sanctionDate) return "Set the date of the sanction.";
+    if (draft.sanctionDate > todayIso()) {
+      return "The sanction date can't be in the future.";
     }
   }
   if (stageNeedsDisbursement(stage)) {
@@ -154,6 +190,12 @@ export function buildStagePayload(
     payload.bank_name = draft.bankName.trim();
     // Already in lakhs — the backend converts to rupees. Never pre-multiply.
     payload.bank_loan_amount_lakh = parseLakhs(draft.bankLoanAmountLakh);
+  }
+
+  if (stageNeedsSanction(stage)) {
+    payload.sanctioned_amount_lakh = parseLakhs(draft.sanctionedAmountLakh);
+    payload.sanction_date = draft.sanctionDate;
+    if (draft.bankName.trim()) payload.bank_name = draft.bankName.trim();
   }
 
   if (stageNeedsDisbursement(stage)) {

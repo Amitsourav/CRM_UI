@@ -4,7 +4,9 @@ import type {
   LenderSummaryRow,
   ManagedBank,
   ReconciliationResponse,
+  ReconciliationSettings,
   ReconciliationStatus,
+  TheoreticalRevenue,
 } from "@/types";
 
 export interface ReconciliationParams {
@@ -45,6 +47,8 @@ export interface RecordPaymentBody {
   /** Overrides the percentage, for a negotiated settlement. */
   commission_amount?: number;
   utr_reference?: string;
+  /** Off ⇒ commission is 0 while the rate stays on the row. */
+  earns_commission?: boolean;
   write_off_reason?: string;
   notes?: string;
 }
@@ -83,6 +87,32 @@ export const reconciliationService = {
       LenderSummaryRow[] | { items: LenderSummaryRow[] }
     >("/reconciliation/summary");
     return Array.isArray(data) ? data : (data.items ?? []);
+  },
+
+  theoretical: async (): Promise<TheoreticalRevenue> => {
+    const { data } = await api.get<TheoreticalRevenue>(
+      "/reconciliation/theoretical"
+    );
+    return data;
+  },
+
+  getSettings: async (): Promise<ReconciliationSettings> => {
+    const { data } = await api.get<ReconciliationSettings>(
+      "/reconciliation/settings"
+    );
+    return data;
+  },
+
+  /**
+   * Applies to every figure immediately, historical included — it's an
+   * assumption about drawdown, not a record of what happened.
+   */
+  setNetFactor: async (factor: number): Promise<ReconciliationSettings> => {
+    const { data } = await api.patch<ReconciliationSettings>(
+      "/reconciliation/settings",
+      { net_theoretical_factor: factor }
+    );
+    return data;
   },
 
   update: async (

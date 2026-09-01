@@ -785,8 +785,19 @@ export interface UserStats {
  */
 export interface ManagedBank {
   id: string;
+  /**
+   * A route, not a bank: "UC Axis" and "Axis Direct (UC Code)" are the same
+   * lender at different rates. Always shown in full — shortening it to the
+   * bank name merges two different prices.
+   */
   name: string;
+  /**
+   * Null where the route is ambiguous — plain "Axis" could be either of the
+   * above, and the backend refuses to guess rather than pick a rate.
+   */
   commission_rate?: string | number | null;
+  /** Files currently on this route. */
+  usage_count?: number;
   is_active?: boolean;
 }
 
@@ -822,7 +833,13 @@ export interface DisbursementRow {
   disbursed_amount: string | number;
   disbursed_on: string;
   commission_rate?: string | number | null;
+  /**
+   * Off for disbursements that earn nothing. The rate stays visible so the
+   * report can still show what it would have been worth.
+   */
+  earns_commission?: boolean;
   commission_amount?: string | number | null;
+  /** Filled when a bill is raised; null on every row until invoicing lands. */
   gst_amount?: string | number | null;
   /** Null until invoicing lands, so `to_bill` means "not yet on a bill". */
   invoice_id?: string | null;
@@ -864,4 +881,40 @@ export interface LenderSummaryRow {
   tds_total: string | number;
   outstanding_total: string | number;
   unbilled_count: number;
+  /**
+   * The other side of the ledger: a lender can carry sanctioned files and no
+   * disbursements at all, which is approved money that hasn't converted.
+   */
+  sanctioned_files?: number;
+  sanctioned_total?: string | number;
+  gross_theoretical_revenue?: string | number;
+  files_missing_amount?: number;
+}
+
+/**
+ * What we would earn if every sanction drew down in full, against what has
+ * actually been earned. FMC's own vocabulary — gross, net, revenue, drawdown
+ * gap — is used verbatim on screen.
+ */
+export interface TheoreticalRevenue {
+  files: number;
+  files_counted: number;
+  /**
+   * Files left out of the sums entirely rather than counted as zero, so every
+   * figure here is a floor. Both counts belong on screen with the totals.
+   */
+  files_missing_amount: number;
+  files_missing_rate: number;
+  sanctioned_total: string | number;
+  gross_theoretical_revenue: string | number;
+  /** Percentage, editable — an assumption about the future, not a record. */
+  net_theoretical_factor: string | number;
+  net_theoretical_revenue: string | number;
+  disbursed_total: string | number;
+  revenue: string | number;
+  drawdown_gap: string | number;
+}
+
+export interface ReconciliationSettings {
+  net_theoretical_factor: string | number;
 }

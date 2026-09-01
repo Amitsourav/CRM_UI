@@ -11,6 +11,8 @@ export function LenderSummaryTable({ rows }: { rows: LenderSummaryRow[] }) {
         <thead>
           <tr className="border-b text-left text-[10px] uppercase tracking-[0.09em] text-muted-foreground">
             <th className="px-3 py-2 font-medium">Lender</th>
+            <th className="px-3 py-2 text-right font-medium">Sanctioned</th>
+            <th className="px-3 py-2 text-right font-medium">Gross theoretical</th>
             <th className="px-3 py-2 text-right font-medium">Files</th>
             <th className="px-3 py-2 text-right font-medium">Disbursed</th>
             <th className="px-3 py-2 text-right font-medium">Commission</th>
@@ -26,7 +28,19 @@ export function LenderSummaryTable({ rows }: { rows: LenderSummaryRow[] }) {
               key={row.bank_name}
               className="border-b last:border-b-0 hover:bg-muted/40"
             >
+              {/* Full route name — the rate depends on it. */}
               <td className="px-3 py-2 font-medium">{row.bank_name}</td>
+              <td className="px-3 py-2 text-right font-mono tabular-nums whitespace-nowrap">
+                {formatRupees(row.sanctioned_total)}
+                {row.sanctioned_files != null && (
+                  <span className="ml-1.5 text-xs text-muted-foreground">
+                    ({row.sanctioned_files})
+                  </span>
+                )}
+              </td>
+              <td className="px-3 py-2 text-right font-mono tabular-nums whitespace-nowrap">
+                {formatRupees(row.gross_theoretical_revenue)}
+              </td>
               <td className="px-3 py-2 text-right font-mono tabular-nums">
                 {row.files}
               </td>
@@ -50,6 +64,16 @@ export function LenderSummaryTable({ rows }: { rows: LenderSummaryRow[] }) {
                   <span className="text-amber-600">{row.unbilled_count}</span>
                 ) : (
                   <span className="text-muted-foreground">0</span>
+                )}
+                {/* Sanctioned files with no amount recorded are missing from
+                    the theoretical figure beside them. */}
+                {!!row.files_missing_amount && (
+                  <span
+                    className="ml-1.5 text-xs text-amber-600"
+                    title={`${row.files_missing_amount} sanctioned files have no amount, so they're excluded`}
+                  >
+                    +{row.files_missing_amount}?
+                  </span>
                 )}
               </td>
             </tr>

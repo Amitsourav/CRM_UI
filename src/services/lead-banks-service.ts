@@ -12,9 +12,14 @@ export interface BankEntryUpdate {
   /** In lakhs — required when setting a bank to pf_paid without a stored one. */
   loan_amount_lakh?: number;
   /**
+   * Required when setting a bank to `sanctioned`, alongside `sanction_date`
+   * below. A sanction is what was approved; it earns nothing on its own.
+   */
+  sanctioned_amount_lakh?: number;
+  /**
    * Required when setting a bank to `disbursed`: what actually left the bank,
    * in lakhs, and when. Commission is earned on this, not on the sanctioned
-   * figure above.
+   * figure.
    */
   disbursed_amount_lakh?: number;
   disbursed_on?: string;

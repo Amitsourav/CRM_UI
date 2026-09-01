@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatRupees } from "@/lib/money";
+import { showApiError } from "@/lib/api-errors";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useBanksStore } from "@/stores/banks-store";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/services/reconciliation-service";
 import { ReconciliationTable } from "@/components/reconciliation/reconciliation-table";
 import { LenderSummaryTable } from "@/components/reconciliation/lender-summary-table";
+import { TheoreticalPanel } from "@/components/reconciliation/theoretical-panel";
 import { RecordPaymentDialog } from "@/components/reconciliation/record-payment-dialog";
 import { WriteOffDialog } from "@/components/reconciliation/write-off-dialog";
 import {
@@ -55,7 +57,9 @@ function ReconciliationPageContent() {
   const lenders = useMemo<string[]>(() => JSON.parse(lenderKey), [lenderKey]);
   const from = searchParams.get("disbursed_from") || "";
   const to = searchParams.get("disbursed_to") || "";
-  const tab = searchParams.get("tab") === "lenders" ? "lenders" : "files";
+  const tabParam = searchParams.get("tab");
+  const tab =
+    tabParam === "lenders" || tabParam === "revenue" ? tabParam : "files";
   const pageParam = Number(searchParams.get("page"));
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
 
@@ -182,6 +186,28 @@ function ReconciliationPageContent() {
     );
   };
 
+  /**
+   * Turning a row off zeroes its commission while the rate stays on screen,
+   * so the report can still show what it would have been worth.
+   */
+  const toggleEarns = async (row: DisbursementRow, earns: boolean) => {
+    // Optimistic: the list refetch behind this is a full page load.
+    setRows((prev) =>
+      prev.map((r) => (r.id === row.id ? { ...r, earns_commission: earns } : r))
+    );
+    try {
+      await reconciliationService.update(row.id, { earns_commission: earns });
+      fetchRows();
+    } catch (error: unknown) {
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id ? { ...r, earns_commission: !earns } : r
+        )
+      );
+      showApiError(error, "Couldn't update this row");
+    }
+  };
+
   const refresh = () => {
     fetchRows();
     if (tab === "lenders") fetchSummary();
@@ -241,7 +267,7 @@ function ReconciliationPageContent() {
       </div>
 
       <div className="flex gap-1 border-b">
-        {(["files", "lenders"] as const).map((key) => (
+        {(["files", "lenders", "revenue"] as const).map((key) => (
           <button
             key={key}
             type="button"
@@ -253,12 +279,18 @@ function ReconciliationPageContent() {
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            {key === "files" ? "Files" : "By lender"}
+            {key === "files"
+              ? "Files"
+              : key === "lenders"
+                ? "By lender"
+                : "Theoretical revenue"}
           </button>
         ))}
       </div>
 
-      {tab === "files" ? (
+      {tab === "revenue" ? (
+        <TheoreticalPanel />
+      ) : tab === "files" ? (
         <>
           <div className="flex flex-wrap items-center gap-2">
             {STATUS_ORDER.map((status) => {
@@ -356,6 +388,7 @@ function ReconciliationPageContent() {
                 rows={rows}
                 onRecordPayment={setPaying}
                 onWriteOff={setWritingOff}
+                onToggleEarns={toggleEarns}
               />
               <div className="flex flex-col items-center gap-2">
                 <Pagination

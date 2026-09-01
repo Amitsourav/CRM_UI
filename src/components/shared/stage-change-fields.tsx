@@ -18,6 +18,7 @@ import {
   stageNeedsBankCommitment,
   stageNeedsDisbursement,
   stageNeedsDueDate,
+  stageNeedsSanction,
   stageNeedsLostReason,
   todayIso,
   type StageChangeDraft,
@@ -55,15 +56,17 @@ export function StageChangeFields({
   const needsLostReason = stageNeedsLostReason(toStage);
   const needsBank = stageNeedsBankCommitment(toStage);
   const needsDisbursement = stageNeedsDisbursement(toStage);
+  const needsSanction = stageNeedsSanction(toStage);
   const needsDueDate = stageNeedsDueDate(slug, toStage);
 
   useEffect(() => {
     if (needsLostReason) ensureLostReasons();
-    if (needsBank || needsDisbursement) ensureBanks();
+    if (needsBank || needsDisbursement || needsSanction) ensureBanks();
   }, [
     needsLostReason,
     needsBank,
     needsDisbursement,
+    needsSanction,
     ensureLostReasons,
     ensureBanks,
   ]);
@@ -161,6 +164,65 @@ export function StageChangeFields({
         </div>
       )}
 
+      {needsSanction && (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="sanctioned-amount">Sanctioned amount</Label>
+            <div className="relative">
+              <Input
+                id="sanctioned-amount"
+                autoFocus={autoFocus}
+                inputMode="decimal"
+                value={draft.sanctionedAmountLakh}
+                onChange={(e) =>
+                  onChange({ sanctionedAmountLakh: e.target.value })
+                }
+                placeholder="30"
+                className="pr-14"
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                lakh
+              </span>
+            </div>
+            {/* A sanction is an offer: it sets the ceiling for what can be
+                drawn down, and earns nothing until the file reaches PF Paid. */}
+            <p className="text-xs text-muted-foreground">
+              What the lender approved. Revenue starts counting at PF Paid.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sanction-date">Sanction date</Label>
+            <Input
+              id="sanction-date"
+              type="date"
+              max={todayIso()}
+              value={draft.sanctionDate}
+              onChange={(e) => onChange({ sanctionDate: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Lender</Label>
+            <Select
+              value={draft.bankName}
+              onValueChange={(v) => onChange({ bankName: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="The lead's primary lender" />
+              </SelectTrigger>
+              <SelectContent>
+                {banks.map((b) => (
+                  <SelectItem key={b} value={b}>
+                    {b}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
+
       {needsDisbursement && (
         <>
           <div className="space-y-2">
@@ -239,7 +301,7 @@ export function StageChangeFields({
       {/* Disbursed is terminal and the money is the point, so it doesn't ask
           for a follow-up at all. Other terminal stages keep the optional
           field they had. */}
-      {!needsDisbursement && (
+      {!needsDisbursement && !needsSanction && !needsBank && (
         <div className="space-y-2">
           <Label htmlFor="stage-due-date">
             Follow-up{" "}
