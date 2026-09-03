@@ -40,9 +40,12 @@ import type {
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-// The two questions that find money. Opening on them rather than on
-// everything is the difference between a report and a worklist.
-const DEFAULT_STATUSES: ReconciliationStatus[] = ["to_bill", "short_paid"];
+// The two questions that find money — offered as one click, never applied on
+// arrival. A default filter here silently narrows the headline totals, which
+// on a financial screen reads as the app inventing a number: the page opened
+// showing the disbursed total for two statuses while every API path reported
+// the whole book.
+const CHASING_STATUSES: ReconciliationStatus[] = ["to_bill", "short_paid"];
 
 function ReconciliationPageContent() {
   const router = useRouter();
@@ -63,16 +66,9 @@ function ReconciliationPageContent() {
   const pageParam = Number(searchParams.get("page"));
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
 
-  // Three states, not two: never chosen (open on the money), a chosen set,
-  // and deliberately cleared (show everything). The last one can't be an
-  // empty `status` param — empty values are dropped from the URL, which would
-  // read back as "never chosen" and silently restore the default filter.
-  const showAll = searchParams.get("status_all") === "1";
-  const effectiveStatuses = showAll
-    ? []
-    : searchParams.has("status")
-      ? statuses
-      : DEFAULT_STATUSES;
+  // No status in the URL means no status filter — the headline totals then
+  // cover the whole book, which is what the figures have to mean by default.
+  const effectiveStatuses = statuses;
 
   const patchParams = useCallback(
     (patch: Record<string, string | string[] | undefined>) => {
@@ -179,11 +175,29 @@ function ReconciliationPageContent() {
     const next = effectiveStatuses.includes(status)
       ? effectiveStatuses.filter((s) => s !== status)
       : [...effectiveStatuses, status];
-    patchParams(
-      next.length
-        ? { status: next, status_all: undefined, page: undefined }
-        : { status: undefined, status_all: "1", page: undefined }
-    );
+    patchParams({ status: next.length ? next : undefined, page: undefined });
+  };
+
+  // Any filter narrows what `totals` covers, because the backend recomputes it
+  // for the filtered set. The headline says so rather than leaving the reader
+  // to reconcile it against a number from elsewhere.
+  const hasFilters =
+    effectiveStatuses.length > 0 ||
+    lenders.length > 0 ||
+    !!from ||
+    !!to ||
+    !!debouncedSearch;
+
+  const clearFilters = () => {
+    setSearchValue("");
+    patchParams({
+      status: undefined,
+      bank_name: undefined,
+      disbursed_from: undefined,
+      disbursed_to: undefined,
+      q: undefined,
+      page: undefined,
+    });
   };
 
   /**
@@ -225,9 +239,36 @@ function ReconciliationPageContent() {
         </Button>
       </PageHeader>
 
-      {/* Totals come from the response and cover the whole filtered set —
-          re-summing the 50 rows on screen would show a fraction of what is
-          owed and read as a far smaller problem than it is. */}
+      {/* Every figure below is read straight from the response's `totals`,
+          which the backend computes over the whole filtered set. Nothing here
+          sums the rows on screen: that would report one page of 50 as if it
+          were the book. */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {hasFilters ? (
+          <>
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-medium text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+              Filtered
+            </span>
+            <span>
+              Totals cover the {total.toLocaleString()} matching{" "}
+              {total === 1 ? "file" : "files"}, not the whole book.
+            </span>
+            <Button
+              variant="link"
+              className="h-auto p-0 text-xs"
+              onClick={clearFilters}
+            >
+              Clear
+            </Button>
+          </>
+        ) : (
+          <span>
+            Totals cover all {total.toLocaleString()}{" "}
+            {total === 1 ? "file" : "files"}.
+          </span>
+        )}
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-md border bg-card p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -293,6 +334,17 @@ function ReconciliationPageContent() {
       ) : tab === "files" ? (
         <>
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() =>
+                patchParams({ status: CHASING_STATUSES, page: undefined })
+              }
+            >
+              Needs chasing
+            </Button>
+            <span className="mr-1 h-4 w-px bg-border" aria-hidden />
             {STATUS_ORDER.map((status) => {
               const on = effectiveStatuses.includes(status);
               return (
