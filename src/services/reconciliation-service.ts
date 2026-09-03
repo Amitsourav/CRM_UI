@@ -54,9 +54,11 @@ export interface RecordPaymentBody {
 }
 
 export interface TrancheBody {
+  /** LAKHS — 3 means ₹3,00,000. `tranche_no` is assigned by the server. */
   disbursed_amount_lakh: number;
   disbursed_on: string;
   utr_reference?: string;
+  notes?: string;
 }
 
 export const reconciliationService = {
@@ -127,8 +129,10 @@ export const reconciliationService = {
   },
 
   /**
-   * A later instalment on a file that already disbursed. Rare — 2 of 2,410
-   * files — so it hangs off the bank cell rather than a top-level action.
+   * A later instalment on a file that already disbursed. Not rare: an
+   * education loan is sanctioned once and released semester by semester, and
+   * commission is earned per release — so an unrecorded instalment is
+   * commission that never gets invoiced.
    */
   addTranche: async (
     leadId: string,
@@ -140,6 +144,17 @@ export const reconciliationService = {
       body
     );
     return data;
+  },
+
+  getTranche: async (id: string): Promise<DisbursementRow> => {
+    const { data } = await api.get<DisbursementRow>(
+      `/reconciliation/disbursements/${id}`
+    );
+    return data;
+  },
+
+  removeTranche: async (id: string): Promise<void> => {
+    await api.delete(`/reconciliation/disbursements/${id}`);
   },
 
   listTranches: async (

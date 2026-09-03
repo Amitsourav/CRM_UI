@@ -43,6 +43,7 @@ import {
   type BankEntryCreate,
 } from "@/services/lead-banks-service";
 import { SanctionDetailsDialog } from "./sanction-details-dialog";
+import { LenderTranches } from "./lender-tranches";
 import type { BankEntry, BankStatus } from "@/types";
 
 // Bank statuses at which sanction-stage fields become editable +
@@ -283,6 +284,17 @@ export function LeadBanksManager({
                 <SanctionDetailsPanel
                   entry={entry}
                   onEdit={() => setSanctionEditingId(entry.id)}
+                />
+              )}
+              {/* Instalment history, from the point a lender has committed.
+                  Commission is earned per release, so this is where the team
+                  records money arriving semester by semester instead of
+                  keeping it in a spreadsheet. */}
+              {showsSanctionDetails(entry.bank_status) && (
+                <LenderTranches
+                  leadId={leadId}
+                  entry={entry}
+                  onChanged={onChanged}
                 />
               )}
             </li>
