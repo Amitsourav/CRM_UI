@@ -16,6 +16,7 @@ export function LenderSummaryTable({ rows }: { rows: LenderSummaryRow[] }) {
             <th className="px-3 py-2 text-right font-medium">Files</th>
             <th className="px-3 py-2 text-right font-medium">Disbursed</th>
             <th className="px-3 py-2 text-right font-medium">Commission</th>
+            <th className="px-3 py-2 text-right font-medium">GST</th>
             <th className="px-3 py-2 text-right font-medium">Received</th>
             <th className="px-3 py-2 text-right font-medium">TDS</th>
             <th className="px-3 py-2 text-right font-medium">Outstanding</th>
@@ -52,6 +53,11 @@ export function LenderSummaryTable({ rows }: { rows: LenderSummaryRow[] }) {
               </td>
               <td className="px-3 py-2 text-right font-mono tabular-nums whitespace-nowrap">
                 {formatRupees(row.commission_total)}
+              </td>
+              {/* Part of what's owed, not a footnote: outstanding here is
+                  (commission + GST) − (received + TDS). */}
+              <td className="px-3 py-2 text-right font-mono tabular-nums whitespace-nowrap">
+                {formatRupees(row.gst_total)}
               </td>
               <td className="px-3 py-2 text-right font-mono tabular-nums whitespace-nowrap">
                 {formatRupees(row.received_total)}

@@ -1,39 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { AdminGuard } from "@/components/shared/admin-guard";
 import { FmcOnly } from "@/components/shared/fmc-only";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatRate } from "@/lib/money";
 import { lendersService } from "@/services/reconciliation-service";
 import type { ManagedBank } from "@/types";
-
-/**
- * A bare bank name that also appears inside other route names — "Axis" next
- * to "UC Axis" and "Axis Direct (UC Code)" — is unpriced on purpose: it could
- * be either route, at different rates, and the backend won't guess. Files on
- * it need moving to a specific route, not a rate typed here.
- *
- * Derived from the list rather than hardcoded, so a new route pair gets the
- * same treatment without a code change. A name that matches nothing else is
- * just a route awaiting its rate, and says so.
- */
-function isAmbiguousRoute(name: string, all: ManagedBank[]): boolean {
-  const needle = name.trim().toLowerCase();
-  if (!needle) return false;
-  return all.some((other) => {
-    const candidate = other.name.trim().toLowerCase();
-    if (candidate === needle) return false;
-    return new RegExp(`\\b${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(
-      candidate
-    );
-  });
-}
 
 function LendersPageContent() {
   const [lenders, setLenders] = useState<ManagedBank[]>([]);
@@ -41,6 +20,10 @@ function LendersPageContent() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [value, setValue] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newRate, setNewRate] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const fetchLenders = useCallback(async () => {
     setIsLoading(true);
@@ -59,10 +42,19 @@ function LendersPageContent() {
   }, [fetchLenders]);
 
   const unpriced = lenders.filter((l) => l.commission_rate == null);
+  // An aggregator is unpriced by design — its sub-products carry the rates.
+  // A plain route with no rate is simply unfinished. Different problems,
+  // different fixes, so they're counted apart.
+  const aggregators = unpriced.filter((l) => l.is_aggregator);
+  const needRate = unpriced.filter((l) => !l.is_aggregator);
   // Files sitting on a route with no rate earn nothing until they're moved to
   // a specific one, so the file count is the number that matters, not the
   // lender count.
   const strandedFiles = unpriced.reduce(
+    (sum, l) => sum + (l.usage_count ?? 0),
+    0
+  );
+  const aggregatorFiles = aggregators.reduce(
     (sum, l) => sum + (l.usage_count ?? 0),
     0
   );
@@ -93,12 +85,99 @@ function LendersPageContent() {
     }
   };
 
+  const create = async () => {
+    const name = newName.trim();
+    if (!name) {
+      toast.error("Name the route.");
+      return;
+    }
+    const trimmed = newRate.trim();
+    const rate = trimmed === "" ? null : Number(trimmed);
+    if (rate !== null && (!Number.isFinite(rate) || rate < 0)) {
+      toast.error("Enter a percentage, or leave it blank to set one later.");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const created = await lendersService.create(name, rate);
+      setLenders((prev) =>
+        [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
+      );
+      setAddOpen(false);
+      setNewName("");
+      setNewRate("");
+      toast.success(`${created.name} added`);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "Couldn't add the route");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Lenders"
         description="Each row is a route, not a bank — the same lender can appear more than once at different rates."
-      />
+      >
+        <Button size="sm" onClick={() => setAddOpen((v) => !v)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add route
+        </Button>
+      </PageHeader>
+
+      {addOpen && (
+        <div className="flex flex-wrap items-end gap-3 rounded-md border p-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="new-lender">Route name</Label>
+            <Input
+              id="new-lender"
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && create()}
+              placeholder="UniCred Propelld Connector"
+              className="w-64"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-rate">
+              Commission{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </Label>
+            <div className="relative w-28">
+              <Input
+                id="new-rate"
+                inputMode="decimal"
+                value={newRate}
+                onChange={(e) => setNewRate(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && create()}
+                placeholder="1.35"
+                className="pr-7"
+              />
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                %
+              </span>
+            </div>
+          </div>
+          <Button onClick={create} disabled={creating}>
+            {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Add
+          </Button>
+          <Button variant="ghost" onClick={() => setAddOpen(false)}>
+            Cancel
+          </Button>
+          {/* Full route name, since the rate hangs off the route rather than
+              the bank — "Axis" and "Axis Direct (UC Code)" are priced apart. */}
+          <p className="w-full text-xs text-muted-foreground">
+            Use the full route name, the way it should read on the report.
+          </p>
+        </div>
+      )}
 
       {/* A lender with no rate can't have commission calculated, and marking a
           file disbursed against it fails outright — so this is the blocking
@@ -109,27 +188,29 @@ function LendersPageContent() {
           <div>
             <p>
               <span className="font-medium">
-                {unpriced.length}{" "}
-                {unpriced.length === 1 ? "route has" : "routes have"} no rate
-              </span>
-              {strandedFiles > 0 && (
-                <>
-                  , carrying{" "}
-                  <span className="font-medium">
-                    {strandedFiles.toLocaleString()} files
-                  </span>
-                </>
+                {strandedFiles.toLocaleString()}{" "}
+                {strandedFiles === 1 ? "file earns" : "files earn"} nothing
+              </span>{" "}
+              — they sit on a route with no rate.
+            </p>
+            <ul className="mt-0.5 space-y-0.5 text-muted-foreground">
+              {aggregators.length > 0 && (
+                <li>
+                  {aggregatorFiles.toLocaleString()} on{" "}
+                  {aggregators.length}{" "}
+                  {aggregators.length === 1 ? "aggregator" : "aggregators"} (
+                  {aggregators.map((l) => l.name).join(", ")}) — these hold no
+                  rate by design; move the files to a sub-route.
+                </li>
               )}
-              .
-            </p>
-            {/* Some of these are unpriced on purpose: a bare bank name can be
-                either of its routes, and the backend won't guess a rate. Those
-                files need a route picked, not a rate typed here. */}
-            <p className="mt-0.5 text-muted-foreground">
-              A bare bank name that could be more than one route stays unpriced
-              on purpose — those files need moving to a specific route. The
-              rest just need a rate.
-            </p>
+              {needRate.length > 0 && (
+                <li>
+                  The other {needRate.length}{" "}
+                  {needRate.length === 1 ? "route needs" : "routes need"} a rate
+                  set below.
+                </li>
+              )}
+            </ul>
           </div>
         </div>
       )}
@@ -181,7 +262,11 @@ function LendersPageContent() {
             {!isLoading &&
               lenders.map((lender) => {
                 const unset = lender.commission_rate == null;
-                const ambiguous = unset && isAmbiguousRoute(lender.name, lenders);
+                // Straight from the backend now — this used to be inferred
+                // from whether the name appeared inside other route names,
+                // which couldn't see an aggregator whose sub-products are
+                // named differently.
+                const ambiguous = lender.is_aggregator === true;
                 const editing = editingId === lender.id;
                 return (
                   <tr key={lender.id} className="border-b last:border-b-0">
@@ -217,14 +302,14 @@ function LendersPageContent() {
                           )}
                           title={
                             ambiguous
-                              ? "This name matches more than one route, so it has no single rate — move these files to a specific route"
+                              ? "An aggregator with sub-products at different rates — it can't carry one itself. Move these files to a sub-route."
                               : unset
                                 ? "Files on this route earn nothing until a rate is set"
                                 : undefined
                           }
                         >
                           {ambiguous
-                            ? "Route not specified"
+                            ? "Aggregator"
                             : unset
                               ? "No rate"
                               : formatRate(lender.commission_rate)}

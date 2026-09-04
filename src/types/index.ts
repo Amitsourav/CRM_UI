@@ -796,6 +796,11 @@ export interface ManagedBank {
    * above, and the backend refuses to guess rather than pick a rate.
    */
   commission_rate?: string | number | null;
+  /**
+   * A route with sub-products rather than a bank, so it can carry no rate of
+   * its own. A file left on one can never earn commission.
+   */
+  is_aggregator?: boolean;
   /** Files currently on this route. */
   usage_count?: number;
   is_active?: boolean;
@@ -839,7 +844,6 @@ export interface DisbursementRow {
    */
   earns_commission?: boolean;
   commission_amount?: string | number | null;
-  /** Filled when a bill is raised; null on every row until invoicing lands. */
   gst_amount?: string | number | null;
   /** Null until invoicing lands, so `to_bill` means "not yet on a bill". */
   invoice_id?: string | null;
@@ -877,8 +881,10 @@ export interface LenderSummaryRow {
   files: number;
   disbursed_total: string | number;
   commission_total: string | number;
+  gst_total?: string | number;
   received_total: string | number;
   tds_total: string | number;
+  /** (commission + gst) − (received + tds) — same formula as /reconciliation. */
   outstanding_total: string | number;
   unbilled_count: number;
   /**

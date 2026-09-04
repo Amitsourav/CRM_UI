@@ -28,6 +28,7 @@ function shortDate(value?: string | null): string {
 interface ReconciliationTableProps {
   rows: DisbursementRow[];
   onRecordPayment: (row: DisbursementRow) => void;
+  onEdit: (row: DisbursementRow) => void;
   onWriteOff: (row: DisbursementRow) => void;
   onToggleEarns: (row: DisbursementRow, earns: boolean) => void;
 }
@@ -35,6 +36,7 @@ interface ReconciliationTableProps {
 export function ReconciliationTable({
   rows,
   onRecordPayment,
+  onEdit,
   onWriteOff,
   onToggleEarns,
 }: ReconciliationTableProps) {
@@ -167,6 +169,9 @@ export function ReconciliationTable({
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onRecordPayment(row)}>
                         Record payment
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onEdit(row)}>
+                        Correct release
                       </DropdownMenuItem>
                       {row.status !== "written_off" && (
                         <DropdownMenuItem onClick={() => onWriteOff(row)}>

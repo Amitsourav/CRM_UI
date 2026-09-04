@@ -13,6 +13,13 @@ import { Pagination } from "@/components/shared/pagination";
 import { MultiSelectFilter } from "@/components/shared/multi-select-filter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { formatRupees } from "@/lib/money";
 import { showApiError } from "@/lib/api-errors";
@@ -26,6 +33,7 @@ import { ReconciliationTable } from "@/components/reconciliation/reconciliation-
 import { LenderSummaryTable } from "@/components/reconciliation/lender-summary-table";
 import { TheoreticalPanel } from "@/components/reconciliation/theoretical-panel";
 import { RecordPaymentDialog } from "@/components/reconciliation/record-payment-dialog";
+import { EditTrancheDialog } from "@/components/reconciliation/edit-tranche-dialog";
 import { WriteOffDialog } from "@/components/reconciliation/write-off-dialog";
 import {
   STATUS_META,
@@ -65,6 +73,12 @@ function ReconciliationPageContent() {
     tabParam === "lenders" || tabParam === "revenue" ? tabParam : "files";
   const pageParam = Number(searchParams.get("page"));
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  // Backend caps this at 200; these are the sizes worth offering.
+  const PAGE_SIZES = [50, 100, 200];
+  const pageSizeParam = Number(searchParams.get("page_size"));
+  const pageSize = PAGE_SIZES.includes(pageSizeParam)
+    ? pageSizeParam
+    : DEFAULT_PAGE_SIZE;
 
   // No status in the URL means no status filter — the headline totals then
   // cover the whole book, which is what the figures have to mean by default.
@@ -116,6 +130,7 @@ function ReconciliationPageContent() {
 
   const [paying, setPaying] = useState<DisbursementRow | null>(null);
   const [writingOff, setWritingOff] = useState<DisbursementRow | null>(null);
+  const [correcting, setCorrecting] = useState<DisbursementRow | null>(null);
 
   const storeBanks = useBanksStore((s) => s.banks);
   const ensureBanks = useBanksStore((s) => s.ensureFetched);
@@ -130,7 +145,7 @@ function ReconciliationPageContent() {
     try {
       const data = await reconciliationService.list({
         page,
-        page_size: DEFAULT_PAGE_SIZE,
+        page_size: pageSize,
         q: debouncedSearch || undefined,
         status: JSON.parse(statusParam),
         bank_name: JSON.parse(lenderKey),
@@ -149,7 +164,7 @@ function ReconciliationPageContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, debouncedSearch, statusParam, lenderKey, from, to]);
+  }, [page, pageSize, debouncedSearch, statusParam, lenderKey, from, to]);
 
   useEffect(() => {
     fetchRows();
@@ -284,6 +299,12 @@ function ReconciliationPageContent() {
           </p>
           <p className="mt-1 font-mono text-xl tabular-nums">
             {formatRupees(totals?.commission_total ?? 0)}
+            {/* Billed on top of the commission, so outstanding is
+                (commission + GST) − (received + TDS). Without it the
+                headline can't be reconciled against the row totals. */}
+            <span className="ml-2 font-sans text-xs text-muted-foreground">
+              + {formatRupees(totals?.gst_total ?? 0)} GST
+            </span>
           </p>
         </div>
         <div className="rounded-md border bg-card p-4">
@@ -401,6 +422,29 @@ function ReconciliationPageContent() {
                 className="h-8 w-full text-sm sm:w-36"
                 aria-label="Disbursed to"
               />
+              <Select
+                value={String(pageSize)}
+                onValueChange={(v) =>
+                  patchParams({
+                    page_size: v === String(DEFAULT_PAGE_SIZE) ? undefined : v,
+                    page: undefined,
+                  })
+                }
+              >
+                <SelectTrigger
+                  className="h-8 w-[104px] text-sm"
+                  aria-label="Rows per page"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZES.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size} rows
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -439,6 +483,7 @@ function ReconciliationPageContent() {
               <ReconciliationTable
                 rows={rows}
                 onRecordPayment={setPaying}
+                onEdit={setCorrecting}
                 onWriteOff={setWritingOff}
                 onToggleEarns={toggleEarns}
               />
@@ -476,6 +521,11 @@ function ReconciliationPageContent() {
       <RecordPaymentDialog
         row={paying}
         onOpenChange={(open) => !open && setPaying(null)}
+        onSaved={refresh}
+      />
+      <EditTrancheDialog
+        row={correcting}
+        onOpenChange={(open) => !open && setCorrecting(null)}
         onSaved={refresh}
       />
       <WriteOffDialog

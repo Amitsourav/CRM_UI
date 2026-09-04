@@ -46,6 +46,8 @@ export interface RecordPaymentBody {
   commission_rate?: number;
   /** Overrides the percentage, for a negotiated settlement. */
   commission_amount?: number;
+  /** Rupees, billed on top of the commission. */
+  gst_amount?: number;
   utr_reference?: string;
   /** Off ⇒ commission is 0 while the rate stays on the row. */
   earns_commission?: boolean;
@@ -175,6 +177,18 @@ export const lendersService = {
       "/leads/banks/manage"
     );
     return Array.isArray(data) ? data : (data.items ?? []);
+  },
+
+  /** A new route. Rates are per route, so this is how one gets priced. */
+  create: async (
+    name: string,
+    commissionRate: number | null
+  ): Promise<ManagedBank> => {
+    const { data } = await api.post<ManagedBank>("/leads/banks", {
+      name,
+      ...(commissionRate !== null ? { commission_rate: commissionRate } : {}),
+    });
+    return data;
   },
 
   /**
