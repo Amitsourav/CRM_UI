@@ -74,13 +74,17 @@ export function stageNeedsDisbursement(stage: LeadStage): boolean {
 }
 
 /**
- * A follow-up date is the default requirement, but not for the stages that
- * ask for money instead — sanctioned, pf_paid and disbursed each capture
- * their own figures — nor for the terminal ones (FMC's disbursed,
- * Admitverse's enrolled) or lost, which takes a reason.
+ * The backend requires a follow-up date on every non-terminal move. Only the
+ * terminal stages are exempt — FMC's `disbursed`, Admitverse's `enrolled` —
+ * plus `lost`, which takes a reason instead.
  *
- * These three must agree with the fields on screen: requiring a date the form
- * doesn't render leaves Save disabled with nothing to explain why.
+ * Asking for money does NOT exempt a stage: `sanctioned` and `pf_paid`
+ * collect their figures *and* a date. Treating them as exempt made both
+ * impossible to save — the request came back 400 with no field on screen to
+ * fix.
+ *
+ * Whatever this returns, the form has to render: a required field the user
+ * can't see is a dead end, and an omitted one the backend wants is a 400.
  */
 export function stageNeedsDueDate(
   slug: string | null | undefined,
@@ -88,11 +92,7 @@ export function stageNeedsDueDate(
 ): boolean {
   if (stage === "lost") return false;
   if (slug === "admitverse") return stage !== "enrolled";
-  return (
-    stage !== "disbursed" &&
-    !stageNeedsSanction(stage) &&
-    !stageNeedsBankCommitment(stage)
-  );
+  return stage !== "disbursed";
 }
 
 /** True when nothing has to be collected, so the move can just be applied. */

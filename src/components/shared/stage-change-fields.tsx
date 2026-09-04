@@ -132,7 +132,7 @@ export function StageChangeFields({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="pf-amount">Sanctioned amount</Label>
+            <Label htmlFor="pf-amount">Sanctioned amount (in lakhs)</Label>
             <div className="relative">
               <Input
                 id="pf-amount"
@@ -167,7 +167,7 @@ export function StageChangeFields({
       {needsSanction && (
         <>
           <div className="space-y-2">
-            <Label htmlFor="sanctioned-amount">Sanctioned amount</Label>
+            <Label htmlFor="sanctioned-amount">Sanctioned amount (in lakhs)</Label>
             <div className="relative">
               <Input
                 id="sanctioned-amount"
@@ -203,13 +203,18 @@ export function StageChangeFields({
           </div>
 
           <div className="space-y-2">
-            <Label>Lender</Label>
+            <Label>
+              Lender{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </Label>
             <Select
               value={draft.bankName}
               onValueChange={(v) => onChange({ bankName: v })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="The lead's primary lender" />
+                <SelectValue placeholder="The lead's own lender" />
               </SelectTrigger>
               <SelectContent>
                 {banks.map((b) => (
@@ -219,6 +224,13 @@ export function StageChangeFields({
                 ))}
               </SelectContent>
             </Select>
+            {/* Left blank the field isn't sent at all, and the backend uses
+                the lead's own lender — a better answer than anything guessed
+                from here, so this stays empty by default. */}
+            <p className="text-xs text-muted-foreground">
+              Leave blank to use the lead&apos;s lender. Only pick one if a
+              different lender released the money.
+            </p>
           </div>
         </>
       )}
@@ -226,7 +238,7 @@ export function StageChangeFields({
       {needsDisbursement && (
         <>
           <div className="space-y-2">
-            <Label htmlFor="disbursed-amount">Amount released</Label>
+            <Label htmlFor="disbursed-amount">Amount released (in lakhs)</Label>
             <div className="relative">
               <Input
                 id="disbursed-amount"
@@ -243,11 +255,13 @@ export function StageChangeFields({
                 lakh
               </span>
             </div>
-            {/* Commission is worked out on this figure. Typing the sanctioned
-                amount when only part came out overstates it, and nothing
-                downstream catches that. */}
+            {/* Commission is worked out per release. Typing the sanctioned
+                amount when only the first instalment came out overstates it,
+                and nothing downstream catches that. */}
             <p className="text-xs text-muted-foreground">
               What the lender actually released, not the sanctioned amount.
+              This is the <span className="font-medium">first release</span> —
+              later instalments are added on the lender file.
             </p>
           </div>
 
@@ -263,13 +277,18 @@ export function StageChangeFields({
           </div>
 
           <div className="space-y-2">
-            <Label>Lender</Label>
+            <Label>
+              Lender{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </Label>
             <Select
               value={draft.bankName}
               onValueChange={(v) => onChange({ bankName: v })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="The lead's primary lender" />
+                <SelectValue placeholder="The lead's own lender" />
               </SelectTrigger>
               <SelectContent>
                 {banks.map((b) => (
@@ -279,6 +298,13 @@ export function StageChangeFields({
                 ))}
               </SelectContent>
             </Select>
+            {/* Left blank the field isn't sent at all, and the backend uses
+                the lead's own lender — a better answer than anything guessed
+                from here, so this stays empty by default. */}
+            <p className="text-xs text-muted-foreground">
+              Leave blank to use the lead&apos;s lender. Only pick one if a
+              different lender released the money.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -298,10 +324,12 @@ export function StageChangeFields({
         </>
       )}
 
-      {/* Disbursed is terminal and the money is the point, so it doesn't ask
-          for a follow-up at all. Other terminal stages keep the optional
-          field they had. */}
-      {!needsDisbursement && !needsSanction && !needsBank && (
+      {/* Rendered for every stage the backend might want a date on, which is
+          all of them bar the terminal ones — money-collecting stages
+          included. Keyed off !needsDisbursement rather than off
+          stageNeedsDueDate so a stage where the date is merely optional
+          still offers it. */}
+      {!needsDisbursement && (
         <div className="space-y-2">
           <Label htmlFor="stage-due-date">
             Follow-up{" "}
