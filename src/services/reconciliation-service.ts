@@ -5,6 +5,12 @@ import type {
   ManagedBank,
   ReconciliationResponse,
   ReconciliationSettings,
+  DrilldownResponse,
+  DrilldownSegment,
+  ExceptionsResponse,
+  PipelineForecast,
+  ReconciliationDashboard,
+  SourcesResponse,
   ReconciliationStatus,
   TheoreticalRevenue,
 } from "@/types";
@@ -19,6 +25,36 @@ export interface ReconciliationParams {
   disbursed_to?: string;
   /** Student name. */
   q?: string;
+}
+
+/**
+ * The five filters every intelligence endpoint takes. Held as one object and
+ * spread into every call — a tab that filters differently from the tab beside
+ * it is worse than no filter at all.
+ */
+export interface IntelligenceFilters {
+  /** Repeatable. */
+  bank_name?: string[];
+  /** Repeatable. */
+  source_id?: string[];
+  disbursed_from?: string;
+  disbursed_to?: string;
+  /** Age against this date instead of today. */
+  as_of?: string;
+}
+
+function intelligenceParams(filters: IntelligenceFilters): URLSearchParams {
+  const search = new URLSearchParams();
+  for (const value of filters.bank_name ?? []) {
+    if (value) search.append("bank_name", value);
+  }
+  for (const value of filters.source_id ?? []) {
+    if (value) search.append("source_id", value);
+  }
+  if (filters.disbursed_from) search.set("disbursed_from", filters.disbursed_from);
+  if (filters.disbursed_to) search.set("disbursed_to", filters.disbursed_to);
+  if (filters.as_of) search.set("as_of", filters.as_of);
+  return search;
 }
 
 // The backend caps page_size at 200.
@@ -91,6 +127,78 @@ export const reconciliationService = {
       LenderSummaryRow[] | { items: LenderSummaryRow[] }
     >("/reconciliation/summary");
     return Array.isArray(data) ? data : (data.items ?? []);
+  },
+
+  /**
+   * The whole book, one call. Nine aggregates, so the first load is slow and
+   * the result is cached 60s server-side — a hard refresh returning identical
+   * numbers is expected, not stale.
+   */
+  dashboard: async (
+    months = 12,
+    filters: IntelligenceFilters = {}
+  ): Promise<ReconciliationDashboard> => {
+    const search = intelligenceParams(filters);
+    search.set("months", String(months));
+    const { data } = await api.get<ReconciliationDashboard>(
+      `/reconciliation/dashboard?${search.toString()}`
+    );
+    return data;
+  },
+
+  /**
+   * The students behind a number. Built first because every panel depends on
+   * it — a figure nobody can open is a figure nobody trusts.
+   */
+  drilldown: async (
+    segment: DrilldownSegment,
+    value: string,
+    filters: IntelligenceFilters = {},
+    page = 1
+  ): Promise<DrilldownResponse> => {
+    const search = intelligenceParams(filters);
+    search.set("segment", segment);
+    search.set("value", value);
+    search.set("page", String(page));
+    const { data } = await api.get<DrilldownResponse>(
+      `/reconciliation/drilldown?${search.toString()}`
+    );
+    return data;
+  },
+
+  pipeline: async (
+    filters: IntelligenceFilters = {},
+    limit = 20
+  ): Promise<PipelineForecast> => {
+    const search = intelligenceParams(filters);
+    search.set("limit", String(limit));
+    const { data } = await api.get<PipelineForecast>(
+      `/reconciliation/pipeline?${search.toString()}`
+    );
+    return data;
+  },
+
+  sources: async (
+    filters: IntelligenceFilters = {}
+  ): Promise<SourcesResponse> => {
+    const search = intelligenceParams(filters);
+    const qs = search.toString();
+    const { data } = await api.get<SourcesResponse>(
+      qs ? `/reconciliation/sources?${qs}` : "/reconciliation/sources"
+    );
+    return data;
+  },
+
+  exceptions: async (
+    filters: IntelligenceFilters = {},
+    limit = 200
+  ): Promise<ExceptionsResponse> => {
+    const search = intelligenceParams(filters);
+    search.set("limit", String(limit));
+    const { data } = await api.get<ExceptionsResponse>(
+      `/reconciliation/exceptions?${search.toString()}`
+    );
+    return data;
   },
 
   theoretical: async (): Promise<TheoreticalRevenue> => {

@@ -67,6 +67,15 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  /* Commission trend: earned vs collected. Two categorical series, validated
+     for CVD separation and lightness against each surface — the dark steps
+     are their own choice, not a lightened copy of the light ones. */
+  --series-earned: #2a78d6;
+  --series-collected: #1baf7a;
+  /* Quality matrix: attributed sources vs the unattributed bucket. Validated
+     against each surface; the second is separated by a direct label too. */
+  --series-source: #2a78d6;
+  --series-unattributed: #eb6834;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -101,6 +110,10 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  --series-earned: #3987e5;
+  --series-collected: #199e70;
+  --series-source: #3987e5;
+  --series-unattributed: #d95926;
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -123,4 +136,189 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+/* ── Loan intelligence dashboard ───────────────────────────────────────────
+   Built to the reference design: a light blue-grey page carrying white cards
+   with soft elevation, a dark navy insight banner, tinted icon tiles, and
+   indigo as the single interactive accent. Bold numerals do the talking.
+
+   Scoped to this surface so the rest of the CRM keeps its own look.        */
+.loan-intel {
+  --li-accent: #5b5bd6;
+  --li-accent-soft: #eeeefc;
+  --li-accent-deep: #4747b8;
+
+  --li-canvas: #f4f5f9;
+  --li-surface: #ffffff;
+  --li-surface-soft: #f7f8fb;
+  --li-navy: #1e2340;
+  --li-navy-soft: #2b3155;
+
+  --li-ink: #111827;
+  --li-ink-muted: #4b5563;
+  --li-ink-subtle: #8891a5;
+
+  --li-hairline: #e8eaf0;
+  --li-hairline-strong: #d7dae4;
+
+  --li-green: #16a34a;
+  --li-green-soft: #e7f7ee;
+  --li-amber: #d97706;
+  --li-amber-soft: #fdf1e3;
+  --li-rose: #e11d48;
+  --li-rose-soft: #fdeaee;
+  --li-blue: #2563eb;
+  --li-blue-soft: #e8effd;
+
+  --li-shadow: 0 1px 2px rgba(16, 24, 40, 0.04),
+    0 4px 12px rgba(16, 24, 40, 0.05);
+  --li-shadow-lift: 0 2px 4px rgba(16, 24, 40, 0.06),
+    0 12px 28px rgba(16, 24, 40, 0.09);
+
+  --li-series-a: #5b5bd6;
+  --li-series-b: #16a34a;
+
+  color: var(--li-ink);
+  background: var(--li-canvas);
+}
+
+.dark .loan-intel {
+  --li-canvas: #0f1220;
+  --li-surface: #171a2b;
+  --li-surface-soft: #1d2135;
+  --li-navy: #10121f;
+  --li-navy-soft: #232742;
+  --li-ink: #f3f4f8;
+  --li-ink-muted: #b6bccd;
+  --li-ink-subtle: #7f889d;
+  --li-hairline: #262b40;
+  --li-hairline-strong: #333852;
+  --li-accent: #7c7cf0;
+  --li-accent-soft: #23244a;
+  --li-green-soft: #123024;
+  --li-amber-soft: #33240f;
+  --li-rose-soft: #351320;
+  --li-blue-soft: #14224a;
+  --li-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --li-shadow-lift: 0 12px 28px rgba(0, 0, 0, 0.5);
+  --li-series-a: #7c7cf0;
+  --li-series-b: #34d399;
+}
+
+/* Money and counts — tabular so columns of rupees line up. */
+.li-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* The reference leads with weight: figures are bold and dark, labels are
+   small caps in muted grey. That contrast is what carries the hierarchy. */
+.li-figure {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.li-figure-sm {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.li-title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.li-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--li-ink-subtle);
+}
+
+.li-card {
+  background: var(--li-surface);
+  border: 1px solid var(--li-hairline);
+  border-radius: 14px;
+  box-shadow: var(--li-shadow);
+}
+.li-card-lift {
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+.li-card-lift:hover {
+  box-shadow: var(--li-shadow-lift);
+}
+.li-hairline {
+  border-color: var(--li-hairline);
+}
+.li-mute {
+  color: var(--li-ink-subtle);
+}
+.li-secondary {
+  color: var(--li-ink-muted);
+}
+.li-tertiary {
+  color: var(--li-ink-subtle);
+}
+.li-accent {
+  color: var(--li-accent);
+}
+
+/* Small tinted square behind an icon — the reference uses these to colour-code
+   a card without colouring the card itself. */
+.li-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.li-btn {
+  border-radius: 10px;
+  padding: 9px 15px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.li-btn-primary {
+  background: var(--li-accent);
+  color: #fff;
+}
+.li-btn-primary:hover {
+  background: var(--li-accent-deep);
+}
+.li-btn-secondary {
+  background: var(--li-surface);
+  color: var(--li-ink);
+  border: 1px solid var(--li-hairline-strong);
+}
+.li-btn-secondary:hover {
+  background: var(--li-surface-soft);
+}
+.li-tag {
+  background: var(--li-surface-soft);
+  color: var(--li-ink-muted);
+  border: 1px solid var(--li-hairline);
+  border-radius: 9999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.li-input {
+  background: var(--li-surface);
+  color: var(--li-ink);
+  border: 1px solid var(--li-hairline-strong);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+.li-input:focus-visible {
+  outline: none;
+  border-color: var(--li-accent);
+  box-shadow: 0 0 0 3px var(--li-accent-soft);
 }

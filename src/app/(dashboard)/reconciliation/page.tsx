@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { IndianRupee, RefreshCw } from "lucide-react";
+import { ChartNoAxesColumn, IndianRupee, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { AdminGuard } from "@/components/shared/admin-guard";
 import { FmcOnly } from "@/components/shared/fmc-only";
@@ -248,6 +248,13 @@ function ReconciliationPageContent() {
         title="Commission"
         description="What lenders owe on what they've disbursed, and what has actually arrived."
       >
+        {/* The nav points at the overview, so this is the way back. */}
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/reconciliation/dashboard">
+            <ChartNoAxesColumn className="mr-2 h-4 w-4" />
+            Overview
+          </Link>
+        </Button>
         <Button variant="outline" size="sm" onClick={refresh} disabled={isLoading}>
           <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
           Refresh

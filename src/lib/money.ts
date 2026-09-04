@@ -47,3 +47,29 @@ export function formatRate(value: string | number | null | undefined): string {
   if (parsed === null) return "—";
   return `${Number(parsed.toFixed(2))}%`;
 }
+
+/**
+ * Executive-scale figures: crore and lakh, the units the book is discussed
+ * in. Anything under a lakh keeps full grouping — "₹0.96 L" reads worse than
+ * "₹95,532" and loses the rupees that matter when chasing a shortfall.
+ */
+export function formatCompactRupees(
+  value: string | number | null | undefined
+): string {
+  const parsed = toNumber(value);
+  if (parsed === null) return "—";
+  const abs = Math.abs(parsed);
+  if (abs >= 10_000_000) return `₹${(parsed / 10_000_000).toFixed(2)} cr`;
+  if (abs >= 100_000) return `₹${(parsed / 100_000).toFixed(2)} L`;
+  return formatRupees(parsed);
+}
+
+/** "81.0" → "81%". Percentages arrive computed; nothing is derived here. */
+export function formatPercent(
+  value: string | number | null | undefined,
+  digits = 0
+): string {
+  const parsed = toNumber(value);
+  if (parsed === null) return "—";
+  return `${parsed.toFixed(digits)}%`;
+}

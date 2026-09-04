@@ -75,7 +75,7 @@ const adminNav: AdminNavItem[] = [
   // Commission tracking is FMC-only (Admitverse has no lenders) and admin-only
   // — every endpoint behind both is get_current_admin.
   {
-    href: "/reconciliation",
+    href: "/reconciliation/dashboard",
     label: "Commission",
     icon: IndianRupee,
     adminOnly: true,

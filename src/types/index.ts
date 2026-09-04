@@ -924,3 +924,216 @@ export interface TheoreticalRevenue {
 export interface ReconciliationSettings {
   net_theoretical_factor: string | number;
 }
+
+/* ── Reconciliation dashboard (admin, FMC) ── */
+
+/**
+ * The whole book in one call. Every amount is RUPEES and every percentage is
+ * already computed — nothing on this surface does arithmetic, because the
+ * figures have to match the backend's to the rupee.
+ */
+export interface DashboardFunnel {
+  sanctioned_total: number;
+  sanctioned_files: number;
+  confirmed_total: number;
+  confirmed_files: number;
+  disbursed_total: number;
+  tranches: number;
+  /** Commission + GST. An entitlement, not cash. */
+  earned_total: number;
+  /** Cash received + TDS withheld — both discharge the debt. */
+  collected_total: number;
+  outstanding_total: number;
+  /** Each step against the one BEFORE it, never against the top. */
+  confirmed_pct_of_sanctioned: number;
+  disbursed_pct_of_confirmed: number;
+  collected_pct_of_earned: number;
+}
+
+export interface DashboardPipelineAhead {
+  confirmed_files: number;
+  sanctioned_total: number;
+  drawn_total: number;
+  undrawn_total: number;
+  /** A floor: files whose lender has no rate are excluded, not zeroed. */
+  future_commission: number;
+  drawn_pct: number;
+  files_missing_rate: number;
+}
+
+export interface DashboardMonth {
+  month: string;
+  tranches: number;
+  disbursed: number;
+  /** By disbursement month. */
+  earned: number;
+  /** By receipt month — deliberately a different date from `earned`. */
+  collected: number;
+}
+
+export interface DashboardLender {
+  bank_name: string;
+  /** Drives portfolio mix and concentration with no extra call. */
+  share_of_disbursed_pct?: number;
+  tranches: number;
+  disbursed_total: number;
+  earned_total: number;
+  collected_total: number;
+  outstanding_total: number;
+  collected_pct: number;
+}
+
+export type AgeingBucket = "0_30" | "31_60" | "61_90" | "over_90" | "no_date";
+
+export interface DashboardAgeing {
+  buckets: Array<{
+    bucket: AgeingBucket;
+    tranches: number;
+    outstanding: number;
+  }>;
+  /** Can exceed the funnel's outstanding: this floors each row at zero. */
+  total_outstanding: number;
+  undateable_outstanding: number;
+  undateable_pct: number;
+}
+
+export interface DashboardDataQuality {
+  tranches: number;
+  tranches_without_date: number;
+  payments_without_receipt_date: number;
+  tranches_with_tds: number;
+  tranches_awaiting_payment: number;
+  /** Paid but light, mostly by rounding — not the number to headline. */
+  tranches_short: number;
+  /** Short by over ₹100 and over 2% — the only one worth acting on. */
+  tranches_materially_short: number;
+  tranches_written_off: number;
+  tranches_earning_nothing: number;
+  live_files: number;
+  files_without_sanctioned_amount: number;
+  files_that_cannot_be_priced: number;
+  /** Parked on an aggregator, so they can never earn until moved. */
+  files_on_aggregator: number;
+}
+
+export interface ReconciliationDashboard {
+  funnel: DashboardFunnel;
+  pipeline_ahead: DashboardPipelineAhead;
+  monthly: DashboardMonth[];
+  by_lender: DashboardLender[];
+  ageing: DashboardAgeing;
+  data_quality: DashboardDataQuality;
+}
+
+/* ── Loan intelligence: drill-down, pipeline, sources, exceptions ── */
+
+export type DrilldownSegment =
+  | "stage"
+  | "lender"
+  | "ageing_bucket"
+  | "source"
+  | "funnel_step";
+
+export interface DrilldownItem {
+  lead_id: string;
+  serial_no?: number | null;
+  full_name: string;
+  stage: string;
+  bank_name?: string | null;
+  sanctioned: number;
+  disbursed: number;
+  earned: number;
+  collected: number;
+  outstanding: number;
+}
+
+/**
+ * The panels don't all count the same thing — ageing and by-lender count
+ * tranches, the stage funnel counts students — so a drawer showing one count
+ * looks like it contradicts the number just clicked. Both are shown.
+ */
+export interface DrilldownResponse {
+  segment: DrilldownSegment;
+  value: string;
+  /** Students. */
+  total: number;
+  /** Tranches within the same segment. */
+  tranche_total: number;
+  page: number;
+  page_size: number;
+  items: DrilldownItem[];
+}
+
+export interface PipelineStageRow {
+  stage: string;
+  leads: number;
+  sanctioned: number;
+  disbursed: number;
+}
+
+export interface RevenueBridge {
+  booked: number;
+  /** A floor: files whose lender has no rate are excluded, not zeroed. */
+  unlockable: number;
+  undrawn_total: number;
+  drawn_pct: number;
+  files_missing_rate: number;
+}
+
+export interface OpportunityRow {
+  lead_id: string;
+  serial_no?: number | null;
+  full_name: string;
+  stage: string;
+  bank_name?: string | null;
+  sanctioned: number;
+  disbursed: number;
+  pending: number;
+  /** The 80% haircut is already applied. Never multiply again. */
+  potential_net_revenue: number;
+}
+
+export interface PipelineForecast {
+  stage_funnel: PipelineStageRow[];
+  revenue_bridge: RevenueBridge;
+  opportunities: OpportunityRow[];
+}
+
+export interface SourceRow {
+  source_id?: string | null;
+  source_name: string;
+  /** Students who actually disbursed, not every lead carrying the source. */
+  students: number;
+  tranches: number;
+  disbursed_total: number;
+  commission_total: number;
+  collected_total: number;
+  revenue_per_student: number;
+  collected_pct: number;
+  share_of_disbursed_pct: number;
+}
+
+export interface SourcesResponse {
+  sources: SourceRow[];
+  /** Its own field, deliberately unranked — it's the biggest bucket. */
+  unattributed: SourceRow;
+}
+
+export interface ExceptionRow {
+  severity: "high" | "medium" | "low" | string;
+  code: string;
+  issue: string;
+  /** Written for a person to read — belongs in the row, not a tooltip. */
+  why: string;
+  lead_id: string;
+  serial_no?: number | null;
+  full_name: string;
+  bank_name?: string | null;
+  amount?: number | null;
+}
+
+export interface ExceptionsResponse {
+  total: number;
+  by_code: Record<string, number>;
+  items: ExceptionRow[];
+}
